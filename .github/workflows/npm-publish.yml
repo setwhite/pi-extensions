@@ -90,4 +90,5 @@ jobs:
       - if: ${{ steps.check.outputs.publish == 'true' }}
         name: 发布到 npm
         working-directory: packages/${{ matrix.package }}
-        run: "$RUNNER_TEMP/npm-cli/bin/npm" publish --access public
+        run: |
+          "$RUNNER_TEMP/npm-cli/bin/npm" publish --access public
