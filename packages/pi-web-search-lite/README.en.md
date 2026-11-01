@@ -168,12 +168,12 @@ The docs are currently in Chinese.
 ## Development
 
 ```bash
-pnpm install       # run once at the repo root; installs all three packages
-pnpm lint          # biome: lint + format check (a warning fails too; add --write to fix in place)
-pnpm check:imports # dependency-direction gate: executable form of docs/ARCHITECTURE.md §2
+pnpm install       # run once at the repo root
+pnpm lint          # --write fixes in place
+pnpm check:imports
 pnpm typecheck
-pnpm test          # unit tests, no real network
-pnpm test:e2e      # optional: live smoke test; needs keys and network; run manually before a release; not in CI
+pnpm test          # no real network
+pnpm test:e2e      # needs keys and network; not in CI
 ```
 
-The lint and format rules are in `biome.json` (`lineWidth` 100). CI, the pre-commit gate and releases are managed per repo; see the [pi-extensions root README](https://github.com/setwhite/pi-extensions#开发).
+CI, hooks and releases: see the [root README](https://github.com/setwhite/pi-extensions#开发).

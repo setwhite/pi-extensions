@@ -166,12 +166,12 @@ key 也可以放在环境变量中（`TAVILY_API_KEY` / `BRAVE_API_KEY` / `EXA_A
 ## 开发
 
 ```bash
-pnpm install       # 在仓库根跑一次，装齐三个包的依赖
-pnpm lint          # biome：lint + 格式检查（warning 也算错；加 --write 自动修正）
-pnpm check:imports # 依赖方向闸：docs/ARCHITECTURE.md §2 的可执行版本
+pnpm install       # 仓库根跑一次
+pnpm lint          # --write 自动修正
+pnpm check:imports
 pnpm typecheck
-pnpm test          # 单元测试，不访问真实网络
-pnpm test:e2e      # 可选：真链路冒烟，需要 key 与外网；发版前手动运行，不进 CI
+pnpm test          # 不访问真实网络
+pnpm test:e2e      # 需要 key 与外网，不进 CI
 ```
 
-格式与 lint 规则见 `biome.json`（`lineWidth` 100）。CI、提交前闸、发版由仓库统一管理，见 [pi-extensions 根 README](https://github.com/setwhite/pi-extensions#开发)。
+CI、钩子、发版见[根 README](https://github.com/setwhite/pi-extensions#开发)。

@@ -90,15 +90,15 @@ An unknown key throws. Nothing is silently ignored.
 ## Development
 
 ```bash
-pnpm install                       # run once at the repo root; installs all three packages
-pnpm lint                          # biome check: lint and format check (`--write` applies fixes)
-pnpm check:imports                 # dependency gate: executable form of docs/ARCHITECTURE.md "Dependency direction"
-pnpm typecheck                     # tsc --noEmit
-pnpm test                          # vitest
-pi -ne -e ./src/index.ts           # run from the working tree, no settings entry
+pnpm install               # run once at the repo root
+pnpm lint
+pnpm check:imports
+pnpm typecheck
+pnpm test
+pi -ne -e ./src/index.ts   # run from the working tree, no settings entry
 ```
 
-CI, the pre-commit gate and releases are managed per repo; see the [pi-extensions root README](https://github.com/setwhite/pi-extensions#开发).
+CI, hooks and releases: see the [root README](https://github.com/setwhite/pi-extensions#开发).
 
 ## Docs
 

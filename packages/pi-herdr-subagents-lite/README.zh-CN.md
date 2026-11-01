@@ -148,16 +148,12 @@ cd <agent-dir>/pi-herdr-subagents-lite/profiles && cp examples/domain.md domain.
 ## 开发
 
 ```bash
-pnpm install        # 在仓库根跑一次，装齐三个包
-pnpm check          # 下面四项
-pnpm test           # 单测（vitest）
-pnpm lint           # biome
-pnpm typecheck      # tsc --noEmit
-pnpm check:imports  # 依赖方向，按 docs/ARCHITECTURE.md 校验
+pnpm install        # 仓库根跑一次
+pnpm check          # lint + check:imports + typecheck + test
 pnpm test:e2e       # 真 herdr + 真 pi 子进程，不在 pnpm check 里
 ```
 
-CI、提交前闸、发版由仓库统一管理，见 [pi-extensions 根 README](https://github.com/setwhite/pi-extensions#开发)。
+CI、钩子、发版见[根 README](https://github.com/setwhite/pi-extensions#开发)。
 
 E2E 自己起隔离的 herdr session 与 agent 目录，缺 herdr、pi 或 `auth.json` 时整组跳过并给出原因。`PI_E2E_MODEL` 换模型；`PI_E2E_KEEP=1` 保留临时目录。
 
