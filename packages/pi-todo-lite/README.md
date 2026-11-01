@@ -43,7 +43,7 @@ These cases throw an error. The message holds the absolute path and one `path: r
 {
   "tools": { "todo": { "name": "todo" } },           // tool name
   "plan": {
-    "maxTasks": 20,                                  // max tasks per table; more fails the call
+    "maxTasks": 20,                                  // max tasks per table. More fails the call
     "maxSubjectChars": 120,                          // max characters per task
     "requireSingleInProgress": false                 // true = only one in_progress task
   },
@@ -57,7 +57,7 @@ These cases throw an error. The message holds the absolute path and one `path: r
       "glyphs": { "pending": "[ ]", "inProgress": "[-]", "completed": "[x]" }, // per-status glyphs
       "completedStyle": "strikethrough"              // strikethrough / dim / plain
     },
-    "shortcut": { "toggle": "alt+t" }                // collapse key; off = don't register
+    "shortcut": { "toggle": "alt+t" }                // collapse key. off = don't register
   },
   "lifecycle": { "onFinish": "clear" },              // model / keep / clear
   "commands": {
@@ -65,14 +65,14 @@ These cases throw an error. The message holds the absolute path and one `path: r
     "export": {
       "enabled": true,                               // /todos export
       "dir": "",                                     // output dir, empty = project root
-      "fileNamePattern": "todo-{timestamp}.md"       // file name template; never overwrites
+      "fileNamePattern": "todo-{timestamp}.md"       // file name template. Never overwrites
     },
     "import": { "enabled": true }                    // /todos import <file>
   },
-  "guidance": {                                      // what the model sees; per-key override, empty values included
-    "description": "…",                              // tool description; empty = empty description
-    "promptSnippet": "",                             // the tool-list line; empty = omitted (same as missing)
-    "promptGuidelines": ["…"]                        // guidelines; empty array = omitted
+  "guidance": {                                      // what the model sees. Per-key override, empty values included
+    "description": "…",                              // tool description. Empty = empty description
+    "promptSnippet": "",                             // the tool-list line. Empty = omitted (same as missing)
+    "promptGuidelines": ["…"]                        // guidelines. Empty array = omitted
   }
 }
 ```

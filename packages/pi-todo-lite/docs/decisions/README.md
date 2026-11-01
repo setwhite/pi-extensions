@@ -1,6 +1,6 @@
 # 决策记录 · pi-todo-lite
 
-每条说清「定成什么、为什么、代价」。要推翻哪条，先看这里的理由 —— 推翻要连带改 `docs/specs/0001-pi-todo-lite.md`。
+每条说清三件事：定成什么、为什么、代价。要推翻哪条，先看这里的理由。推翻要连带改 `docs/specs/0001-pi-todo-lite.md`。
 
 | 编号 | 决策 |
 |---|---|
@@ -11,4 +11,4 @@
 | [`D05`](D05-auto-clear-clears-ledger.md) | 自动清空：清显示要连账一起清 |
 | [`D06`](D06-clear-on-input.md) | clear 在用户发下一条消息时触发，并成为默认档 |
 
-一条一份文件。任务与阶段见 [`docs/todos/`](../todos/README.md)，契约见 [`docs/specs/`](../specs/0001-pi-todo-lite.md)。
+一条一份文件。任务与阶段见 [`docs/todos/`](../todos/README.md)。契约见 [`docs/specs/`](../specs/0001-pi-todo-lite.md)。

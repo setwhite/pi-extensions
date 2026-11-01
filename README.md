@@ -10,7 +10,7 @@
 
 ## 安装
 
-三个包都用 `pi install npm:<包名>` 安装，包名见上表。
+三个包都用 `pi install npm:<包名>` 安装。包名见上表。
 
 只能从 npm 安装。pi 的 git 安装只认仓库根，指不到子目录。
 
@@ -18,7 +18,7 @@
 
 ### 环境
 
-需要 Node `>= 22.19` 与 pnpm。版本由根 `package.json` 的 `packageManager` 固定。
+需要 Node `>= 22.19` 与 pnpm。根 `package.json` 的 `packageManager` 固定 pnpm 版本。
 
 ```sh
 pnpm install # 在仓库根装一次，三个包共用 pnpm-lock.yaml
@@ -50,7 +50,7 @@ pnpm -C packages/pi-web-search-lite test:e2e      # 真网络，需要 provider 
 pnpm -C packages/pi-herdr-subagents-lite test:e2e # 真 herdr + 真 pi 子进程
 ```
 
-E2E 不进 `pnpm check`，也不进 CI。web-search 的 e2e 需要 provider key 与外网。herdr 的 e2e 自己起隔离的 herdr session 与 agent 目录。缺 herdr、pi 或 `auth.json` 时整组跳过并打印原因。
+E2E 不进 `pnpm check`，也不进 CI。web-search 的 e2e 需要 provider key 与外网。herdr 的 e2e 自己起隔离的 herdr session 与 agent 目录。缺 herdr、pi 或 `auth.json` 时，整组跳过并打印原因。
 
 ```sh
 export PI_E2E_MODEL=<model> # herdr e2e 换模型
@@ -75,5 +75,5 @@ git config core.hooksPath .githooks # 启用提交钩子，钩子跑同样四条
 
 | 位置 | 内容 |
 |---|---|
-| `packages/<包名>/docs/` | 该包的架构、术语、模块与 ADR。不在 npm 包里。只在 GitHub 可读。 |
-| [docs/adr/](docs/adr/) | 仓库级决策：为什么合并、为什么不抽共享包。 |
+| `packages/<包名>/docs/` | 该包的架构、术语、模块与 ADR。不在 npm 包里，只在 GitHub 可读。 |
+| [docs/adr/](docs/adr/) | 仓库级决策：为什么合并，为什么不抽共享包。 |

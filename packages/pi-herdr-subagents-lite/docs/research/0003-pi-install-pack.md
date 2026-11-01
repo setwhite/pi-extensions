@@ -1,8 +1,8 @@
 # 0003 pi install 与 pack 产物实测
 
-研究记录；契约见 [v1 契约](../specs/0001-v1-contract.md)。
+本文是研究记录。契约见 [v1 契约](../specs/0001-v1-contract.md)。
 
-日期 2026-10-29。环境：pi 1.4.0，Windows + git-bash。每次用新的隔离 `PI_CODING_AGENT_DIR`，只复制真实 `auth.json`；包用 `pnpm pack` 打出的 `pi-herdr-subagents-lite-0.1.0.tgz`。
+日期 2026-10-29。环境：pi 1.4.0，Windows + git-bash。每次用新的隔离 `PI_CODING_AGENT_DIR`，只复制真实 `auth.json`。包用 `pnpm pack` 打出的 `pi-herdr-subagents-lite-0.1.0.tgz`。
 
 ## 测试 1：`pi install <tarball>`
 
@@ -31,7 +31,7 @@ Hint: Start without extensions using "pi -ne".
 pi install "npm:$(cygpath -w "$ROOT/pi-herdr-subagents-lite-0.1.0.tgz")" --no-approve
 ~~~
 
-npm 装进 `<agent-dir>/npm/node_modules/pi-herdr-subagents-lite`，`<agent-dir>/npm/package.json` 写作 `"pi-herdr-subagents-lite": "file:../../pi-herdr-subagents-lite-0.1.0.tgz"`；settings 写入 `"packages": ["npm:C:\\...\\pi-herdr-subagents-lite-0.1.0.tgz"]`。会话启动无报错，但 system message 的 `sections.tools` 只有内建工具，`subagent` 未声明：
+npm 装进 `<agent-dir>/npm/node_modules/pi-herdr-subagents-lite`。`<agent-dir>/npm/package.json` 写作 `"pi-herdr-subagents-lite": "file:../../pi-herdr-subagents-lite-0.1.0.tgz"`。settings 写入 `"packages": ["npm:C:\\...\\pi-herdr-subagents-lite-0.1.0.tgz"]`。会话启动无报错，但 system message 的 `sections.tools` 只有内建工具，`subagent` 未声明：
 
 ~~~text
 <tools>
@@ -47,9 +47,9 @@ npm 装进 `<agent-dir>/npm/node_modules/pi-herdr-subagents-lite`，`<agent-dir>
 - subagent: Start a background subagent in a herdr pane; results arrive asynchronously.
 ~~~
 
-上面那行是当时的默认工具描述，后来改过；现行文案见 `src/tool/text.ts`。
+上面那行是当时的默认工具描述，后来改过。现行文案见 `src/tool/text.ts`。
 
-结论：加载按包名解析 `<agent-dir>/npm`；路径 spec 只完成安装，不完成加载。
+结论：加载按包名解析 `<agent-dir>/npm`。路径 spec 只完成安装，不完成加载。
 
 ## 测试 3：本地 npm 布局
 
@@ -65,7 +65,7 @@ tar -xzf "$ROOT/pi-herdr-subagents-lite-0.1.0.tgz" \
 
 会话的 `sections.tools` 出现 `- subagent`。
 
-结论：这是 `pi install npm:pi-herdr-subagents-lite` 之后的目录形态；本地验证 pack 产物用它。
+结论：这是 `pi install npm:pi-herdr-subagents-lite` 之后的目录形态。本地验证 pack 产物用它。
 
 ## 测试 4：解包后 `pi install <目录>`
 

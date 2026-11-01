@@ -1,8 +1,8 @@
 # 决策
 
-当前设计：子代理是 herdr pane 里的常驻 pi 子进程；模型面只有 `run` / `send`；结果异步回投；fresh only。当前代码见 [ARCHITECTURE](../ARCHITECTURE.md)。
+当前设计：子代理是 herdr pane 里的常驻 pi 子进程。模型面只有 `run` / `send`。结果异步回投。只做 fresh。当前代码见 [ARCHITECTURE](../ARCHITECTURE.md)。
 
-一条决策一份文件，文件名前缀就是编号（`0036` → [0036-result-pipeline.md](0036-result-pipeline.md)）；正文引用写 `DEC-0036`。v1 契约见 [v1 契约](../specs/0001-v1-contract.md)；已取消的提案见 [CANCELLED.md](CANCELLED.md)。
+一条决策一份文件。文件名前缀就是编号（`0036` → [0036-result-pipeline.md](0036-result-pipeline.md)）。正文引用写 `DEC-0036`。v1 契约见 [v1 契约](../specs/0001-v1-contract.md)。已取消的提案见 [CANCELLED.md](CANCELLED.md)。
 
 ## 形态
 
@@ -28,9 +28,9 @@
 |---|---|
 | [0022](0022-tab-placement.md) | 新 tab 或新 workspace |
 | [0023](0023-start-then-prompt.md) | brief 不进启动参数，等 idle 后经 inbox 投递 |
-| [0047](0047-close-on-done-default-keep.md) | 完成默认保留 tab；关闭由 auto-exit 与 closeChildrenOn 决定 |
+| [0047](0047-close-on-done-default-keep.md) | 完成默认保留 tab。关闭由 auto-exit 与 closeChildrenOn 决定 |
 | [0048](0048-close-children-on.md) | 父会话结束按 closeChildrenOn 清理 |
-| [0032](0032-death-detection.md) | died 判定；已由 0052 改为只认事实 |
+| [0032](0032-death-detection.md) | died 判定。已由 0052 改为只认事实 |
 | [0053](0053-session-dir.md) | 子 session 放在 agent dir |
 | [0056](0056-auto-exit-channel.md) | auto-exit 用 pane env 传 |
 

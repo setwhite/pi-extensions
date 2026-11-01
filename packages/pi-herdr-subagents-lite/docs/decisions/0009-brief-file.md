@@ -6,6 +6,6 @@
 
 ## 修订：投递通道改为 inbox
 
-文件本身不变，子代理仍自己 read 它；投递通道见 DEC-0026，入队时机见 DEC-0023 修订。
+文件本身不变。子代理仍自己 read 它。投递通道见 DEC-0026，入队时机见 DEC-0023 修订。
 
-依据：`agent prompt` 是键盘级投递，没有回执。2026-10-31 实测：domain-5 子代理 05:19:33 建好 session，brief 留在输入框没提交，直到 05:25:16 因一条 inbox 消息才起第一轮；同批 domain-1/2/3/4/6 会话里都有 `@…brief.md` 这条 user 消息，domain-5 没有。
+依据：`agent prompt` 是键盘级投递，没有回执。2026-10-31 实测：domain-5 子代理 05:19:33 建好 session，brief 留在输入框没提交，直到 05:25:16 因一条 inbox 消息才起第一轮。同批 domain-1/2/3/4/6 会话里都有 `@…brief.md` 这条 user 消息，domain-5 没有。

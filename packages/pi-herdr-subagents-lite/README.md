@@ -6,11 +6,11 @@ The extension runs subagents as separate pi processes in herdr panes. One tool h
 
 ## Features
 
-- Separate process, human takeover: each subagent is its own pi process in a herdr pane. If the subagent cwd equals the parent cwd, the subagent opens a tab in the same workspace. Otherwise the subagent opens a new workspace.
-- Two profile layers: Markdown with frontmatter, one global profile layer and one profile layer per project.
-- Async, merged results: `run` returns at once. Each finished turn reports one `subagent_result`. Results inside `aggregateWindowMs` merge into one result. Oversize results go to an artifact file.
-- Questions stay with the human: a child prompt only emits `herdr:blocked`. Nothing reaches the parent. The human answers in the child pane.
-- No nesting by default, no sandbox: if the profile does not name this tool, child tool sets drop this tool.
+- A subagent is a separate process. A human can take over its pane. If the subagent cwd equals the parent cwd, the subagent opens a tab in the same workspace. Otherwise the subagent opens a new workspace.
+- Profiles have two layers: Markdown with frontmatter. One layer is global. One layer is per project.
+- Results are async and merged. `run` returns at once. Each finished turn reports one `subagent_result`. Results inside `aggregateWindowMs` merge into one result. Oversize results go to an artifact file.
+- Questions stay with the human. A child prompt only emits `herdr:blocked`. Nothing reaches the parent. The human answers in the child pane.
+- Nesting is off by default. The extension is not a sandbox. If the profile does not name this tool, child tool sets drop this tool.
 
 ## Install
 
@@ -56,7 +56,7 @@ The block below lists every key. Each value is the default.
   "herdrBin": "herdr",
   // Default 16, range 1 and up. At the limit run returns max_concurrent. A child with auto-exit: false keeps its slot after it settles.
   "maxConcurrent": 16,
-  // Default 16384, range 1024 to 1048576. A longer text goes to an artifact file; the message keeps a truncated head and the path.
+  // Default 16384, range 1024 to 1048576. A longer text goes to an artifact file. The message keeps a truncated head and the path.
   "maxResultChars": 16384,
   // Default 500, range 0 to 10000 milliseconds. 0 = deliver each result at once. A larger value merges more results.
   "aggregateWindowMs": 500,
@@ -124,7 +124,7 @@ description: "Read-only research: read code, answer questions, change nothing"
 # model: provider/model
 thinking: low
 
-# Plain names = strict allowlist; +name / -name adjusts the default set, never mix both
+# Plain names = strict allowlist. +name / -name adjusts the default set. Never mix both
 # Omitted = pi defaults minus this tool (nesting off); "" = empty allowlist
 tools: read, bash
 
@@ -135,7 +135,7 @@ skills: ""
 # task: body is the task text, no identity file
 system-prompt: append
 
-# Shut down and close the tab when settled; waits while a prompt is open or the inbox has messages
+# Shut down and close the tab when settled. It waits while a prompt is open or the inbox has messages
 auto-exit: true
 
 # true = hidden from the guidelines; an explicit run still works

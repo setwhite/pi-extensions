@@ -2,15 +2,15 @@
 
 **[简体中文](README.zh-CN.md)** | [English](README.md)
 
-让子代理作为独立 pi 进程跑在 herdr pane 里。一个工具有两个 action：`run` 起子代理，`send` 续聊，结果异步回投。行为以 [v1 契约](docs/specs/0001-v1-contract.md) 为准。
+本扩展让子代理作为独立 pi 进程，跑在 herdr pane 里。一个工具有两个 action：`run` 起子代理，`send` 续聊。结果异步回投。行为以 [v1 契约](docs/specs/0001-v1-contract.md) 为准。
 
 ## 功能
 
-- 独立进程可接管：每个子代理是 herdr pane 里的独立 pi 进程。如果 cwd 与父相同，就在同一个 workspace 新开 tab。否则新建 workspace。
-- 两层 profile：Markdown + frontmatter，全局一层、项目一层。
-- 结果异步可合并：`run` 立即返回。每次收工投一条 `subagent_result`。落在 `aggregateWindowMs` 内的结果合并成一条。超长结果落 artifact 文件。
-- 反问留在人这边：子代理弹对话框只发 `herdr:blocked`。父侧收不到这个消息。人在子 pane 里回答。
-- 默认不嵌套，也不是沙箱。子代理工具集默认去掉本工具。只有 profile 点名才授予本工具。
+- 独立进程，可人工接管。每个子代理是 herdr pane 里的独立 pi 进程。子代理的 cwd 与父相同时，它在同一个 workspace 新开 tab。cwd 不同时，它新建 workspace。
+- 两层 profile：Markdown + frontmatter。全局一层，项目一层。
+- 结果异步，可合并。`run` 立即返回。每次收工投一条 `subagent_result`。落在 `aggregateWindowMs` 内的结果合并成一条。超长结果落 artifact 文件。
+- 反问留在人这边。子代理弹对话框只发 `herdr:blocked`。父侧收不到这个消息。人在子 pane 里回答。
+- 默认不嵌套，也不是沙箱。子代理的工具集默认去掉本工具。只有 profile 点名，才授予本工具。
 
 ## 安装
 
@@ -24,17 +24,17 @@ pi -e /path/to/pi-herdr-subagents-lite/src/index.ts # 只对当前进程生效
 
 不要加 `-l`。`-l` 只写项目设置，在别的 workspace 里起的子代理就加载不到。`pi -e` 同样是单进程。
 
-在 herdr `0.9.5` 与 pi `1.4.0` 上测过，Node `>= 22.19`。父会话必须在 herdr pane 里。如果不在，就返回 `not_in_herdr`。升级用 `pi update --extensions`。卸载用 `pi remove <source>`。
+在 herdr `0.9.5` 与 pi `1.4.0` 上测过，Node `>= 22.19`。父会话必须在 herdr pane 里。不在时返回 `not_in_herdr`。升级用 `pi update --extensions`。卸载用 `pi remove <source>`。
 
 ## 配置
 
 只有一个全局文件：`<agent-dir>/pi-herdr-subagents-lite/config.json`。`<agent-dir>` 默认 `~/.pi/agent`，跟随 `PI_CODING_AGENT_DIR`。扩展不读项目级配置。
 
-默认值与 clamp 边界：`src/config/index.ts`、`test/config/config.test.ts`。键与语义：[契约 §1](docs/specs/0001-v1-contract.md#1-配置)。
+默认值与 clamp 边界见 `src/config/index.ts` 与 `test/config/config.test.ts`。键与语义见[契约 §1](docs/specs/0001-v1-contract.md#1-配置)。
 
 ### 最小配置
 
-如果文件不存在，全部用默认值。只改一项，就只写这一项：
+文件不存在时，全部用默认值。只改一项，就只写这一项：
 
 ```json
 {
@@ -52,11 +52,11 @@ pi -e /path/to/pi-herdr-subagents-lite/src/index.ts # 只对当前进程生效
   "enabled": true,
   // 默认 "subagent"。须匹配 ^[a-z][a-z0-9_]{0,31}$。它会作为每条 guideline 的前缀。
   "toolName": "subagent",
-  // 默认 "herdr"。裸名从 PATH 解析；绝对路径锁定版本。
+  // 默认 "herdr"。裸名从 PATH 解析。绝对路径锁定版本。
   "herdrBin": "herdr",
   // 默认 16，下限 1。到上限时 run 返回 max_concurrent。auto-exit: false 的子代理收工后仍占槽。
   "maxConcurrent": 16,
-  // 默认 16384，范围 1024 到 1048576。超上限时全文落 artifact 文件；消息里留截断的头和路径。
+  // 默认 16384，范围 1024 到 1048576。超上限时全文落 artifact 文件。消息里留截断的头和路径。
   "maxResultChars": 16384,
   // 默认 500，范围 0 到 10000，单位毫秒。0 = 逐条立即投递。调大合并更多结果。
   "aggregateWindowMs": 500,
@@ -64,9 +64,9 @@ pi -e /path/to/pi-herdr-subagents-lite/src/index.ts # 只对当前进程生效
   "closeChildrenOn": [],
   // 默认 250，范围 50 到 5000，单位毫秒。调大省唤醒，投递变慢。
   "inboxPollMs": 250,
-  // 默认 1000，范围 100 到 60000，单位毫秒。用于：子代理在 working 或 blocked，或刚 run / send 的 30 秒内。
+  // 默认 1000，范围 100 到 60000，单位毫秒。子代理在 working 或 blocked 时用它，刚 run / send 的 30 秒内也用它。
   "pollIntervalMs": 1000,
-  // 默认 8000，范围 100 到 60000，单位毫秒。用于：所有 live 子代理都只在等 send。调大更晚发现 pane 消失。
+  // 默认 8000，范围 100 到 60000，单位毫秒。所有 live 子代理都只在等 send 时用它。调大后，发现 pane 消失更晚。
   "idlePollIntervalMs": 8000,
   // 工具文案覆盖。每个键默认未设置，用下面这份内置文案。
   "prompts": {
@@ -92,7 +92,7 @@ pi -e /path/to/pi-herdr-subagents-lite/src/index.ts # 只对当前进程生效
 }
 ```
 
-必须是严格 JSON，扩展只读一次，所以保存前删掉注释，改完重启 pi。未知键、类型不对或枚举值非法都会让扩展加载失败：pi 打出 `invalid config <路径>: <字段>: unknown key` 后退出。超范围的数字会被夹到边界，不报错。
+文件必须是严格 JSON。扩展只读一次，所以保存前删掉注释，改完重启 pi。未知键、类型不对或枚举值非法都会让扩展加载失败：pi 打出 `invalid config <路径>: <字段>: unknown key` 后退出。超范围的数字会被夹到边界，不报错。
 
 ## 用法
 
@@ -112,11 +112,11 @@ pi -e /path/to/pi-herdr-subagents-lite/src/index.ts # 只对当前进程生效
 
 ### Profile
 
-全局 profile 在 `<agent-dir>/pi-herdr-subagents-lite/profiles/*.md`，项目 profile 在 `.pi/pi-herdr-subagents-lite/profiles/*.md`（项目受信任后才读）。如果 `name` 相同，项目覆盖全局。
+全局 profile 在 `<agent-dir>/pi-herdr-subagents-lite/profiles/*.md`。项目 profile 在 `.pi/pi-herdr-subagents-lite/profiles/*.md`，项目受信任后才读。`name` 相同时，项目覆盖全局。
 
 ```markdown
 ---
-# run 的寻址名；文件名不参与查找
+# run 的寻址名。文件名不参与查找
 name: explore
 description: 只读调研：读代码、回答问题，不改动任何文件
 
@@ -124,30 +124,30 @@ description: 只读调研：读代码、回答问题，不改动任何文件
 # model: provider/model
 thinking: low
 
-# 纯名字 = 严格白名单；+名字 / -名字 在默认集上增删，两者不能混用
-# 省略 = pi 默认集去掉本工具（不嵌套）；"" = 空白名单
+# 纯名字 = 严格白名单。+名字 / -名字 在默认集上增删，两者不能混用
+# 省略 = pi 默认集去掉本工具（不嵌套）。"" = 空白名单
 tools: read, bash
 
-# 省略 = 由 pi 发现；"" = 不加载；列表 = 只加载列出的
+# 省略 = 由 pi 发现。"" = 不加载。列表 = 只加载列出的
 skills: ""
 
 # append / replace：正文追加到或替换系统提示
 # task：正文就是任务文本，不写身份文件
 system-prompt: append
 
-# 收工后自行退出并关掉 tab；有打开的对话框或 inbox 待投递时会等
+# 收工后自行退出并关掉 tab。有打开的对话框或 inbox 待投递时会等
 auto-exit: true
 
-# true = 不出现在 guidelines 的 profile 列表里；显式 run 仍然可用
+# true = 不出现在 guidelines 的 profile 列表里。显式 run 仍然可用
 disable-model-invocation: false
 ---
 
-你是一名只读探索者，回答时给出文件路径与行号。
+你是一名只读探索者。回答时给出文件路径与行号。
 ```
 
-错误码见 [契约 §2](docs/specs/0001-v1-contract.md#2-profile)。默认值见 `src/profile/frontmatter.ts` 与 `test/profile/`。没写 `name`、字段非法或同层同名的文件都不进列表。对它 `run` 返回 `profile_invalid`，带文件、字段与原因。
+错误码见[契约 §2](docs/specs/0001-v1-contract.md#2-profile)。默认值见 `src/profile/frontmatter.ts` 与 `test/profile/`。没写 `name` 的文件、字段非法的文件与同层同名的文件都不进列表。对它调用 `run`，返回 `profile_invalid`，带文件、字段与原因。
 
-扩展自带一个示例 profile，文件名和 `name` 都是 `domain`。加载只读 `profiles/*.md`。示例也只在缺失时写入。所以复制一份到上一层即可：
+扩展自带一个示例 profile。文件名和 `name` 都是 `domain`。加载只读 `profiles/*.md`。示例也只在缺失时写入。所以复制一份到上一层即可：
 
 ```bash
 cd <agent-dir>/pi-herdr-subagents-lite/profiles && cp examples/domain.md domain.md
@@ -158,8 +158,8 @@ cd <agent-dir>/pi-herdr-subagents-lite/profiles && cp examples/domain.md domain.
 | 项目 | 借鉴内容 |
 |---|---|
 | [earendil-works/pi](https://github.com/earendil-works/pi) | 扩展 API、包布局、官方示例 |
-| [fyang93/pi-herdr-subagents](https://github.com/fyang93/pi-herdr-subagents) | profile 字段形状；隔离 herdr session 的集成测试 |
-| [modem-dev/pi-herdr-subagents](https://github.com/modem-dev/pi-herdr-subagents) | herdr 启动与生命周期；终态归类 |
+| [fyang93/pi-herdr-subagents](https://github.com/fyang93/pi-herdr-subagents) | profile 字段形状。隔离 herdr session 的集成测试 |
+| [modem-dev/pi-herdr-subagents](https://github.com/modem-dev/pi-herdr-subagents) | herdr 启动与生命周期。终态归类 |
 | [purboo/pi-durable-subagents](https://github.com/purboo/pi-durable-subagents) | 异步投递、幂等、只上报一次 |
 
 感谢这些项目的代码。
