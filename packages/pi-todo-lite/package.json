@@ -13,7 +13,8 @@
   "author": "setwhite",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/setwhite/pi-todo-lite.git"
+    "url": "git+https://github.com/setwhite/pi-extensions.git",
+    "directory": "packages/pi-todo-lite"
   },
   "packageManager": "pnpm@12.3.4",
   "pi": {

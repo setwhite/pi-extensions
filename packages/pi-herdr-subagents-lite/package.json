@@ -7,7 +7,8 @@
   "author": "setwhite",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/setwhite/pi-herdr-subagents-lite.git"
+    "url": "git+https://github.com/setwhite/pi-extensions.git",
+    "directory": "packages/pi-herdr-subagents-lite"
   },
   "keywords": ["pi-package", "pi-extension", "herdr", "subagent"],
   "files": ["src"],

@@ -2,7 +2,7 @@
 
 # pi-web-search-lite
 
-![pi 会话：web_search 用 exa 搜到 5 条结果，web_fetch 紧接着抓到第一页正文](https://raw.githubusercontent.com/setwhite/pi-web-search-lite/main/assets/cover.png)
+![pi 会话：web_search 用 exa 搜到 5 条结果，web_fetch 紧接着抓到第一页正文](https://raw.githubusercontent.com/setwhite/pi-extensions/main/packages/pi-web-search-lite/assets/cover.png)
 
 本扩展为 pi 增加两个工具：`web_search` 搜索网页，`web_fetch` 抓取网页正文。扩展发出的所有请求只经一个代理配置点。
 
@@ -18,8 +18,9 @@
 
 ```bash
 pi install npm:pi-web-search-lite                        # 从 npm 安装
-pi install git:github.com/setwhite/pi-web-search-lite    # 从 git 仓库安装
 ```
+
+本扩展已并入 [setwhite/pi-extensions](https://github.com/setwhite/pi-extensions)。pi 的 git 安装只认仓库根、无法指向子目录，所以只从 npm 安装；旧仓已归档，`git:` 安装不再更新。
 
 配置一个搜索 key 后即可使用。不需要构建。
 

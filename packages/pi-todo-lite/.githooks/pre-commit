@@ -1,6 +1,0 @@
-#!/bin/sh
-set -e
-pnpm lint
-pnpm check:imports
-pnpm typecheck
-pnpm test

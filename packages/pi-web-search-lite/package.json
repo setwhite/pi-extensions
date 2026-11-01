@@ -5,11 +5,12 @@
 	"author": "setwhite",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/setwhite/pi-web-search-lite.git"
+		"url": "git+https://github.com/setwhite/pi-extensions.git",
+		"directory": "packages/pi-web-search-lite"
 	},
-	"homepage": "https://github.com/setwhite/pi-web-search-lite#readme",
+	"homepage": "https://github.com/setwhite/pi-extensions/tree/main/packages/pi-web-search-lite#readme",
 	"bugs": {
-		"url": "https://github.com/setwhite/pi-web-search-lite/issues"
+		"url": "https://github.com/setwhite/pi-extensions/issues"
 	},
 	"type": "module",
 	"license": "MIT",
@@ -60,7 +61,7 @@
 		"typebox": "*"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.5.15",
+		"@biomejs/biome": "2.5.15",
 		"@earendil-works/pi-coding-agent": "^1.1.0",
 		"@earendil-works/pi-tui": "^1.1.0",
 		"@types/node": "^26.6.4",

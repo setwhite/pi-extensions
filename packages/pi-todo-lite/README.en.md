@@ -14,12 +14,7 @@ Install from npm:
 pi install npm:pi-todo-lite
 ```
 
-Install from the default GitHub branch:
-
-```bash
-pi install git:github.com/setwhite/pi-todo-lite   # writes ~/.pi/agent/settings.json
-pi -e git:github.com/setwhite/pi-todo-lite        # one try, nothing saved
-```
+This extension moved into [setwhite/pi-extensions](https://github.com/setwhite/pi-extensions). Pi's git install reads the repository root only and cannot point at a subdirectory, so install from npm; the old repository is archived and `git:` installs no longer update.
 
 ## Usage
 

@@ -2,7 +2,7 @@
 
 # pi-web-search-lite
 
-![A pi session: web_search returns 5 results via exa, then web_fetch extracts the first page](https://raw.githubusercontent.com/setwhite/pi-web-search-lite/main/assets/cover.png)
+![A pi session: web_search returns 5 results via exa, then web_fetch extracts the first page](https://raw.githubusercontent.com/setwhite/pi-extensions/main/packages/pi-web-search-lite/assets/cover.png)
 
 The extension adds two tools to pi. `web_search` searches the web. `web_fetch` extracts the text of a page. All requests from the extension use one proxy setting.
 
@@ -18,8 +18,9 @@ The full list of trade-offs and non-goals: [docs/adr/](docs/adr/).
 
 ```bash
 pi install npm:pi-web-search-lite                        # from npm
-pi install git:github.com/setwhite/pi-web-search-lite    # from a git repo
 ```
+
+This extension moved into [setwhite/pi-extensions](https://github.com/setwhite/pi-extensions). Pi's git install reads the repository root only and cannot point at a subdirectory, so install from npm; the old repository is archived and `git:` installs no longer update.
 
 Set one search key after installation. No build step is necessary.
 
