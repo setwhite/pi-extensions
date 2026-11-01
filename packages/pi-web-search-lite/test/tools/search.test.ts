@@ -1,0 +1,124 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ProviderId } from "../../config/index.ts";
+import { resetProxyRoute } from "../../http/index.ts";
+import type { SearchOptions, SearchProvider, SearchResult } from "../../providers/index.ts";
+import { createSearchTool, executeSearch } from "../../tools/search.ts";
+import { exhaustProxy, firstText, makeConfig, rejectionOf } from "./fixtures.ts";
+
+const RESULTS: SearchResult[] = [
+	{ title: "示例结果", url: "https://example.com/a", snippet: "这是摘要" },
+	{ title: "第二条", url: "https://example.com/b", snippet: "" },
+];
+
+function fakeProvider(id: ProviderId, results: SearchResult[] = []) {
+	const seen: SearchOptions[] = [];
+	const provider: SearchProvider = {
+		id,
+		async search(options) {
+			seen.push(options);
+			return results;
+		},
+	};
+	return { provider, seen };
+}
+
+const config = makeConfig({
+	apiKeys: { tavily: "tvly-key" },
+	search: { defaultMaxResults: 5, maxResultsLimit: 10 },
+});
+
+beforeEach(() => resetProxyRoute());
+
+afterEach(() => {
+	vi.unstubAllEnvs();
+});
+
+describe("executeSearch：降级可见", () => {
+	it("代理降级时结果头带一行提示", async () => {
+		const proxy = await exhaustProxy();
+		const { provider } = fakeProvider("tavily", RESULTS);
+
+		const result = await executeSearch(
+			makeConfig({ proxy, apiKeys: { tavily: "tvly-key" } }),
+			{ query: "pi" },
+			undefined,
+			{ provider },
+		);
+
+		expect(firstText(result)).toContain("> 3 proxy attempts failed in a row");
+		expect(firstText(result)).toContain("direct connections only");
+	});
+});
+
+describe("executeSearch", () => {
+	it("max_results 超上限时 clamp 到 maxResultsLimit，未传时用 defaultMaxResults", async () => {
+		const capped = fakeProvider("tavily");
+		await executeSearch(config, { query: "q", max_results: 999 }, undefined, {
+			provider: capped.provider,
+		});
+
+		const fallback = fakeProvider("tavily");
+		await executeSearch(config, { query: "q" }, undefined, { provider: fallback.provider });
+
+		expect(capped.seen[0]?.maxResults).toBe(10);
+		expect(fallback.seen[0]?.maxResults).toBe(5);
+	});
+
+	it("信封含 provider、标题、URL 与摘要，details 结构化", async () => {
+		const { provider } = fakeProvider("tavily", RESULTS);
+
+		const result = await executeSearch(config, { query: "pi" }, undefined, { provider });
+
+		const text = firstText(result);
+		expect(text).toContain("tavily");
+		expect(text).toContain("示例结果");
+		expect(text).toContain("https://example.com/a");
+		expect(text).toContain("这是摘要");
+		expect(result.details).toMatchObject({
+			provider: "tavily",
+			query: "pi",
+			count: 2,
+			truncated: false,
+		});
+	});
+
+	it("WEB_SEARCH_PROVIDER 覆盖 config.provider", async () => {
+		const { provider } = fakeProvider("exa", RESULTS);
+		const envConfig = makeConfig({ provider: "tavily", apiKeys: { exa: "exa-key" } });
+		vi.stubEnv("WEB_SEARCH_PROVIDER", "exa");
+
+		const result = await executeSearch(envConfig, { query: "q" }, undefined, { provider });
+
+		expect(result.details.provider).toBe("exa");
+	});
+
+	it("缺 key 时抛错并指明环境变量与配置键", async () => {
+		const { provider } = fakeProvider("tavily", RESULTS);
+
+		const error = await rejectionOf(
+			executeSearch(makeConfig({ apiKeys: {} }), { query: "q" }, undefined, { provider }),
+		);
+
+		expect(error.message).toContain("TAVILY_API_KEY");
+		expect(error.message).toContain("config.apiKeys.tavily");
+	});
+
+	it("无结果时仍返回成功信封", async () => {
+		const { provider } = fakeProvider("tavily", []);
+
+		const result = await executeSearch(config, { query: "空" }, undefined, { provider });
+
+		expect(firstText(result)).toContain("No results returned");
+		expect(result.details.count).toBe(0);
+	});
+
+	it("工具名来自配置，参数 schema 只有 query 与 max_results", () => {
+		const tool = createSearchTool(
+			makeConfig({ tools: { web_search: { enabled: true, name: "find_web" } } }),
+		);
+
+		expect(tool.name).toBe("find_web");
+		expect(Object.keys(tool.parameters.properties).sort()).toEqual(["max_results", "query"]);
+		expect(JSON.stringify(tool.parameters)).not.toContain("anyOf");
+	});
+});
