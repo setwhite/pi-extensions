@@ -5,9 +5,10 @@ import { profileLabel } from "../run/index.ts";
 const DEFAULT_DESCRIPTION = "Run subagents and send them messages.";
 const DEFAULT_SNIPPET = "";
 const DEFAULT_GUIDELINES = [
+  "The parent handles user interaction, cross-task synthesis, and decisions; subagents execute.",
+  "run only starts; it does not wait. The result arrives later as a message.",
+  "send only delivers; no state tracking.",
   "Available profiles:\n{{profiles}}",
-  "run only starts the subagent; the result comes back automatically as a message.",
-  "send only delivers; state tracking is not needed.",
 ];
 
 export function toolText(config: Config, profiles: Profile[]) {

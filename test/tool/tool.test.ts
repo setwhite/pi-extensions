@@ -96,9 +96,10 @@ it("keeps the default prompt short", () => {
   expect(tool.description).toBe("Run subagents and send them messages.");
   expect(tool.promptSnippet).toBe("");
   expect(tool.promptGuidelines).toEqual([
+    "subagent: The parent handles user interaction, cross-task synthesis, and decisions; subagents execute.",
+    "subagent: run only starts; it does not wait. The result arrives later as a message.",
+    "subagent: send only delivers; no state tracking.",
     expect.stringMatching(/^subagent: Available profiles:\n/),
-    "subagent: run only starts the subagent; the result comes back automatically as a message.",
-    "subagent: send only delivers; state tracking is not needed.",
   ]);
 });
 
