@@ -30,7 +30,7 @@ pi -e /path/to/pi-herdr-subagents-lite/src/index.ts        # this process only
 
 Do not pass `-l`: it writes project settings only, so children started in another workspace never load the package and both the inbox pump and the bridge stop working. `pi -e` is single-process too.
 
-This extension moved into [setwhite/pi-extensions](https://github.com/setwhite/pi-extensions). Pi's git install reads the repository root only and cannot point at a subdirectory, so install from npm; the old repository is archived and `git:` installs no longer update.
+This extension moved into [setwhite/pi-extensions](https://github.com/setwhite/pi-extensions). Pi's git install reads the repository root only and cannot point at a subdirectory, so install from npm; the old repository no longer updates, so `git:` installs stay at the version published there last.
 
 Upgrade with `pi update --extensions`, remove with `pi remove <source>`. After a restart the tool list shows `subagent` (or your `toolName`).
 

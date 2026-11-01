@@ -30,7 +30,7 @@ pi -e /path/to/pi-herdr-subagents-lite/src/index.ts        # 只对当前进程�
 
 不要加 `-l`：它只写项目设置，在别的 workspace 里起的子代理就加载不到，inbox 泵和 bridge 都会失效。`pi -e` 同样是单进程。
 
-本扩展已并入 [setwhite/pi-extensions](https://github.com/setwhite/pi-extensions)。pi 的 git 安装只认仓库根、无法指向子目录，所以只从 npm 安装；旧仓已归档，`git:` 安装不再更新。
+本扩展已并入 [setwhite/pi-extensions](https://github.com/setwhite/pi-extensions)。pi 的 git 安装只认仓库根、无法指向子目录，所以只从 npm 安装；旧仓不再更新，`git:` 安装会停在最后发布的版本。
 
 升级用 `pi update --extensions`，卸载用 `pi remove <source>`。重启后工具列表里出现 `subagent`（或你配的 `toolName`）。
 

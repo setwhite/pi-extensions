@@ -14,7 +14,7 @@ Install from npm:
 pi install npm:pi-todo-lite
 ```
 
-This extension moved into [setwhite/pi-extensions](https://github.com/setwhite/pi-extensions). Pi's git install reads the repository root only and cannot point at a subdirectory, so install from npm; the old repository is archived and `git:` installs no longer update.
+This extension moved into [setwhite/pi-extensions](https://github.com/setwhite/pi-extensions). Pi's git install reads the repository root only and cannot point at a subdirectory, so install from npm; the old repository no longer updates, so `git:` installs stay at the version published there last.
 
 ## Usage
 

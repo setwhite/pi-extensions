@@ -14,7 +14,7 @@ Pi 的 todo 扩展。模型维护一张有序任务表。表显示在输入框�
 pi install npm:pi-todo-lite
 ```
 
-本扩展已并入 [setwhite/pi-extensions](https://github.com/setwhite/pi-extensions)。pi 的 git 安装只认仓库根、无法指向子目录，所以只从 npm 安装；旧仓已归档，`git:` 安装不再更新。
+本扩展已并入 [setwhite/pi-extensions](https://github.com/setwhite/pi-extensions)。pi 的 git 安装只认仓库根、无法指向子目录，所以只从 npm 安装；旧仓不再更新，`git:` 安装会停在最后发布的版本。
 
 ## 用法
 

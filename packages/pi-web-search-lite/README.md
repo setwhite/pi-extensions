@@ -20,7 +20,7 @@
 pi install npm:pi-web-search-lite                        # 从 npm 安装
 ```
 
-本扩展已并入 [setwhite/pi-extensions](https://github.com/setwhite/pi-extensions)。pi 的 git 安装只认仓库根、无法指向子目录，所以只从 npm 安装；旧仓已归档，`git:` 安装不再更新。
+本扩展已并入 [setwhite/pi-extensions](https://github.com/setwhite/pi-extensions)。pi 的 git 安装只认仓库根、无法指向子目录，所以只从 npm 安装；旧仓不再更新，`git:` 安装会停在最后发布的版本。
 
 配置一个搜索 key 后即可使用。不需要构建。
 
