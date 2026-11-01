@@ -6,4 +6,4 @@
 
 后续：代理连不上时改直连重试一次、gh 探测同路，见 ADR-0013；代理仍只有这一个配置点。
 
-契约见 `http/index.ts` 与 `test/http.test.ts`。
+契约见 `src/http/index.ts` 与 `test/http.test.ts`。

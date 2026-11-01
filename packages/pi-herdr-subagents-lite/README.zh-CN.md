@@ -1,58 +1,118 @@
 # pi-herdr-subagents-lite
 
-[English](README.md) | 简体中文
+**[简体中文](README.zh-CN.md)** | [English](README.md)
 
-pi 扩展：让子代理作为独立 pi 进程跑在 herdr pane 里。一个工具，两个 action：`run` 起子代理，`send` 续聊，结果异步回投。
-
-行为以 [v1 契约](docs/specs/0001-v1-contract.md) 为准。
+让子代理作为独立 pi 进程跑在 herdr pane 里。一个工具有两个 action：`run` 起子代理，`send` 续聊，结果异步回投。行为以 [v1 契约](docs/specs/0001-v1-contract.md) 为准。
 
 ## 功能
 
-- **独立进程，可人工接管**：每个子代理是 herdr pane 里独立的 pi 进程。cwd 与父相同则同 workspace 新开 tab，否则新建 workspace。随时切进去接管。
-- **两层 profile**：Markdown + frontmatter，全局一层、项目一层。
-- **异步、可合并的结果**：`run` 立即返回。每次收工投一条 `subagent_result`；落在 `aggregateWindowMs` 内的结果合并成一条。超长结果落 artifact 文件。
-- **反问留在人这边**：子代理弹出对话框时只发出 `herdr:blocked` 事件，父侧什么也收不到。人在子 pane 里回答，不经模型转达。
-- **默认不嵌套，也不是沙箱**：子代理的工具集默认去掉本工具，profile 里点名才授予。工具由 profile 决定，扩展不限制写操作。
-
-## 要求
-
-在 herdr `0.9.5` 与 pi `1.4.0` 上测过。Node `>= 22.19`。父会话必须在 herdr pane 里，否则调用返回 `not_in_herdr`。
+- 独立进程可接管：每个子代理是 herdr pane 里的独立 pi 进程。如果 cwd 与父相同，就在同一个 workspace 新开 tab。否则新建 workspace。
+- 两层 profile：Markdown + frontmatter，全局一层、项目一层。
+- 结果异步可合并：`run` 立即返回。每次收工投一条 `subagent_result`。落在 `aggregateWindowMs` 内的结果合并成一条。超长结果落 artifact 文件。
+- 反问留在人这边：子代理弹对话框只发 `herdr:blocked`。父侧收不到这个消息。人在子 pane 里回答。
+- 默认不嵌套，也不是沙箱。子代理工具集默认去掉本工具。只有 profile 点名才授予本工具。
 
 ## 安装
 
-选一种来源，装完重启 pi。
-
 ```bash
-pi install npm:pi-herdr-subagents-lite                     # npm
-pi install /path/to/pi-herdr-subagents-lite                # 本地源码
-pi -e /path/to/pi-herdr-subagents-lite/src/index.ts        # 只对当前进程生效
+pi install npm:pi-herdr-subagents-lite              # npm
+pi install /path/to/pi-herdr-subagents-lite         # 本地源码
+pi -e /path/to/pi-herdr-subagents-lite/src/index.ts # 只对当前进程生效
 ```
 
-不要加 `-l`：它只写项目设置，在别的 workspace 里起的子代理就加载不到，inbox 泵和 bridge 都会失效。`pi -e` 同样是单进程。
+旧仓已并入 monorepo。请用 npm 安装。
 
-本扩展已并入 [setwhite/pi-extensions](https://github.com/setwhite/pi-extensions)。pi 的 git 安装只认仓库根、无法指向子目录，所以只从 npm 安装；旧仓不再更新，`git:` 安装会停在最后发布的版本。
+不要加 `-l`。`-l` 只写项目设置，在别的 workspace 里起的子代理就加载不到。`pi -e` 同样是单进程。
 
-升级用 `pi update --extensions`，卸载用 `pi remove <source>`。重启后工具列表里出现 `subagent`（或你配的 `toolName`）。
+在 herdr `0.9.5` 与 pi `1.4.0` 上测过，Node `>= 22.19`。父会话必须在 herdr pane 里。如果不在，就返回 `not_in_herdr`。升级用 `pi update --extensions`。卸载用 `pi remove <source>`。
 
-## 快速开始
+## 配置
+
+只有一个全局文件：`<agent-dir>/pi-herdr-subagents-lite/config.json`。`<agent-dir>` 默认 `~/.pi/agent`，跟随 `PI_CODING_AGENT_DIR`。扩展不读项目级配置。
+
+默认值与 clamp 边界：`src/config/index.ts`、`test/config/config.test.ts`。键与语义：[契约 §1](docs/specs/0001-v1-contract.md#1-配置)。
+
+### 最小配置
+
+如果文件不存在，全部用默认值。只改一项，就只写这一项：
+
+```json
+{
+  "maxConcurrent": 4
+}
+```
+
+### 完整配置
+
+下面这份列出全部键。每个取值就是默认值。
+
+```jsonc
+{
+  // 默认 true。false = 模型看不到本工具。bridge 有独立开关。
+  "enabled": true,
+  // 默认 "subagent"。须匹配 ^[a-z][a-z0-9_]{0,31}$。它会作为每条 guideline 的前缀。
+  "toolName": "subagent",
+  // 默认 "herdr"。裸名从 PATH 解析；绝对路径锁定版本。
+  "herdrBin": "herdr",
+  // 默认 16，下限 1。到上限时 run 返回 max_concurrent。auto-exit: false 的子代理收工后仍占槽。
+  "maxConcurrent": 16,
+  // 默认 16384，范围 1024 到 1048576。超上限时全文落 artifact 文件；消息里留截断的头和路径。
+  "maxResultChars": 16384,
+  // 默认 500，范围 0 到 10000，单位毫秒。0 = 逐条立即投递。调大合并更多结果。
+  "aggregateWindowMs": 500,
+  // 默认空 = 从不关。取值：new、resume、fork、quit、reload。列出的原因会在父会话退出时关掉子 tab。
+  "closeChildrenOn": [],
+  // 默认 250，范围 50 到 5000，单位毫秒。调大省唤醒，投递变慢。
+  "inboxPollMs": 250,
+  // 默认 1000，范围 100 到 60000，单位毫秒。用于：子代理在 working 或 blocked，或刚 run / send 的 30 秒内。
+  "pollIntervalMs": 1000,
+  // 默认 8000，范围 100 到 60000，单位毫秒。用于：所有 live 子代理都只在等 send。调大更晚发现 pane 消失。
+  "idlePollIntervalMs": 8000,
+  // 工具文案覆盖。每个键默认未设置，用下面这份内置文案。
+  "prompts": {
+    // 替换内置描述。
+    "description": "Run subagents and send them messages.",
+    // Available tools 里的那一行。空 = 不出现在该列表。
+    "snippet": "",
+    // 替换内置 guideline 各行。保留 {{profiles}} 才会列出 profile。
+    "guidelines": [
+      "The parent handles user interaction, cross-task synthesis, and decisions; subagents execute.",
+      "run only starts; it does not wait. The result arrives later as a message.",
+      "send only delivers; no state tracking.",
+      "Available profiles:\n{{profiles}}"
+    ]
+  },
+  // 把 pi 对话框事件转成 herdr:blocked 事件。
+  "bridge": {
+    // 默认 true。false = 不发 herdr:blocked。
+    "enabled": true,
+    // 默认全五种。算作 blocked 的对话框类型：custom、select、confirm、input、editor。
+    "blockedOn": ["custom", "select", "confirm", "input", "editor"]
+  }
+}
+```
+
+必须是严格 JSON，扩展只读一次，所以保存前删掉注释，改完重启 pi。未知键、类型不对或枚举值非法都会让扩展加载失败：pi 打出 `invalid config <路径>: <字段>: unknown key` 后退出。超范围的数字会被夹到边界，不报错。
+
+## 用法
 
 1. 在 herdr pane 里启动 `pi`。
-2. 写一个 profile（下一节）；frontmatter `name` 就是 `run` 的寻址名。
+2. 写一个 profile（下一节）。frontmatter 的 `name` 就是 `run` 的寻址名。
 3. 让模型调用工具：
 
 ```json
 {"action":"run","profile":"explore","task":"读 README.md，回答它的第一个标题。"}
 ```
 
-它返回 `{"state":"running",...}`，子代理在自己的 tab 里跑，稍后收到 `[subagent explore-1] done` 消息。不要在同一轮里等结果。续聊那个子代理：
+工具返回 `{"state":"running",...}`。子代理在自己的 tab 里跑。稍后收到 `[subagent explore-1] done` 消息。不要在同一轮里等结果。续聊那个子代理：
 
 ```json
 {"action":"send","name":"explore-1","message":"也看一下 Windows 那条分支。"}
 ```
 
-## Profile
+### Profile
 
-全局 profile 在 `<agent-dir>/pi-herdr-subagents-lite/profiles/*.md`，项目 profile 在 `.pi/pi-herdr-subagents-lite/profiles/*.md`（项目受信任后才读）；`name` 相同时项目覆盖全局。
+全局 profile 在 `<agent-dir>/pi-herdr-subagents-lite/profiles/*.md`，项目 profile 在 `.pi/pi-herdr-subagents-lite/profiles/*.md`（项目受信任后才读）。如果 `name` 相同，项目覆盖全局。
 
 ```markdown
 ---
@@ -85,52 +145,15 @@ disable-model-invocation: false
 你是一名只读探索者，回答时给出文件路径与行号。
 ```
 
-错误码见 [契约 §2](docs/specs/0001-v1-contract.md#2-profile)；默认值见 `src/profile/frontmatter.ts` 与 `test/profile/`。没写 `name`、字段非法或同层同名的文件都不进列表；对它 `run` 返回 `profile_invalid`，带文件、字段与原因。
+错误码见 [契约 §2](docs/specs/0001-v1-contract.md#2-profile)。默认值见 `src/profile/frontmatter.ts` 与 `test/profile/`。没写 `name`、字段非法或同层同名的文件都不进列表。对它 `run` 返回 `profile_invalid`，带文件、字段与原因。
 
-扩展自带一个示例 profile，文件名和 `name` 都是 `domain`。加载只读 `profiles/*.md`，示例也只在缺失时写入，所以复制一层上去即可：
+扩展自带一个示例 profile，文件名和 `name` 都是 `domain`。加载只读 `profiles/*.md`。示例也只在缺失时写入。所以复制一份到上一层即可：
 
 ```bash
 cd <agent-dir>/pi-herdr-subagents-lite/profiles && cp examples/domain.md domain.md
 ```
 
-## 配置
-
-只有一个全局文件：`<agent-dir>/pi-herdr-subagents-lite/config.json`。`<agent-dir>` 默认 `~/.pi/agent`，跟随 `PI_CODING_AGENT_DIR`。项目级配置不读。
-
-默认值与 clamp 边界：`src/config/index.ts`、`test/config/config.test.ts`。键与语义：[契约 §1](docs/specs/0001-v1-contract.md#1-配置)。
-
-### 最小配置
-
-文件不存在就全用默认值。只改一项，就只写这一项：
-
-```json
-{
-  "maxConcurrent": 4
-}
-```
-
-### 键
-
-| 键 | 含义 |
-|---|---|
-| `enabled` | 只管工具注册；bridge 有自己的开关 |
-| `toolName` | 模型看到的工具名；`^[a-z][a-z0-9_]{0,31}$` |
-| `herdrBin` | herdr 可执行文件；裸名从 PATH 解析，绝对路径锁定版本 |
-| `maxConcurrent` | 每个父会话并存的子代理数；`auto-exit: false` 的子代理收工后仍占槽 |
-| `maxResultChars` | 单条结果字符上限；超了全文落 artifact，消息里留截断的头和路径 |
-| `aggregateWindowMs` | 合并窗口，毫秒；0 = 逐条立即投递 |
-| `closeChildrenOn` | 父会话以这些原因退出时关掉子 tab：`new` / `resume` / `fork` / `quit` / `reload`；空 = 从不关 |
-| `inboxPollMs` | 子侧 inbox 轮询间隔 |
-| `pollIntervalMs` | 父侧 `agent list` 间隔；有子代理在 working 或 blocked，或刚 `run` / `send` 的 30 秒内用 |
-| `idlePollIntervalMs` | 所有 live 子代理都只是在等 `send` 时的间隔；它决定 pane 消失最晚多久被发现（pane 还在、进程被杀的那类固定 10 秒） |
-| `prompts` | 覆盖工具文案：`description`、`snippet`、`guidelines`；省略的键用内置文案；`snippet: ""` 让工具从 Available tools 消失；保留 `{{profiles}}` 才会列出 profile |
-| `bridge` | `enabled` 把 pi 对话框事件转成 `herdr:blocked`；`blockedOn` 列出算 blocked 的对话框类型 |
-
-必须是严格 JSON：未知键、类型不对、枚举非法都会让扩展加载失败，pi 报出字段名退出。超范围的数字会被夹到边界，不报错。配置只读一次，改完重启 pi。
-
 ## 参考项目
-
-设计参考了这些项目，感谢作者。
 
 | 项目 | 借鉴内容 |
 |---|---|
@@ -139,24 +162,18 @@ cd <agent-dir>/pi-herdr-subagents-lite/profiles && cp examples/domain.md domain.
 | [modem-dev/pi-herdr-subagents](https://github.com/modem-dev/pi-herdr-subagents) | herdr 启动与生命周期；终态归类 |
 | [purboo/pi-durable-subagents](https://github.com/purboo/pi-durable-subagents) | 异步投递、幂等、只上报一次 |
 
+感谢这些项目的代码。
+
 ## 文档
 
-- [ARCHITECTURE](docs/ARCHITECTURE.md)：模块边界、依赖方向、测试 seam
-- [GLOSSARY](docs/GLOSSARY.md)：术语唯一来源
-- [模块](docs/modules/)：各模块的用法与取舍
+| 文档 | 内容 |
+|---|---|
+| [docs/specs/0001-v1-contract.md](docs/specs/0001-v1-contract.md) | v1 契约 |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 模块边界、依赖方向、测试 seam |
+| [docs/modules/](docs/modules/) | 各模块的用法与取舍 |
+| [docs/GLOSSARY.md](docs/GLOSSARY.md) | 术语唯一来源 |
+| [CHANGELOG.md](CHANGELOG.md) | 发布记录 |
 
-## 开发
-
-```bash
-pnpm install        # 仓库根跑一次
-pnpm check          # lint + check:imports + typecheck + test
-pnpm test:e2e       # 真 herdr + 真 pi 子进程，不在 pnpm check 里
-```
-
-CI、钩子、发版见[根 README](https://github.com/setwhite/pi-extensions#开发)。
-
-E2E 自己起隔离的 herdr session 与 agent 目录，缺 herdr、pi 或 `auth.json` 时整组跳过并给出原因。`PI_E2E_MODEL` 换模型；`PI_E2E_KEEP=1` 保留临时目录。
-
-## 许可
+## License
 
 MIT，见 [LICENSE](LICENSE)。

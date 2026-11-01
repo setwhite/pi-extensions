@@ -8,7 +8,7 @@ import type { Duplex } from "node:stream";
 import { gzipSync } from "node:zlib";
 import { badPortsSet } from "undici/lib/web/fetch/constants.js";
 import { afterEach, describe, expect, it } from "vitest";
-import { createHttpClient, HttpError } from "../http/index.ts";
+import { createHttpClient, HttpError } from "../src/http/index.ts";
 import { listenEphemeral } from "./stub.ts";
 
 const UA = "pi-web-search-lite/test";

@@ -1,4 +1,4 @@
-import type { GhExecResult, GhExecutor, HandlerContext } from "../../handlers/types.ts";
+import type { GhExecResult, GhExecutor, HandlerContext } from "../../src/handlers/types.ts";
 
 export const ISSUE = {
 	title: "崩溃：设置页空白",

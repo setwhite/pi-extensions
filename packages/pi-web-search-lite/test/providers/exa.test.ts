@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createHttpClient } from "../../http/index.ts";
-import { createExaProvider } from "../../providers/exa.ts";
+import { createHttpClient } from "../../src/http/index.ts";
+import { createExaProvider } from "../../src/providers/exa.ts";
 import { startTrackedStubServer } from "../stub.ts";
 
 function makeProvider(baseUrl: string) {

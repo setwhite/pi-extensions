@@ -27,8 +27,10 @@ const tracked = execFileSync("git", ["ls-files"], {
 const shipped = (path: string): boolean =>
 	pkg.files.some((entry) => path === entry || path.startsWith(`${entry}/`));
 
+/** 开发期专用、不进包：test/ 等目录，以及根目录下的 *.config.ts（vitest 配置）。 */
 const development = (path: string): boolean =>
-	["test/", "scripts/", "docs/"].some((prefix) => path.startsWith(prefix));
+	["test/", "scripts/", "docs/"].some((prefix) => path.startsWith(prefix)) ||
+	(!path.includes("/") && path.endsWith(".config.ts"));
 
 describe("发布物", () => {
 	it("生产代码全部落在 files 里（新增顶层文件或目录忘了加会在这里红）", () => {

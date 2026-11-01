@@ -67,7 +67,7 @@ profile -> error
 - `inbox` 只认 Node fs/path/crypto，不解析消息内容，不记投递失败次数；泵的每拍动作由调用方注入。
 - `run` 不 import pi；`extension` 不 import 真实 CLI 或 fs；只有 `index.ts` 把真实适配器、配置与 pi 装配到一起。
 - 宿主包 `@earendil-works/pi-coding-agent` 在 `src/index.ts`、`src/extension/index.ts`、`src/tool/index.ts` 只做 type-only import，在 `src/profile/` 做运行时 import；`typebox` 只在 `tool/schema.ts`。
-- 上述边与「单一出口」由 `scripts/check-imports.mjs` 执行（`pnpm check:imports`）：改这张图就同步改脚本里的 `EDGES` / `SINGLE_IMPORT`；脚本只校验源码，不比对本文。
+- 上述边与「单一出口」由仓库根的 `scripts/check-imports.mjs` 执行（`pnpm check:imports`）：改这张图就同步改本包 `scripts/import-graph.mjs` 的 `edges` / `singleImport`；脚本只校验源码，不比对本文。
 
 ## 4. 模块说明
 
@@ -85,7 +85,7 @@ profile -> error
 | `readLastAssistant` | 表驱动 + 临时 JSONL | JSONL 解析边界、空文件、不可读 |
 | `inbox` | 临时 session 路径 + 真实 fs；子侧泵经 fake pi + fake timers | 建目录、入队顺序、按序投递、投递后删除、失败保留 |
 | bridge | fake pi events | `ui_prompt_*` → `herdr:blocked`、`blockedOn` 过滤 |
-| 真实 HerdrHost + 真实 pi | `pnpm test:e2e`（`e2e/`，不进 `pnpm check`） | CLI argv/JSON、tab/agent/pane、真实 child、结果回投、续聊、关 tab |
+| 真实 HerdrHost + 真实 pi | `pnpm test:e2e`（`test/e2e/`，不进 `pnpm check`） | CLI argv/JSON、tab/agent/pane、真实 child、结果回投、续聊、关 tab |
 | `createPaneCommands` | fake `exec`（记 argv、回固定 JSON） | workspace / tab 的 argv 与 JSON 字段解析 |
 
 mock 只有三处：pi 扩展 API、注入的 `HerdrHost`、注入的 `exec`：不 mock 模块内部，不 mock Node fs。真实 herdr 行为变化先补 [研究记录](research/) 再改代码；真机回归跑 `pnpm test:e2e`。
@@ -108,4 +108,4 @@ mock 只有三处：pi 扩展 API、注入的 `HerdrHost`、注入的 `exec`：�
 
 - 不建自建 registry、不做角色检测、不设展示字段：见 DEC-0038、DEC-0046、DEC-0033。
 - 收工 QA：`pnpm check`，组成见 `package.json`。
-- 真机验收跑 `pnpm test:e2e`；它自建隔离 agent 目录与 herdr session（见 `e2e/harness.ts`），缺 herdr / pi / auth 时跳过。
+- 真机验收跑 `pnpm test:e2e`；它自建隔离 agent 目录与 herdr session（见 `test/e2e/harness.ts`），缺 herdr / pi / auth 时跳过。

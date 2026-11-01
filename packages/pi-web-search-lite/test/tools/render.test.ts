@@ -2,17 +2,17 @@
 
 import type { ThemeColor } from "@earendil-works/pi-coding-agent";
 import { describe, expect, it } from "vitest";
-import type { FetchDetails } from "../../tools/fetch.ts";
-import { createFetchTool } from "../../tools/fetch.ts";
+import type { FetchDetails } from "../../src/tools/fetch.ts";
+import { createFetchTool } from "../../src/tools/fetch.ts";
 import {
 	renderFetchCall,
 	renderFetchResult,
 	renderSearchCall,
 	renderSearchResult,
-} from "../../tools/render.ts";
-import type { AgentToolResult, Theme } from "../../tools/result.ts";
-import type { SearchDetails } from "../../tools/search.ts";
-import { createSearchTool } from "../../tools/search.ts";
+} from "../../src/tools/render.ts";
+import type { AgentToolResult, Theme } from "../../src/tools/result.ts";
+import type { SearchDetails } from "../../src/tools/search.ts";
+import { createSearchTool } from "../../src/tools/search.ts";
 import { makeConfig } from "./fixtures.ts";
 
 type RenderTheme = Pick<Theme, "fg" | "bold">;

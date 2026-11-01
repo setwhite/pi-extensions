@@ -2,7 +2,7 @@
 
 代理、超时、UA、`AbortSignal`、错误归一化。**不认 provider 语义、不 import 宿主包**；全仓库只有这一个模块直接调用 `undici` 的 `fetch`，gh 子进程不走本模块（见 [handlers.md](handlers.md)）。
 
-API、错误类型与逐条契约在 `http/index.ts`，由 `test/http.test.ts` 与 `test/undici-surface.test.ts` 钉住；本文不复述。跨模块只有两条约定：入口 URL 的 SSRF 校验由调用方在抓取前完成，本模块只校验重定向的每一跳；代理只认 `config.proxy`，不读 `HTTP_PROXY` 等环境变量（[ADR-0004](../adr/0004-single-proxy-setting.md)）。
+API、错误类型与逐条契约在 `src/http/index.ts`，由 `test/http.test.ts` 与 `test/undici-surface.test.ts` 钉住；本文不复述。跨模块只有两条约定：入口 URL 的 SSRF 校验由调用方在抓取前完成，本模块只校验重定向的每一跳；代理只认 `config.proxy`，不读 `HTTP_PROXY` 等环境变量（[ADR-0004](../adr/0004-single-proxy-setting.md)）。
 
 ## 代理回退与冷却
 
@@ -12,7 +12,7 @@ API、错误类型与逐条契约在 `http/index.ts`，由 `test/http.test.ts` �
 - 只回退 `network` / `timeout`。`http_status` 不回退，所以代理自己回 `502` / `407` 时会被当成目标错误——已知盲点，不是漏写。
 - 每次尝试各有一份 `timeoutMs`，最坏延迟是两份之和（默认 60 秒）。
 - 拿到响应后不回退：读体失败重发会重复副作用。
-- 降级提示由 `proxyNotice` 产出，`tools/` 往结果头加一行；粒度是状态级，不是每次回退都报。
+- 降级提示由 `proxyNotice` 产出，`src/tools/` 往结果头加一行；粒度是状态级，不是每次回退都报。
 
 回退用例注入传输层（`HttpClientOptions.fetchImpl`）与时钟（`now`），不依赖 DNS 与真代理；代理转发形态仍由「http：代理」组的真代理桩覆盖。
 
@@ -25,7 +25,7 @@ API、错误类型与逐条契约在 `http/index.ts`，由 `test/http.test.ts` �
 `undici` 是本模块唯一的生产依赖，而 Node 内置的 `fetch` 是它另一份拷贝——升级 npm 这份时存在两份实现并存的坑（压缩响应解不开、Bun 的 shim 缺导出，都是真实事故）。它的 minor 还会改默认行为：8.7.0 的 `fix: auto-detect HTTP proxy tunneling` 换掉了 http 目标的转发路径，随后在 `ProxyAgent` + http 目标的连接回收上崩（undici#5529）。所以按步走：
 
 1. 逐个看 `gh release list -R nodejs/undici` 里目标区间内的 release notes，用关键词过滤改动：`proxy` / `tunnel` / `redirect` / `decompress` / `content-encoding` / `cause` / `error` / `constants` / `badPort` / `h2` / `dispatcher`。
-2. 命中任一关键词，就对照 `http/index.ts` 的契约与 `test/http.test.ts` 的用例判断影响面：代理转发形态、`redirect: "manual"` 的语义、`response.text()` 的解压、错误 cause 链、`badPortsSet` 路径。
+2. 命中任一关键词，就对照 `src/http/index.ts` 的契约与 `test/http.test.ts` 的用例判断影响面：代理转发形态、`redirect: "manual"` 的语义、`response.text()` 的解压、错误 cause 链、`badPortsSet` 路径。
 3. `pnpm typecheck`（深 import 断了这里先红）→ `pnpm test`（`test/undici-surface.test.ts` 钉住四条隐式契约）。
 4. 手动验三条自动化测不到的链路：http 目标经代理（应看到 absolute-form）、https 目标经代理（应建 CONNECT）、错误文案（连接拒绝 / DNS 失败 / bad port 仍带底层 code）。
 5. `pnpm add -E undici@<版本>`，CHANGELOG 记一行；「无行为变更」也是有效记录。

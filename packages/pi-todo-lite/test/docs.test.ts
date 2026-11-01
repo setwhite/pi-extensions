@@ -9,8 +9,8 @@ const read = (name: string): string =>
 		"\n",
 	);
 
-const ZH = read("README.md");
-const EN = read("README.en.md");
+const ZH = read("README.zh-CN.md");
+const EN = read("README.md");
 
 /** 字符串里的 `//` 不算。 */
 function stripComments(source: string): string {
@@ -64,8 +64,8 @@ function atPath(
 	return { found: true, value: current };
 }
 
-const ZH_SAMPLE = sample(ZH, "README.md");
-const EN_SAMPLE = sample(EN, "README.en.md");
+const ZH_SAMPLE = sample(ZH, "README.zh-CN.md");
+const EN_SAMPLE = sample(EN, "README.md");
 
 describe("README 的配置示例与 config.ts 对账", () => {
 	it("示例的键正好是 DEFAULTS 的键，值逐字一致（guidance 三格是占位符）", () => {

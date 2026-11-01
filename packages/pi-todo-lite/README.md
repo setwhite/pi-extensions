@@ -1,113 +1,98 @@
 # pi-todo-lite
 
-[English](README.en.md) | 简体中文
+[简体中文](README.zh-CN.md) | **English**
 
-![pi-todo-lite：输入框上方的 Todo 表，右侧是运行中的工具调用](assets/cover.png)
+![pi-todo-lite: the Todo table above the editor, next to a running tool call](assets/cover.png)
 
-Pi 的 todo 扩展。模型维护一张有序任务表。表显示在输入框上方。compaction、切分支、`--continue` 之后，表照旧回放。零运行时依赖。
+The model keeps one ordered task table above the editor. The table replays after compaction, after a branch switch or after `--continue`. The package has no runtime dependencies.
 
-## 安装
+## Features
 
-用 npm 安装：
+- The model side has one tool, `todo(tasks)`. The call submits the whole table and replaces the old table. `tasks: []` clears the table.
+- The table sits above the editor. Pending tasks take lines first. If the table passes `ui.widget.maxLines` lines, the rest collapse into `+N more`.
+- `alt+t` collapses the table and keeps the data. `ui.*` moves the table and changes the glyphs, the header and the completed style.
+- The extension adds four commands: `/todos`, `/todos clear`, `/todos export`, `/todos import <file>`.
+
+## Install
 
 ```bash
 pi install npm:pi-todo-lite
 ```
 
-本扩展已并入 [setwhite/pi-extensions](https://github.com/setwhite/pi-extensions)。pi 的 git 安装只认仓库根、无法指向子目录，所以只从 npm 安装；旧仓不再更新，`git:` 安装会停在最后发布的版本。
+The old repository moved into this monorepo. Install from npm.
 
-## 用法
+## Configuration
 
-模型侧只有一个工具 `todo(tasks)`。一次调用提交整张表，整表替换旧表。`tasks: []` 清空表。
+The config file is `<agent dir>/pi-todo/config.json`. `<agent dir>` is `$PI_CODING_AGENT_DIR`. If `$PI_CODING_AGENT_DIR` is unset, the agent dir is `~/.pi/agent`.
 
-表显示在输入框上方。行数超过 `ui.widget.maxLines` 时未完成项先占行，剩下的行按表序补已完成项，仍放不下才收成 `+N more`。按 `alt+t` 折叠表，任务数据不变。
+The extension only reads this file. The extension never writes this file. Without the file, all values are defaults.
 
-整表完成后，表留在屏幕上。你发下一条消息时表清空。改 `lifecycle.onFinish` 可换这个行为。
+These cases throw an error. The message holds the absolute path and one `path: reason` line per fault: broken JSON, an unknown key, a wrong type or a wrong enum. The extension clamps out-of-range numbers.
 
-命令：
-
-- `/todos` 列出全部任务，不截断。
-- `/todos clear` 清空表。
-- `/todos export` 导出 markdown checklist。
-- `/todos import <file>` 读回 markdown checklist。表必须为空；不为空时先运行 `/todos clear`。
-
-## 配置
-
-配置文件是 `<agent dir>/pi-todo/config.json`。`<agent dir>` 取 `$PI_CODING_AGENT_DIR`；未设置时取 `~/.pi/agent`。
-
-扩展只读这个文件，从不写入。文件不存在时全部用默认值。
-
-以下情况抛出错误，消息带绝对路径与逐条 `字段路径: 原因`：JSON 损坏、键名未知、类型或枚举错。数值越界时自动夹到上下限。
-
-零配置即可用。只写要改的键：
+**Minimal configuration**: zero config works. To make the table shorter, set `ui.widget.maxLines`. The default is 9 lines.
 
 ```json
-{ "ui": { "widget": { "maxLines": 5 } } }
+{
+  "ui": { "widget": { "maxLines": 5 } }
+}
 ```
 
-全部键如下，值即默认值。`//` 只是注释；实际配置文件里删掉。
+**Full configuration**: all keys follow, with their default values. The `//` starts a comment. Remove the comments in a real file.
 
 ```jsonc
 {
-  "tools": { "todo": { "name": "todo" } },           // 工具名
+  "tools": { "todo": { "name": "todo" } },           // tool name
   "plan": {
-    "maxTasks": 20,                                  // 表里最多几条，超了这次调用失败
-    "maxSubjectChars": 120,                          // 每条内容最长多少字符
-    "requireSingleInProgress": false                 // true = 只准一条 in_progress
+    "maxTasks": 20,                                  // max tasks per table; more fails the call
+    "maxSubjectChars": 120,                          // max characters per task
+    "requireSingleInProgress": false                 // true = only one in_progress task
   },
   "ui": {
     "widget": {
-      "enabled": true,                               // 显不显示这块
-      "maxLines": 9,                                 // 最多几行（3–10）
+      "enabled": true,                               // show the widget
+      "maxLines": 9,                                 // max lines (3–10)
       "placement": "aboveEditor",                    // aboveEditor / belowEditor
-      "showCompleted": true,                         // 已完成的逐条列出
-      "header": "Todo {done}/{total} · {doing} doing", // 表头模板，占位符 {done} {total} {doing}
-      "glyphs": { "pending": "[ ]", "inProgress": "[-]", "completed": "[x]" }, // 三种状态的字形
+      "showCompleted": true,                         // list completed tasks individually
+      "header": "Todo {done}/{total} · {doing} doing", // header template: {done} {total} {doing}
+      "glyphs": { "pending": "[ ]", "inProgress": "[-]", "completed": "[x]" }, // per-status glyphs
       "completedStyle": "strikethrough"              // strikethrough / dim / plain
     },
-    "shortcut": { "toggle": "alt+t" }                // 折叠键；off = 不注册
+    "shortcut": { "toggle": "alt+t" }                // collapse key; off = don't register
   },
   "lifecycle": { "onFinish": "clear" },              // model / keep / clear
   "commands": {
     "todos": { "enabled": true },                    // /todos
     "export": {
       "enabled": true,                               // /todos export
-      "dir": "",                                     // 导出目录，空 = 项目根
-      "fileNamePattern": "todo-{timestamp}.md"       // 文件名模板，同名让位不覆盖
+      "dir": "",                                     // output dir, empty = project root
+      "fileNamePattern": "todo-{timestamp}.md"       // file name template; never overwrites
     },
     "import": { "enabled": true }                    // /todos import <file>
   },
-  "guidance": {                                      // 给模型看的文案；逐键覆盖，空值也覆盖
-    "description": "…",                              // 工具描述；空串 = 空描述
-    "promptSnippet": "",                             // 工具清单那行；空串 = 不出现（缺键同效）
-    "promptGuidelines": ["…"]                        // guidelines；空数组 = 不出现
+  "guidance": {                                      // what the model sees; per-key override, empty values included
+    "description": "…",                              // tool description; empty = empty description
+    "promptSnippet": "",                             // the tool-list line; empty = omitted (same as missing)
+    "promptGuidelines": ["…"]                        // guidelines; empty array = omitted
   }
 }
 ```
 
-未知键直接抛错，不会静默忽略。
+An unknown key throws. The extension ignores no key silently.
 
-## 开发
+## Usage
 
-```bash
-pnpm install               # 仓库根跑一次
-pnpm lint
-pnpm check:imports
-pnpm typecheck
-pnpm test
-pi -ne -e ./src/index.ts   # 从工作区直接运行，不写 settings
-```
+A completed table stays on screen. The table clears when you send the next message. `lifecycle.onFinish` (`model` or `keep`) changes this behavior.
 
-CI、钩子、发版见[根 README](https://github.com/setwhite/pi-extensions#开发)。
+`/todos export` names the file after `commands.export.fileNamePattern`. On a name clash, `/todos export` yields and does not overwrite the file. `/todos import <file>` needs an empty table. Run `/todos clear` first.
 
-## 文档
+## Docs
 
-| 文档 | 什么时候看 |
+| Document | Content |
 |---|---|
-| [`docs/specs/0001-pi-todo-lite.md`](docs/specs/0001-pi-todo-lite.md) | 契约：用户故事、验收标准（AC）、不做的。改这三样先改它 |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | 模块职责、依赖方向、不变量。加文件或改依赖前看它 |
-| [`docs/GLOSSARY.md`](docs/GLOSSARY.md) | 术语。起名或文案打架时看它 |
-| [`CHANGELOG.md`](CHANGELOG.md) | 每个已发布版本的用户可见变更。升级前看它 |
+| [docs/specs/0001-pi-todo-lite.md](docs/specs/0001-pi-todo-lite.md) | Contract and acceptance criteria |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Modules and dependency direction |
+| [docs/GLOSSARY.md](docs/GLOSSARY.md) | Terms |
+| [CHANGELOG.md](CHANGELOG.md) | Release notes |
 
 ## License
 

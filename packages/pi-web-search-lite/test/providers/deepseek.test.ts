@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createHttpClient } from "../../http/index.ts";
-import { createDeepSeekProvider } from "../../providers/deepseek.ts";
+import { createHttpClient } from "../../src/http/index.ts";
+import { createDeepSeekProvider } from "../../src/providers/deepseek.ts";
 import { startTrackedStubServer } from "../stub.ts";
 
 function makeProvider(baseUrl: string) {

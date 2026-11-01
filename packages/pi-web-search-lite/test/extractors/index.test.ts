@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ExtractorId } from "../../config/index.ts";
-import { EXTRACTORS, ExtractError, extractWithChain } from "../../extractors/index.ts";
-import type { ExtractedContent, Extractor, ExtractorContext } from "../../extractors/types.ts";
-import type { HttpClient } from "../../http/index.ts";
-import { createHttpClient } from "../../http/index.ts";
+import type { ExtractorId } from "../../src/config/index.ts";
+import { EXTRACTORS, ExtractError, extractWithChain } from "../../src/extractors/index.ts";
+import type { ExtractedContent, Extractor, ExtractorContext } from "../../src/extractors/types.ts";
+import type { HttpClient } from "../../src/http/index.ts";
+import { createHttpClient } from "../../src/http/index.ts";
 
 function baseContext(overrides: Partial<ExtractorContext> = {}): ExtractorContext {
 	return {

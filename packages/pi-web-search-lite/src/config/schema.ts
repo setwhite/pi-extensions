@@ -165,7 +165,7 @@ export interface ResolvedConfig {
 }
 
 function readPackageVersion(): string {
-	const url = new URL("../package.json", import.meta.url);
+	const url = new URL("../../package.json", import.meta.url);
 	const pkg = JSON.parse(readFileSync(url, "utf-8")) as { version?: unknown };
 	if (typeof pkg.version !== "string" || pkg.version.trim() === "") {
 		throw new Error(`package.json has no usable version field: ${url.pathname}`);

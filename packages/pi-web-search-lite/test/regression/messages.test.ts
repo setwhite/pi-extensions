@@ -7,15 +7,15 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { loadConfig } from "../../config/index.ts";
-import { extractWithChain } from "../../extractors/index.ts";
+import { loadConfig } from "../../src/config/index.ts";
+import { extractWithChain } from "../../src/extractors/index.ts";
 import {
 	checkGhAvailable,
 	execGh,
 	type GhAvailability,
 	resetGhProbeCache,
-} from "../../handlers/github/gh.ts";
-import { executeSearch } from "../../tools/search.ts";
+} from "../../src/handlers/github/gh.ts";
+import { executeSearch } from "../../src/tools/search.ts";
 import { ghStub } from "../handlers/fixtures.ts";
 import { fakeHttp, makeConfig, rejectionOf } from "../tools/fixtures.ts";
 

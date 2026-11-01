@@ -11,6 +11,6 @@
 
 ## 指针
 
-- 截断、spill 的文件名与提示格式：`tools/result.ts`、`test/tools/result.test.ts`。
-- 结果行与失败回退：`tools/render.ts`、`test/tools/render.test.ts`。
-- 两个工具的 schema、`raw` 开关与文案：`tools/search.ts`、`tools/fetch.ts`、`test/tools/{search,fetch}.test.ts`。
+- 截断、spill 的文件名与提示格式：`src/tools/result.ts`、`test/tools/result.test.ts`。
+- 结果行与失败回退：`src/tools/render.ts`、`test/tools/render.test.ts`。
+- 两个工具的 schema、`raw` 开关与文案：`src/tools/search.ts`、`src/tools/fetch.ts`、`test/tools/{search,fetch}.test.ts`。

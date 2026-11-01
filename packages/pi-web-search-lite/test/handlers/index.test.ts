@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runPageHandlers } from "../../handlers/index.ts";
+import { runPageHandlers } from "../../src/handlers/index.ts";
 import { baseContext } from "./fixtures.ts";
 
 describe("runPageHandlers", () => {

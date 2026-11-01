@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { runPageHandlers } from "../../handlers/index.ts";
-import type { HandlerContext } from "../../handlers/types.ts";
+import { runPageHandlers } from "../../src/handlers/index.ts";
+import type { HandlerContext } from "../../src/handlers/types.ts";
 import { baseContext } from "./fixtures.ts";
 
 const BASE = "https://redlib.catsarch.com";

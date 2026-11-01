@@ -1,8 +1,8 @@
 # providers/ — 搜索 provider 层
 
-把一次查询翻译成某搜索 API 的请求与统一结果形状。**不认识 extractor 与工具层、不 import 宿主包**；出站请求一律经 `http/`。
+把一次查询翻译成某搜索 API 的请求与统一结果形状。**不认识 extractor 与工具层、不 import 宿主包**；出站请求一律经 `src/http/`。
 
-换源、缺 key 与默认值的规则见 [ADR-0001](../adr/0001-explicit-search-provider.md)；解析与工厂在 `providers/index.ts`，各家的端点常量、请求与响应映射在 `providers/<id>.ts`，形状由 `test/providers/` 钉住。本文只记代码读不出的外部取舍。
+换源、缺 key 与默认值的规则见 [ADR-0001](../adr/0001-explicit-search-provider.md)；解析与工厂在 `src/providers/index.ts`，各家的端点常量、请求与响应映射在 `src/providers/<id>.ts`，形状由 `test/providers/` 钉住。本文只记代码读不出的外部取舍。
 
 ## 三处取舍
 

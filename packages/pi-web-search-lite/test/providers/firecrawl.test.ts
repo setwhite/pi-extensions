@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createHttpClient } from "../../http/index.ts";
-import { createFirecrawlProvider } from "../../providers/firecrawl.ts";
+import { createHttpClient } from "../../src/http/index.ts";
+import { createFirecrawlProvider } from "../../src/providers/firecrawl.ts";
 import { startTrackedStubServer } from "../stub.ts";
 
 function makeProvider(baseUrl: string) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseGitHubUrl } from "../../handlers/github/index.ts";
+import { parseGitHubUrl } from "../../src/handlers/github/index.ts";
 
 function parse(url: string) {
 	return parseGitHubUrl(new URL(url));

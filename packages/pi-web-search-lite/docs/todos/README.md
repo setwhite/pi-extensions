@@ -14,7 +14,7 @@
 ## 任务
 
 - [x] T18 新增 Parallel / Keenable / DeepSeek 三家搜索源与提取器
-  - 交付物：`providers/{parallel,keenable,deepseek}.ts`、`extractors/{parallel,keenable,deepseek}.ts`、`config/schema.ts` 的枚举与 key 环境变量、根 README 两版（最小配置与 provider 清单）
+  - 交付物：`src/providers/{parallel,keenable,deepseek}.ts`、`src/extractors/{parallel,keenable,deepseek}.ts`、`src/config/schema.ts` 的枚举与 key 环境变量、根 README 两版（最小配置与 provider 清单）
   - 验收：
     - `provider` 与 `fetch.extractors` 都接受 `parallel` / `keenable` / `deepseek`；默认值不变（`tavily` / `html,jina`）
     - 三个搜索源：请求形状正确，响应走统一映射（缺 title 用 url、缺 url 丢弃）
@@ -26,7 +26,7 @@
   - 前置：无
 
 - [x] T19 http 层：网络错误文案带病因 + 跨源重定向摘掉全部认证头
-  - 交付物：`http/index.ts`（`describeCause` 展开 cause 链；`dropSensitiveHeaders` 按头名族判定）、`docs/modules/http.md`
+  - 交付物：`src/http/index.ts`（`describeCause` 展开 cause 链；`dropSensitiveHeaders` 按头名族判定）、`docs/modules/http.md`
   - 验收：
     - 连接被拒 / DNS 失败的 `network` 错误消息含底层 code（`ECONNREFUSED` / `ENOTFOUND`）与地址，不再是裸的 `fetch failed`
     - 多地址（`AggregateError`）场景消息非空，code 与各地址都在
@@ -35,19 +35,19 @@
   - 前置：无
 
 - [x] T20 handlers/github：release tag 加参数分界
-  - 交付物：`handlers/github/index.ts`（`release view` 的 tag 校验或 `--` 分界）
+  - 交付物：`src/handlers/github/index.ts`（`release view` 的 tag 校验或 `--` 分界）
   - 验收：`/o/r/releases/tag/--repo` 这类以 `-` 开头的 tag 不会被 gh 当开关解析（落到提取器链或作为位置参数）
   - 验收证据：`test/handlers/github.test.ts` 的「release：tag 走 -- 分界」（`test/handlers/github-url.test.ts` 的两条只钉住解析层选择——`-` 开头的 tag 仍解析为 release，改动前就绿，不算 AC 证据）
   - 前置：T19
 
 - [x] T21 providers：`DEFAULT_PROVIDER` 收成单源
-  - 交付物：`providers/index.ts`（删本地常量与第三层回落、参数去掉 `| undefined`、头注释同步）、`test/providers/index.test.ts`
-  - 验收：`DEFAULT_PROVIDER` 只在 `config/schema.ts` 定义一处；`resolveProviderId` 只做 env > config 两层
+  - 交付物：`src/providers/index.ts`（删本地常量与第三层回落、参数去掉 `| undefined`、头注释同步）、`test/providers/index.test.ts`
+  - 验收：`DEFAULT_PROVIDER` 只在 `src/config/schema.ts` 定义一处；`resolveProviderId` 只做 env > config 两层
   - 验收证据：`test/providers/index.test.ts`
   - 前置：T19
 
 - [x] T22 handlers/github：release tag 过 `safeRef`
-  - 交付物：`handlers/github/index.ts`（`releases/tag` 的 tag 复用 `safeRef`）、`docs/modules/handlers.md`
+  - 交付物：`src/handlers/github/index.ts`（`releases/tag` 的 tag 复用 `safeRef`）、`docs/modules/handlers.md`
   - 验收：`/O/R/releases/tag/a%00b` 这类含控制字符（以及空、超 1024 字符）的 tag 不命中 handler，落到提取器链，不再把 Node 的 `must be a string without null bytes` 文案透给模型
   - 验收证据：`test/handlers/github-url.test.ts` 的「不命中」清单
   - 前置：T20（已完成）
@@ -62,7 +62,7 @@
   - 交付物：`biome.json`、`package.json`（`lint` 脚本）、`README.md` / `README.en.md` 开发段、`ci.yml` 与 `npm-publish.yml` 的 lint 步骤、`devDependencies`
   - 验收：`pnpm lint`（= `biome check .`）零诊断；CI 与本地同一条命令；`lineWidth` 100 —— 现状源码 p90 实测 89、最长 187，取 100 让既有代码里没被折的行保持原样；重排量随宽度单调下降（88 / 100 / 120 / 140 → 3156 / 2196 / 903 / 407 改动行 = 74 / 73 / 49 / 25 个文件，在 HEAD 副本上用同一 biome 实测），此处不追最小重排：120 会把行宽上限整体抬高
   - 验收证据：`pnpm exec biome check . --reporter=summary` 只输出 `Checked N files`；`pnpm test` 35 files / 303 tests
-  - 进度：已提交——工具与 9 处 lint 修复随 db73099；格式化重排随 3509915（71 个文件）与 911eb7f（`http/index.ts` 单独一枚，它带着待审的手改）；`biome.json` 随 160679f；两个工作流的 lint 步骤随 b64a87b；英文 README 与 `docs/ARCHITECTURE.md` 的口径随 708768e
+  - 进度：已提交——工具与 9 处 lint 修复随 db73099；格式化重排随 3509915（71 个文件）与 911eb7f（`src/http/index.ts` 单独一枚，它带着待审的手改）；`biome.json` 随 160679f；两个工作流的 lint 步骤随 b64a87b；英文 README 与 `docs/ARCHITECTURE.md` 的口径随 708768e
   - 前置：T22 / T23 先提交——已完成（efeff50 / 20a51c1）
 
 - [x] T25 桩 server 的临时端口绕开 undici 的 bad port 名单
@@ -82,8 +82,8 @@
   - 进度：随 T27–T30 一起发布（0.8.3）；跑 `pnpm lint`（85 files 零诊断）、`pnpm typecheck`、`pnpm test`（37 files / 311 tests）全绿。审计按用户确认跳过
 
 - [x] T27 仓库守卫：发布物 + 依赖方向
-  - 交付物：`test/package.test.ts`、`scripts/check-imports.mjs`、`package.json`（`check:imports`）、仓库根 `.github/workflows/ci.yml`、`.github/workflows/publish.yml`、`.githooks/pre-commit`
-  - 验收：新增顶层模块目录却漏写 `files` 时 `pnpm test` 红；`providers/` 导入 `tools/`、`tools/` 导入 `undici`、`index.ts` 值导入宿主包，三者都让 `pnpm check:imports` 退出码 1；正常代码输出 `ok: 39 files`
+  - 交付物：`test/package.test.ts`、`scripts/check-imports.mjs`（后拆成仓库根驱动 + 本包 `scripts/import-graph.mjs`）、`package.json`（`check:imports`）、仓库根 `.github/workflows/ci.yml`、`.github/workflows/npm-publish.yml`、`.githooks/pre-commit`
+  - 验收：新增顶层模块目录却漏写 `files` 时 `pnpm test` 红；`src/providers/` 导入 `src/tools/`、`src/tools/` 导入 `undici`、`index.ts` 值导入宿主包，三者都让 `pnpm check:imports` 退出码 1；正常代码输出 `ok: 39 files`
   - 验收证据：本会话 `node scripts/check-imports.mjs` 输出 `ok: 39 files`；仓库副本注入上述两处违规后输出两条失败并退出码 1；`pnpm test` 含 `test/package.test.ts` 全绿
   - 前置：无
   - 来源：审计——`files` 是枚举式清单（新模块静默漏发），`ARCHITECTURE.md` §2 的六条边与四处单一出口无执行器
@@ -91,8 +91,8 @@
 
 - [x] T28 默认值收成单一来源（指针化）
   - 交付物：`docs/modules/config.md`（删默认值列，保留 clamp / 枚举）、`README.md` / `README.en.md`（默认值归属从 config.md 改成示例本身）
-  - 验收：默认值只出现在 `config/schema.ts` 常量与根 README「完整示例」；跨文档只留指针，符合 `docs/ARCHITECTURE.md` §4
-  - 验收证据：`docs/modules/config.md` 不列默认值；默认值只在 `config/schema.ts` 与根 README「完整示例」
+  - 验收：默认值只出现在 `src/config/schema.ts` 常量与根 README「完整示例」；跨文档只留指针，符合 `docs/ARCHITECTURE.md` §4
+  - 验收证据：`docs/modules/config.md` 不列默认值；默认值只在 `src/config/schema.ts` 与根 README「完整示例」
   - 前置：无
   - 进度：已发布（0.8.3）；同时消掉 README 与 config.md 的互相指向
 
@@ -104,14 +104,14 @@
   - 进度：已发布（0.8.3）
 
 - [x] T30 CI 与供应链加固
-  - 交付物：仓库根 `.github/workflows/ci.yml`、`.github/workflows/publish.yml`、`.github/workflows/dependency-audit.yml`、`package.json`（`lint` 加 `--error-on-warnings`）
+  - 交付物：仓库根 `.github/workflows/ci.yml`、`.github/workflows/npm-publish.yml`、`.github/workflows/dependency-audit.yml`、`package.json`（`lint` 加 `--error-on-warnings`）
   - 验收：显式 `--frozen-lockfile`、warning 即错、`timeout-minutes`、action 按 SHA、publish 前 tarball 覆盖全部 `files`、每日 `pnpm audit --prod`
   - 验收证据：本会话 `pnpm pack --dry-run --json` 实测 41 文件 / 覆盖 8 项 `files`；`pnpm lint` 零诊断
   - 前置：无
   - 进度：已发布（0.8.3）
 
 - [ ] T31 代理故障不再拖死全部请求
-  - 交付物：`http/route.ts`（失败计数、冷却、降级提示）、`http/index.ts`（每次尝试独立超时、两跳回退）、`handlers/github/gh.ts`（探测回退、失败分类、缓存键）、`handlers/github/index.ts`、`tools/fetch.ts` / `tools/search.ts`（结果头一行提示）、`docs/adr/0013-proxy-fallback-direct.md`、README 两版与 `docs/modules/{http,handlers}.md`、`docs/GLOSSARY.md`、`CHANGELOG.md`
+  - 交付物：`src/http/route.ts`（失败计数、冷却、降级提示）、`src/http/index.ts`（每次尝试独立超时、两跳回退）、`src/handlers/github/gh.ts`（探测回退、失败分类、缓存键）、`src/handlers/github/index.ts`、`src/tools/fetch.ts` / `src/tools/search.ts`（结果头一行提示）、`docs/adr/0013-proxy-fallback-direct.md`、README 两版与 `docs/modules/{http,handlers}.md`、`docs/GLOSSARY.md`、`CHANGELOG.md`
   - 验收：
     - 有 `proxy` 时先走代理；`network` / `timeout` 换直连重试一次，结果来自直连；`http_status` 与调用方中断不回退
     - 每次尝试各有一份 `timeoutMs`（回退不共享已用尽的预算）
@@ -123,5 +123,5 @@
 
 ## 已决（未成任务）
 
-- `HttpError.status` / `.body` 是否删（本会话提出，全仓零生产读者、只有 `test/http.test.ts:129,133` 读）：决定**保留**——口径写进 `http/index.ts` 注释，将来要按状态码做事（如 429 退避）或把错误页正文给模型时直接用。注意 `body` 是整页、不截断。
+- `HttpError.status` / `.body` 是否删（本会话提出，全仓零生产读者、只有 `test/http.test.ts:129,133` 读）：决定**保留**——口径写进 `src/http/index.ts` 注释，将来要按状态码做事（如 429 退避）或把错误页正文给模型时直接用。注意 `body` 是整页、不截断。
 - 16 张 provider / extractor 表是否抽象（审查 #5）：决定**不动**——认证头名、请求体字段、响应路径、错误约定各不相同，等第 9 家再加入口（用户已确认）。

@@ -10,32 +10,70 @@
 
 ## 安装
 
-```sh
-pi install npm:pi-web-search-lite
-pi install npm:pi-todo-lite
-pi install npm:pi-herdr-subagents-lite
-```
+三个包都用 `pi install npm:<包名>` 安装，包名见上表。
 
-只从 npm 装：pi 的 git 安装只认仓库根，无法指向子目录。
+只能从 npm 安装。pi 的 git 安装只认仓库根，指不到子目录。
 
 ## 开发
 
+### 环境
+
+需要 Node `>= 22.19` 与 pnpm。版本由根 `package.json` 的 `packageManager` 固定。
+
 ```sh
-pnpm install
-pnpm check                            # 三包各跑 lint + check:imports + typecheck + test
-pnpm -C packages/pi-todo-lite test    # 单包
-pi install ./packages/pi-todo-lite    # 直接从工作区装
+pnpm install # 在仓库根装一次，三个包共用 pnpm-lock.yaml
 ```
 
-CI 在 Linux（Node 22 / 24）与 Windows（Node 22）上跑 `pnpm check`，见 [ci.yml](.github/workflows/ci.yml)。
+### 全仓检查
 
-钩子（可选，仓库内生效）：`git config core.hooksPath .githooks`。
+四条闸都在仓库根跑。
+
+```sh
+pnpm check         # 四条按序跑一遍
+pnpm lint          # biome 查格式与 lint，warning 也算失败
+pnpm check:imports # 按各包 scripts/import-graph.mjs 校验依赖方向与单一出口
+pnpm typecheck     # 各包 tsc --noEmit
+pnpm test          # vitest 跑测试，全程不访问网络
+```
+
+格式与 lint 可自动修正：
+
+```sh
+pnpm -r --no-bail lint:fix # 自动修正格式与 lint
+```
+
+### 单包与 E2E
+
+```sh
+pnpm -C packages/pi-todo-lite test                # 单包测试
+pnpm -C packages/pi-web-search-lite test:e2e      # 真网络，需要 provider key
+pnpm -C packages/pi-herdr-subagents-lite test:e2e # 真 herdr + 真 pi 子进程
+```
+
+E2E 不进 `pnpm check`，也不进 CI。web-search 的 e2e 需要 provider key 与外网。herdr 的 e2e 自己起隔离的 herdr session 与 agent 目录。缺 herdr、pi 或 `auth.json` 时整组跳过并打印原因。
+
+```sh
+export PI_E2E_MODEL=<model> # herdr e2e 换模型
+export PI_E2E_KEEP=1        # 保留 e2e 临时目录
+```
+
+从工作区直接安装扩展，不经过 npm：`pi install ./packages/pi-todo-lite`。
+
+### 钩子与 CI
+
+CI 在 Linux（Node 22 / 24）与 Windows（Node 22）上跑同样四条，见 [ci.yml](.github/workflows/ci.yml)。
+
+```sh
+git config core.hooksPath .githooks # 启用提交钩子，钩子跑同样四条
+```
 
 ## 发版
 
-改 `packages/<pkg>/package.json` 的 version 并推 main。`publish.yml` 对三个包各判断一次，只发版本号变了的。
+改 `packages/<pkg>/package.json` 的 version，然后推 main。`npm-publish.yml` 对三个包各判断一次，只发布版本号变了的包。
 
 ## 文档
 
-- 各包的架构、术语、模块、ADR：`packages/<pkg>/docs/`
-- 仓库级决策：[docs/adr/](docs/adr/)
+| 位置 | 内容 |
+|---|---|
+| `packages/<包名>/docs/` | 该包的架构、术语、模块与 ADR。不在 npm 包里。只在 GitHub 可读。 |
+| [docs/adr/](docs/adr/) | 仓库级决策：为什么合并、为什么不抽共享包。 |

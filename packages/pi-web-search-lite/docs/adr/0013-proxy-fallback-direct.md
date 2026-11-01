@@ -16,4 +16,4 @@ gh 子进程走同一套思路：探测先带代理，失败就去掉代理复�
 
 gh 侧多一条限制：代理在中间时的结论不能当定论。实测代理不通时，`gh auth status` 会输出 `The token in keyring is invalid.`——把网络故障说成凭据失效。所以带代理的探测结果一律不缓存，只有直连复核的结论才算；网络故障的结论同样不进缓存（缓存键带上代理）。
 
-契约见 `http/route.ts`、`http/index.ts`、`handlers/github/gh.ts` 与 `test/http.test.ts`、`test/handlers/github.test.ts`。
+契约见 `src/http/route.ts`、`src/http/index.ts`、`src/handlers/github/gh.ts` 与 `test/http.test.ts`、`test/handlers/github.test.ts`。

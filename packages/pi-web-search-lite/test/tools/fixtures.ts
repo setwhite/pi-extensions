@@ -14,14 +14,14 @@ import {
 	type SearchSettings,
 	type ToolId,
 	type ToolSettings,
-} from "../../config/index.ts";
+} from "../../src/config/index.ts";
 import {
 	createHttpClient,
 	type HttpClient,
 	type HttpJsonResult,
 	type HttpRequest,
 	type HttpTextResult,
-} from "../../http/index.ts";
+} from "../../src/http/index.ts";
 
 export interface ConfigOverrides {
 	provider?: ProviderId;

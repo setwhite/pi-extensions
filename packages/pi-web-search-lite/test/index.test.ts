@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ExtensionAPI, ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import piWebSearchLite from "../index.ts";
+import piWebSearchLite from "../src/index.ts";
 
 const dirs: string[] = [];
 

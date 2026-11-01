@@ -7,8 +7,8 @@ import {
 	HttpError,
 	proxyNotice,
 	resetProxyRoute,
-} from "../http/index.ts";
-import { SsrfError } from "../ssrf/index.ts";
+} from "../src/http/index.ts";
+import { SsrfError } from "../src/ssrf/index.ts";
 import { listenEphemeral } from "./stub.ts";
 
 const UA = "pi-web-search-lite/test";

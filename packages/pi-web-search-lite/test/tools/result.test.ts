@@ -2,7 +2,7 @@ import { existsSync, readFileSync, rmSync } from "node:fs";
 import { dirname } from "node:path";
 import { DEFAULT_MAX_BYTES } from "@earendil-works/pi-coding-agent";
 import { afterEach, describe, expect, it } from "vitest";
-import { finalizeContent } from "../../tools/result.ts";
+import { finalizeContent } from "../../src/tools/result.ts";
 
 const spilled: string[] = [];
 afterEach(() => {

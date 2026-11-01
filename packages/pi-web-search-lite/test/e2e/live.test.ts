@@ -7,9 +7,9 @@
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { API_KEY_ENV_KEYS, loadConfig, PROVIDER_IDS } from "../../config/index.ts";
-import { createHttpClient } from "../../http/index.ts";
-import { createSearchProvider } from "../../providers/index.ts";
+import { API_KEY_ENV_KEYS, loadConfig, PROVIDER_IDS } from "../../src/config/index.ts";
+import { createHttpClient } from "../../src/http/index.ts";
+import { createSearchProvider } from "../../src/providers/index.ts";
 
 const config = loadConfig();
 const http = createHttpClient({

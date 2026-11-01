@@ -19,14 +19,7 @@
 		"node": ">=22.19.0"
 	},
 	"files": [
-		"index.ts",
-		"config",
-		"http",
-		"ssrf",
-		"providers",
-		"handlers",
-		"extractors",
-		"tools"
+		"src"
 	],
 	"keywords": [
 		"pi-package",
@@ -45,12 +38,13 @@
 	],
 	"pi": {
 		"extensions": [
-			"./index.ts"
+			"./src/index.ts"
 		]
 	},
 	"scripts": {
 		"lint": "biome check --error-on-warnings .",
-		"check:imports": "node scripts/check-imports.mjs",
+		"lint:fix": "biome check --write .",
+		"check:imports": "node ../../scripts/check-imports.mjs",
 		"test": "vitest run",
 		"test:e2e": "vitest run --config vitest.e2e.config.ts",
 		"typecheck": "tsc --noEmit"

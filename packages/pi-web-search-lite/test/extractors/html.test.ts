@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { extractTitle, htmlExtractor, htmlToText } from "../../extractors/html.ts";
-import type { ExtractorContext } from "../../extractors/types.ts";
-import { createHttpClient } from "../../http/index.ts";
+import { extractTitle, htmlExtractor, htmlToText } from "../../src/extractors/html.ts";
+import type { ExtractorContext } from "../../src/extractors/types.ts";
+import { createHttpClient } from "../../src/http/index.ts";
 import { startTrackedStubServer } from "../stub.ts";
 
 const FIXTURE = `<!doctype html>

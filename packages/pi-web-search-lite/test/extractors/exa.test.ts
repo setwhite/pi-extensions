@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { createExaExtractor } from "../../extractors/exa.ts";
-import type { ExtractorContext } from "../../extractors/types.ts";
-import { createHttpClient } from "../../http/index.ts";
+import { createExaExtractor } from "../../src/extractors/exa.ts";
+import type { ExtractorContext } from "../../src/extractors/types.ts";
+import { createHttpClient } from "../../src/http/index.ts";
 import { startTrackedStubServer } from "../stub.ts";
 
 function makeContext(overrides: Partial<ExtractorContext> = {}): ExtractorContext {

@@ -4,8 +4,8 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { SsrfError } from "../../ssrf/index.ts";
-import { executeFetch } from "../../tools/fetch.ts";
+import { SsrfError } from "../../src/ssrf/index.ts";
+import { executeFetch } from "../../src/tools/fetch.ts";
 import { fakeHttp, makeConfig, rejectionOf } from "../tools/fixtures.ts";
 
 /** 故意指向不可用的本地端口：一旦守卫失效，测试会以网络错误而非 SsrfError 失败。 */

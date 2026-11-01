@@ -1,14 +1,14 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { describe, expect, it } from "vitest";
-import { PROVIDER_IDS } from "../../config/index.ts";
-import { createHttpClient } from "../../http/index.ts";
+import { PROVIDER_IDS } from "../../src/config/index.ts";
+import { createHttpClient } from "../../src/http/index.ts";
 import {
 	createSearchProvider,
 	ProviderError,
 	resolveApiKey,
 	resolveProviderId,
-} from "../../providers/index.ts";
+} from "../../src/providers/index.ts";
 
 /** 只认声明语句：import 与「从 config 重导出」都不算重复定义。 */
 const DECLARES_DEFAULT_PROVIDER = /\b(?:const|let|var)\s+DEFAULT_PROVIDER\b/;
@@ -67,12 +67,12 @@ describe("resolveProviderId", () => {
 });
 
 describe("默认值单源", () => {
-	it("包内源码只在 config/schema.ts 声明一处", () => {
+	it("包内源码只在 src/config/schema.ts 声明一处", () => {
 		const declaring = packageSourceFiles()
 			.filter((file) => DECLARES_DEFAULT_PROVIDER.test(file.text))
 			.map((file) => file.path);
 
-		expect(declaring).toEqual(["config/schema.ts"]);
+		expect(declaring).toEqual(["src/config/schema.ts"]);
 	});
 });
 

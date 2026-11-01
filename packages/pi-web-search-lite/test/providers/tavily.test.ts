@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createHttpClient } from "../../http/index.ts";
-import { createTavilyProvider } from "../../providers/tavily.ts";
+import { createHttpClient } from "../../src/http/index.ts";
+import { createTavilyProvider } from "../../src/providers/tavily.ts";
 import { startTrackedStubServer } from "../stub.ts";
 
 function makeProvider(baseUrl: string) {

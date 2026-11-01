@@ -7,8 +7,8 @@ import {
 	ghEnv,
 	looksUnauthenticated,
 	resetGhProbeCache,
-} from "../../handlers/github/gh.ts";
-import { githubHandler } from "../../handlers/github/index.ts";
+} from "../../src/handlers/github/gh.ts";
+import { githubHandler } from "../../src/handlers/github/index.ts";
 import type {
 	GhExecResult,
 	GhExecutor,
@@ -16,7 +16,7 @@ import type {
 	HandlerOutcome,
 	HandlerSkip,
 	HandlerSuccess,
-} from "../../handlers/types.ts";
+} from "../../src/handlers/types.ts";
 import { baseContext, ghStub, ISSUE, RELEASE } from "./fixtures.ts";
 
 beforeEach(() => resetGhProbeCache());
@@ -41,7 +41,7 @@ function handlerSourceFiles(): Array<{ path: string; text: string }> {
 		readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
 			entry.isDirectory() ? walk(join(dir, entry.name)) : [join(dir, entry.name)],
 		);
-	return walk(join(import.meta.dirname, "..", "..", "handlers"))
+	return walk(join(import.meta.dirname, "..", "..", "src", "handlers"))
 		.filter((path) => path.endsWith(".ts"))
 		.map((path) => ({ path, text: readFileSync(path, "utf-8") }));
 }

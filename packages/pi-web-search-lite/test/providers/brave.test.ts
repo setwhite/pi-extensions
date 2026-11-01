@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createHttpClient } from "../../http/index.ts";
-import { createBraveProvider } from "../../providers/brave.ts";
+import { createHttpClient } from "../../src/http/index.ts";
+import { createBraveProvider } from "../../src/providers/brave.ts";
 import { startTrackedStubServer } from "../stub.ts";
 
 function makeProvider(baseUrl: string) {

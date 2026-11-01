@@ -7,10 +7,10 @@ import { existsSync, readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
 import { dirname } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { createHttpClient } from "../../http/index.ts";
-import { createSearchProvider } from "../../providers/index.ts";
-import { executeFetch } from "../../tools/fetch.ts";
-import { executeSearch } from "../../tools/search.ts";
+import { createHttpClient } from "../../src/http/index.ts";
+import { createSearchProvider } from "../../src/providers/index.ts";
+import { executeFetch } from "../../src/tools/fetch.ts";
+import { executeSearch } from "../../src/tools/search.ts";
 import { listenEphemeral, startTrackedStubServer } from "../stub.ts";
 import { firstText, makeConfig } from "../tools/fixtures.ts";
 

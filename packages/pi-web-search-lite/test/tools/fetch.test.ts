@@ -1,12 +1,12 @@
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { dirname } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { EXTRACTOR_IDS, type ExtractorId } from "../../config/index.ts";
-import type { ExtractedContent, Extractor } from "../../extractors/index.ts";
-import { resetGhProbeCache } from "../../handlers/github/gh.ts";
-import type { GhExecutor } from "../../handlers/index.ts";
-import { resetProxyRoute } from "../../http/index.ts";
-import { createFetchTool, executeFetch } from "../../tools/fetch.ts";
+import { EXTRACTOR_IDS, type ExtractorId } from "../../src/config/index.ts";
+import type { ExtractedContent, Extractor } from "../../src/extractors/index.ts";
+import { resetGhProbeCache } from "../../src/handlers/github/gh.ts";
+import type { GhExecutor } from "../../src/handlers/index.ts";
+import { resetProxyRoute } from "../../src/http/index.ts";
+import { createFetchTool, executeFetch } from "../../src/tools/fetch.ts";
 import { ghStub, ISSUE } from "../handlers/fixtures.ts";
 import { exhaustProxy, fakeHttp, firstText, makeConfig, rejectionOf } from "./fixtures.ts";
 

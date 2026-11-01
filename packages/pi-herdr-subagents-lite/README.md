@@ -1,58 +1,118 @@
 # pi-herdr-subagents-lite
 
-English | [简体中文](README.zh-CN.md)
+[简体中文](README.zh-CN.md) | **English**
 
-A pi extension that runs subagents as separate pi processes in herdr panes. One tool, two actions: `run` starts a subagent, `send` continues it, results come back asynchronously.
-
-Behavior is defined by the [v1 contract](docs/specs/0001-v1-contract.md). Project docs are in Chinese.
+The extension runs subagents as separate pi processes in herdr panes. One tool has two actions: `run` starts a subagent, and `send` continues a subagent. Results come back asynchronously. The behavior follows the [v1 contract](docs/specs/0001-v1-contract.md).
 
 ## Features
 
-- **Separate process, human takeover**: each subagent is its own pi process in a herdr pane. Same cwd as the parent opens a tab in the same workspace, otherwise a new workspace. Switch into the pane and take over at any time.
-- **Profile layers**: Markdown + frontmatter profiles, global and per project.
-- **Async, merged results**: `run` returns at once. Each finished turn reports one `subagent_result` message; results inside `aggregateWindowMs` merge into one. Oversize results go to an artifact file.
-- **Questions stay with the human**: a child prompt marks its pane `herdr:blocked` and nothing goes to the parent. The human answers in the child pane; no model relays the answer.
-- **No nesting by default, no sandbox**: child tool sets drop this tool unless the profile names it. The profile picks tools; the extension does not restrict writes.
-
-## Requirements
-
-Tested with herdr `0.9.5` and pi `1.4.0`. Node `>= 22.19`. The parent must run inside a herdr pane, otherwise calls fail with `not_in_herdr`.
+- Separate process, human takeover: each subagent is its own pi process in a herdr pane. If the subagent cwd equals the parent cwd, the subagent opens a tab in the same workspace. Otherwise the subagent opens a new workspace.
+- Two profile layers: Markdown with frontmatter, one global profile layer and one profile layer per project.
+- Async, merged results: `run` returns at once. Each finished turn reports one `subagent_result`. Results inside `aggregateWindowMs` merge into one result. Oversize results go to an artifact file.
+- Questions stay with the human: a child prompt only emits `herdr:blocked`. Nothing reaches the parent. The human answers in the child pane.
+- No nesting by default, no sandbox: if the profile does not name this tool, child tool sets drop this tool.
 
 ## Install
 
-Pick one source, then restart pi.
-
 ```bash
-pi install npm:pi-herdr-subagents-lite                     # npm
-pi install /path/to/pi-herdr-subagents-lite                # local checkout
-pi -e /path/to/pi-herdr-subagents-lite/src/index.ts        # this process only
+pi install npm:pi-herdr-subagents-lite              # npm
+pi install /path/to/pi-herdr-subagents-lite         # local checkout
+pi -e /path/to/pi-herdr-subagents-lite/src/index.ts # this process only
 ```
 
-Do not pass `-l`: it writes project settings only, so children started in another workspace never load the package and both the inbox pump and the bridge stop working. `pi -e` is single-process too.
+The old repository moved into this monorepo. Install from npm.
 
-This extension moved into [setwhite/pi-extensions](https://github.com/setwhite/pi-extensions). Pi's git install reads the repository root only and cannot point at a subdirectory, so install from npm; the old repository no longer updates, so `git:` installs stay at the version published there last.
+Do not pass `-l`. `-l` writes project settings only, so children started in another workspace never load the package. `pi -e` is single-process too.
 
-Upgrade with `pi update --extensions`, remove with `pi remove <source>`. After a restart the tool list shows `subagent` (or your `toolName`).
+Tested with herdr `0.9.5` and pi `1.4.0`, Node `>= 22.19`. The parent must run inside a herdr pane. Otherwise calls fail with `not_in_herdr`. Upgrade with `pi update --extensions`. Remove with `pi remove <source>`.
 
-## Quick start
+## Configuration
+
+One global file holds the configuration: `<agent-dir>/pi-herdr-subagents-lite/config.json`. `<agent-dir>` defaults to `~/.pi/agent`. `PI_CODING_AGENT_DIR` sets `<agent-dir>`. The extension does not read a project config.
+
+Defaults and clamp boundaries: `src/config/index.ts` and `test/config/config.test.ts`. Key meaning: [contract §1](docs/specs/0001-v1-contract.md#1-配置).
+
+### Minimal config
+
+A missing file means all defaults. To change one value, write only that value:
+
+```json
+{
+  "maxConcurrent": 4
+}
+```
+
+### Full configuration
+
+The block below lists every key. Each value is the default.
+
+```jsonc
+{
+  // Default true. false = no subagent tool for the model. The bridge has its own switch.
+  "enabled": true,
+  // Default "subagent". Must match ^[a-z][a-z0-9_]{0,31}$. The name prefixes each guideline line.
+  "toolName": "subagent",
+  // Default "herdr". A plain name resolves from PATH; an absolute path pins a version.
+  "herdrBin": "herdr",
+  // Default 16, range 1 and up. At the limit run returns max_concurrent. A child with auto-exit: false keeps its slot after it settles.
+  "maxConcurrent": 16,
+  // Default 16384, range 1024 to 1048576. A longer text goes to an artifact file; the message keeps a truncated head and the path.
+  "maxResultChars": 16384,
+  // Default 500, range 0 to 10000 milliseconds. 0 = deliver each result at once. A larger value merges more results.
+  "aggregateWindowMs": 500,
+  // Default empty = never close. Values: new, resume, fork, quit, reload. A listed reason closes the child tabs on parent shutdown.
+  "closeChildrenOn": [],
+  // Default 250, range 50 to 5000 milliseconds. A larger value wakes less often and delivers later.
+  "inboxPollMs": 250,
+  // Default 1000, range 100 to 60000 milliseconds. Use while a child works or blocks, or within 30 s of run or send.
+  "pollIntervalMs": 1000,
+  // Default 8000, range 100 to 60000 milliseconds. Use when every live child only waits for send. A larger value notices a dead pane later.
+  "idlePollIntervalMs": 8000,
+  // Tool text overrides. Each key defaults to unset, which keeps the built-in text shown below.
+  "prompts": {
+    // Replaces the built-in description.
+    "description": "Run subagents and send them messages.",
+    // The one-line entry in Available tools. Empty = keep the tool out of that list.
+    "snippet": "",
+    // Replaces the built-in guideline lines. Keep {{profiles}} to list the profiles.
+    "guidelines": [
+      "The parent handles user interaction, cross-task synthesis, and decisions; subagents execute.",
+      "run only starts; it does not wait. The result arrives later as a message.",
+      "send only delivers; no state tracking.",
+      "Available profiles:\n{{profiles}}"
+    ]
+  },
+  // Turn pi prompt events into herdr:blocked events.
+  "bridge": {
+    // Default true. false = no herdr:blocked events.
+    "enabled": true,
+    // Default all five. Prompt kinds that count as blocked: custom, select, confirm, input, editor.
+    "blockedOn": ["custom", "select", "confirm", "input", "editor"]
+  }
+}
+```
+
+The file is strict JSON and the extension reads it once, so delete the comments and restart pi after a change. An unknown key, a wrong type or an unknown enum value stops the extension at load: pi prints `invalid config <path>: <field>: unknown key` and exits. A number outside its range clamps to the boundary.
+
+## Usage
 
 1. Start `pi` in a herdr pane.
-2. Write a profile (next section); `run` takes its frontmatter `name`.
+2. Write a profile (next section). `run` takes the frontmatter `name` of the profile.
 3. Ask the model to call the tool:
 
 ```json
 {"action":"run","profile":"explore","task":"Read README.md and answer with its first heading."}
 ```
 
-It returns `{"state":"running",...}`, runs in its own tab, and a `[subagent explore-1] done` message arrives later. Do not wait for it in the same turn. Continue that child with:
+The call returns `{"state":"running",...}`. The subagent runs in its own tab. A `[subagent explore-1] done` message arrives later. Do not wait for the message in the same turn. Continue that child with:
 
 ```json
 {"action":"send","name":"explore-1","message":"Also check the Windows branch."}
 ```
 
-## Profile
+### Profile
 
-Global profiles live in `<agent-dir>/pi-herdr-subagents-lite/profiles/*.md`, project profiles in `.pi/pi-herdr-subagents-lite/profiles/*.md` (read once the project is trusted); the project wins on the same `name`.
+Global profiles live in `<agent-dir>/pi-herdr-subagents-lite/profiles/*.md`. Project profiles live in `.pi/pi-herdr-subagents-lite/profiles/*.md` and load once the project is trusted. If a project profile and a global profile share a `name`, the project profile wins.
 
 ```markdown
 ---
@@ -85,52 +145,15 @@ disable-model-invocation: false
 You are a read-only explorer. Answer with file paths and line numbers.
 ```
 
-Error codes: [contract section 2](docs/specs/0001-v1-contract.md#2-profile). Defaults: `src/profile/frontmatter.ts` and `test/profile/`. A file without `name`, or with an invalid field, stays out of the list; duplicate names in one layer are all rejected. `run` returns `profile_invalid` with the file, field and reason.
+Error codes: [contract section 2](docs/specs/0001-v1-contract.md#2-profile). Defaults: `src/profile/frontmatter.ts` and `test/profile/`. A file without `name` or with an invalid field stays out of the list. The extension rejects all duplicate names in one layer. `run` returns `profile_invalid` with the file, the field and the reason.
 
-A bundled example ships with the extension; its file name and `name` are both `domain`. Loading reads `profiles/*.md` only and the example is written only when missing, so copy it one level up:
+The extension ships a bundled example. The file name and the `name` of the example are both `domain`. Loading reads `profiles/*.md` only. The extension writes the example only when the example is missing, so copy the example one level up:
 
 ```bash
 cd <agent-dir>/pi-herdr-subagents-lite/profiles && cp examples/domain.md domain.md
 ```
 
-## Configuration
-
-One global file: `<agent-dir>/pi-herdr-subagents-lite/config.json`. `<agent-dir>` defaults to `~/.pi/agent` and follows `PI_CODING_AGENT_DIR`. Project config is not read.
-
-Defaults and clamp boundaries: `src/config/index.ts`, `test/config/config.test.ts`. Key meaning: [contract §1](docs/specs/0001-v1-contract.md#1-配置).
-
-### Minimal config
-
-A missing file means all defaults. To change one value, write only that value:
-
-```json
-{
-  "maxConcurrent": 4
-}
-```
-
-### Keys
-
-| Key | Meaning |
-|---|---|
-| `enabled` | Gates tool registration only; the bridge has its own switch |
-| `toolName` | Name the model sees; `^[a-z][a-z0-9_]{0,31}$` |
-| `herdrBin` | herdr executable; a plain name resolves from PATH, an absolute path pins a version |
-| `maxConcurrent` | Live children per parent session; an `auto-exit: false` child keeps its slot after settling |
-| `maxResultChars` | Per-result character limit; beyond it the full text goes to an artifact and the message keeps a truncated head plus the path |
-| `aggregateWindowMs` | Merge window in milliseconds; 0 = deliver each result at once |
-| `closeChildrenOn` | Parent shutdown reasons that close its child tabs: `new` / `resume` / `fork` / `quit` / `reload`; empty = never |
-| `inboxPollMs` | Child inbox polling interval |
-| `pollIntervalMs` | Parent `agent list` interval while a child is working or blocked, or within 30 s of `run` / `send` |
-| `idlePollIntervalMs` | Parent interval when every live child only waits for `send`; it bounds how late a vanished pane is noticed (a killed child whose pane lives is fixed at 10 s) |
-| `prompts` | Tool text overrides: `description`, `snippet`, `guidelines`; omitted keys keep the built-in text; `snippet: ""` hides the tool from Available tools; keep `{{profiles}}` to list profiles |
-| `bridge` | `enabled` turns pi prompt events into `herdr:blocked`; `blockedOn` lists the prompt kinds that count as blocked |
-
-Strict JSON: an unknown key, a wrong type or a bad enum makes the extension fail to load, and pi exits naming the field. Out-of-range numbers clamp to the boundary. The config is read once, so restart pi after editing.
-
-## Reference projects
-
-The design is based on these projects. Thank you.
+## Credits
 
 | Project | Borrowed |
 |---|---|
@@ -139,23 +162,17 @@ The design is based on these projects. Thank you.
 | [modem-dev/pi-herdr-subagents](https://github.com/modem-dev/pi-herdr-subagents) | herdr launch and lifecycle; derived end states |
 | [purboo/pi-durable-subagents](https://github.com/purboo/pi-durable-subagents) | Async delivery, idempotency, report-once results |
 
+Thank you for the code.
+
 ## Docs
 
-- [ARCHITECTURE](docs/ARCHITECTURE.md): module boundaries, dependency direction, test seams
-- [GLOSSARY](docs/GLOSSARY.md): the only source for terms
-- [Modules](docs/modules/): usage and trade-offs per module
-
-## Development
-
-```bash
-pnpm install        # run once at the repo root
-pnpm check          # lint + check:imports + typecheck + test
-pnpm test:e2e       # real herdr and pi children; not in pnpm check
-```
-
-E2E starts an isolated herdr session and agent directory, and skips the suite with a reason when herdr, pi or `auth.json` is missing. `PI_E2E_MODEL` picks another model; `PI_E2E_KEEP=1` keeps the temp directories.
-
-CI, hooks and releases: see the [root README](https://github.com/setwhite/pi-extensions#开发).
+| Document | Content |
+|---|---|
+| [docs/specs/0001-v1-contract.md](docs/specs/0001-v1-contract.md) | The v1 contract |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Module boundaries, dependency direction, test seams |
+| [docs/modules/](docs/modules/) | Usage and trade-offs per module |
+| [docs/GLOSSARY.md](docs/GLOSSARY.md) | The only source for terms |
+| [CHANGELOG.md](CHANGELOG.md) | Release notes |
 
 ## License
 

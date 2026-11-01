@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createHttpClient } from "../../http/index.ts";
-import { createPerplexityProvider } from "../../providers/perplexity.ts";
+import { createHttpClient } from "../../src/http/index.ts";
+import { createPerplexityProvider } from "../../src/providers/perplexity.ts";
 import { startTrackedStubServer } from "../stub.ts";
 
 function makeProvider(baseUrl: string) {

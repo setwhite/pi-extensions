@@ -1,7 +1,7 @@
 # 发布：三个包各自独立发版。main 上任一 packages/*/package.json 变化即触发，逐包查
 # npm 上是否已有该版本；已存在就整格跳过（幂等），所以改文档等不碰 package.json 的推送不会发。
 # 认证走 npm 可信发布（OIDC），仓库里不存 token；需在 npmjs.com 每个包的设置里加一个
-# Trusted Publisher：仓库 setwhite/pi-extensions、workflow 文件名 publish.yml。
+# Trusted Publisher：仓库 setwhite/pi-extensions、workflow 文件名 npm-publish.yml。
 # 发布前对真实 tarball 再查一遍：package.json 的 files 少写一个目录时，
 # 装在用户侧才会崩，而 lint / test 都是绿的。
 name: Publish

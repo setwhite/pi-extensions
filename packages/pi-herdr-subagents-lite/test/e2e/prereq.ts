@@ -4,7 +4,7 @@ import { homedir } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+export const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 export const REAL_AGENT_DIR = process.env.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi", "agent");
 
 export interface Prereq {

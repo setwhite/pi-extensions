@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ProviderId } from "../../config/index.ts";
-import { resetProxyRoute } from "../../http/index.ts";
-import type { SearchOptions, SearchProvider, SearchResult } from "../../providers/index.ts";
-import { createSearchTool, executeSearch } from "../../tools/search.ts";
+import type { ProviderId } from "../../src/config/index.ts";
+import { resetProxyRoute } from "../../src/http/index.ts";
+import type { SearchOptions, SearchProvider, SearchResult } from "../../src/providers/index.ts";
+import { createSearchTool, executeSearch } from "../../src/tools/search.ts";
 import { exhaustProxy, firstText, makeConfig, rejectionOf } from "./fixtures.ts";
 
 const RESULTS: SearchResult[] = [

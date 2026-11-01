@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createHttpClient } from "../../http/index.ts";
-import { createKeenableProvider } from "../../providers/keenable.ts";
+import { createHttpClient } from "../../src/http/index.ts";
+import { createKeenableProvider } from "../../src/providers/keenable.ts";
 import { startTrackedStubServer } from "../stub.ts";
 
 function makeProvider(baseUrl: string) {

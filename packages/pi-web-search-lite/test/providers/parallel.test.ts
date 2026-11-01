@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createHttpClient } from "../../http/index.ts";
-import { createParallelProvider } from "../../providers/parallel.ts";
+import { createHttpClient } from "../../src/http/index.ts";
+import { createParallelProvider } from "../../src/providers/parallel.ts";
 import { startTrackedStubServer } from "../stub.ts";
 
 function makeProvider(baseUrl: string) {
