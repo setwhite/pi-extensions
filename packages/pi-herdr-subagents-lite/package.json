@@ -1,6 +1,6 @@
 {
   "name": "pi-herdr-subagents-lite",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "description": "Run pi subagents in herdr panes.",
   "type": "module",
   "license": "MIT",
