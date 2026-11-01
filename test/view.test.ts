@@ -135,7 +135,7 @@ describe("renderWidget", () => {
 		).toBe("+2 more");
 	});
 
-	it("超预算先整条丢 completed", () => {
+	it("超预算先丢 completed，空出来的行再按表序补回 completed", () => {
 		const tasks = [
 			...makeTasks(3, "completed"),
 			{ content: "还剩这件", status: "pending" as Status },
@@ -143,9 +143,66 @@ describe("renderWidget", () => {
 
 		expect(renderWidget(tasks, { ...CFG, maxLines: 4 }, 80)).toEqual([
 			"Todo 3/4",
+			"[x] task 1",
 			"[ ] 还剩这件",
-			"+3 more",
+			"+2 more",
 		]);
+	});
+
+	it("未完成项全部装得下时，空位按表序补满 completed（不是只剩一行 + N more）", () => {
+		const tasks = [
+			...makeTasks(8, "completed"),
+			{ content: "current", status: "pending" as Status },
+		];
+
+		expect(renderWidget(tasks, CFG, 80)).toEqual([
+			"Todo 8/9",
+			"[x] task 1",
+			"[x] task 2",
+			"[x] task 3",
+			"[x] task 4",
+			"[x] task 5",
+			"[x] task 6",
+			"[ ] current",
+			"+2 more",
+		]);
+	});
+
+	it("回填不改表序：completed 留在它在表里的位置，不挪到未完成之后", () => {
+		const tasks: Task[] = [
+			{ content: "a", status: "completed" },
+			{ content: "b", status: "pending" },
+			{ content: "c", status: "completed" },
+			{ content: "d", status: "pending" },
+			{ content: "e", status: "completed" },
+		];
+
+		// 预算 4：1 行表头 + 3 行，未完成 b / d 先占两行，空出的一行给 completed a
+		expect(renderWidget(tasks, { ...CFG, maxLines: 5 }, 80)).toEqual([
+			"Todo 3/5",
+			"[x] a",
+			"[ ] b",
+			"[ ] d",
+			"+2 more",
+		]);
+	});
+
+	it("行数永不超 maxLines；出了汇总行就至少藏 2 条（+1 more 不会出现）", () => {
+		for (let count = 1; count <= 30; count += 1) {
+			for (let maxLines = 1; maxLines <= 10; maxLines += 1) {
+				const tasks: Task[] = Array.from({ length: count }, (_, index) => ({
+					content: `task ${index + 1}`,
+					status: index % 3 === 0 ? "completed" : "pending",
+				}));
+				const lines = renderWidget(tasks, { ...CFG, maxLines }, 80) ?? [];
+
+				expect(
+					lines.length,
+					`${count} 条 / maxLines ${maxLines}`,
+				).toBeLessThanOrEqual(maxLines);
+				expect(lines.at(-1)).not.toBe("+1 more");
+			}
+		}
 	});
 
 	it("非完成项也超预算时砍尾巴，隐藏数把 completed 一起算上", () => {

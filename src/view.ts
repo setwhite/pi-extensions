@@ -82,8 +82,17 @@ function layout(
 	budget: number,
 ): { shown: readonly Task[]; hidden: number } {
 	if (tasks.length <= budget) return { shown: tasks, hidden: 0 };
-	const unfinished = tasks.filter((task) => task.status !== "completed");
-	const shown = unfinished.slice(0, Math.max(budget - 1, 0));
+
+	// 留一行给 +N more；未完成先占位，剩下的空位按表序补 completed，显示顺序仍是表序
+	const slots = Math.max(budget - 1, 0);
+	const keep = new Set<number>();
+	for (const [index, task] of tasks.entries()) {
+		if (task.status !== "completed" && keep.size < slots) keep.add(index);
+	}
+	for (const [index, task] of tasks.entries()) {
+		if (task.status === "completed" && keep.size < slots) keep.add(index);
+	}
+	const shown = tasks.filter((_, index) => keep.has(index));
 	return { shown, hidden: tasks.length - shown.length };
 }
 
