@@ -11,5 +11,5 @@
 
 ## 指针
 
-- 三道上限（`fetch.maxCharsPerPage` / `handlers.github.maxChars` / `context.*`）的适用对象：根 `README.md`「三道 max 闸」。
+- 三道上限（`fetch.maxCharsPerPage` / `handlers.github.maxChars` / `context.*`）的适用对象：包内 `README.md`「三道 max 闸」。
 - agent dir 与配置文件路径：术语见 `docs/GLOSSARY.md`「agent dir」，实现见 `defaultConfigPath`。

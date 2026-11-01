@@ -168,7 +168,7 @@ The docs are currently in Chinese.
 ## Development
 
 ```bash
-pnpm install
+pnpm install       # run once at the repo root; installs all three packages
 pnpm lint          # biome: lint + format check (a warning fails too; add --write to fix in place)
 pnpm check:imports # dependency-direction gate: executable form of docs/ARCHITECTURE.md §2
 pnpm typecheck
@@ -176,8 +176,4 @@ pnpm test          # unit tests, no real network
 pnpm test:e2e      # optional: live smoke test; needs keys and network; run manually before a release; not in CI
 ```
 
-CI runs lint / check:imports / typecheck / test on Linux (Node 22 / 24) and Windows (Node 22). `.gitattributes` pins line endings to LF, so biome gives the same result on both systems. `packageManager` pins the pnpm version. The lint and format rules are in `biome.json` (`lineWidth` 100).
-
-The pre-commit gate is optional and applies per clone. Run `git config core.hooksPath .githooks` once. After that, each commit runs lint / `check:imports` / typecheck / test. This step takes about 10 seconds.
-
-Release: change `version` in `package.json`, add a `CHANGELOG.md` entry, and push to `main`. `.github/workflows/npm-publish.yml` publishes the package. If the version is already on the registry, the workflow skips the whole run.
+The lint and format rules are in `biome.json` (`lineWidth` 100). CI, the pre-commit gate and releases are managed per repo; see the [pi-extensions root README](https://github.com/setwhite/pi-extensions#开发).

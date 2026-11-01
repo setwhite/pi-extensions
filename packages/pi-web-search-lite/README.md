@@ -166,7 +166,7 @@ key 也可以放在环境变量中（`TAVILY_API_KEY` / `BRAVE_API_KEY` / `EXA_A
 ## 开发
 
 ```bash
-pnpm install
+pnpm install       # 在仓库根跑一次，装齐三个包的依赖
 pnpm lint          # biome：lint + 格式检查（warning 也算错；加 --write 自动修正）
 pnpm check:imports # 依赖方向闸：docs/ARCHITECTURE.md §2 的可执行版本
 pnpm typecheck
@@ -174,8 +174,4 @@ pnpm test          # 单元测试，不访问真实网络
 pnpm test:e2e      # 可选：真链路冒烟，需要 key 与外网；发版前手动运行，不进 CI
 ```
 
-CI 在 Linux（Node 22 / 24）与 Windows（Node 22）上运行 lint / check:imports / typecheck / test。`.gitattributes` 把行尾固定为 LF，两个平台上的 biome 结果一致。pnpm 版本由 `packageManager` 固定。格式与 lint 规则见 `biome.json`（`lineWidth` 100）。
-
-提交前闸（可选，仓库内生效）：运行 `git config core.hooksPath .githooks`。此后每次提交运行 lint / `check:imports` / typecheck / test 四条命令，约 10 秒。
-
-发版：修改 `package.json` 的 `version`，在 `CHANGELOG.md` 增加条目，然后推送 `main`。`.github/workflows/npm-publish.yml` 负责发布；registry 上已有该版本时，整条运行跳过。
+格式与 lint 规则见 `biome.json`（`lineWidth` 100）。CI、提交前闸、发版由仓库统一管理，见 [pi-extensions 根 README](https://github.com/setwhite/pi-extensions#开发)。

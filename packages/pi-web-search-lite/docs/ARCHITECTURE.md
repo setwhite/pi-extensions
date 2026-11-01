@@ -45,11 +45,11 @@ tools/{search,fetch}.ts ─→ tools/result.ts（宿主截断工具） / tools/r
 
 - 模块以目录为单位：单文件模块用 `<name>/index.ts`，多文件模块在目录内平铺（如 `providers/tavily.ts`）。
 - 模块文档统一放 `docs/modules/`，与模块同名（`config/` → `docs/modules/config.md`）；写什么见 §4，改动时同 PR 更新（[ADR-0011](adr/0011-contracts-in-code.md)）。术语见 `docs/GLOSSARY.md`。
-- 测试统一放仓库根 `test/`：单个测试文件放根（如 `test/http.test.ts`），同一模块多个文件时建子目录（如 `test/providers/tavily.test.ts`）；跨模块回归放 `test/regression/`，共享夹具用 `fixtures.ts` / `stub.ts`。测试不进 npm 发布产物。测试标题与夹具可用中文（不进 pi），断言运行时文案时必须与源码英文一致。
+- 测试统一放包根 `test/`：单个测试文件放根（如 `test/http.test.ts`），同一模块多个文件时建子目录（如 `test/providers/tavily.test.ts`）；跨模块回归放 `test/regression/`，共享夹具用 `fixtures.ts` / `stub.ts`。测试不进 npm 发布产物。测试标题与夹具可用中文（不进 pi），断言运行时文案时必须与源码英文一致。
 - 需要 key 与外网的真链路冒烟放 `test/e2e/`，只由 `pnpm test:e2e` 拉起（`vitest.config.ts` 把它排除在 `pnpm test` 之外），永不进 CI（[ADR-0012](adr/0012-e2e-manual-only.md)）。
 - 根 README 的封面图放 `assets/`，同样不进 npm 发布产物，所以 README 里用 GitHub raw 绝对地址引用。
 - 仓库级守卫是 `scripts/` 下的零依赖 node 脚本（现有：`check-imports.mjs`）；发布物由 `test/package.test.ts` 与发布流水线的 tarball 断言守。
-- 提交前闸是 `.githooks/pre-commit`（跑上述四条，`git config core.hooksPath .githooks` 启用一次）；它与 CI 跑同一批命令，不另立规则。
+- 提交前闸是仓库根的 `.githooks/pre-commit`（跑上述四条，`git config core.hooksPath .githooks` 启用一次）；它与 CI 跑同一批命令，不另立规则。
 - 收工 QA 固定四条：`pnpm lint`、`pnpm check:imports`、`pnpm test`、`pnpm typecheck`（与 CI 同款，见根 README「开发」）；发版前另跑 `pnpm test:e2e`。
 - 手动验收用隔离 agent 目录：`PI_CODING_AGENT_DIR=<临时目录> pi --extension ./index.ts -p "<prompt>"`；临时目录只放真实 `auth.json` 与最小 `settings.json`，避免与本机同名工具冲突。
 

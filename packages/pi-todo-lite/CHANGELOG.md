@@ -2,6 +2,11 @@
 
 已发布版本的用户可见变更；更细的过程见 git log。破坏性变更在条目里标注 **BREAKING**。
 
+## 未发布
+
+- **BREAKING**：源码并入 [setwhite/pi-extensions](https://github.com/setwhite/pi-extensions)，只从 npm 安装。pi 的 git 安装只认仓库根、无法指向子目录，`git:` 安装留在旧仓，不再更新
+- 开发：CI、发布、提交前闸、lockfile 与行尾策略收成仓库一份；提交前闸改跑全部三个包
+
 ## 0.1.6 — 2026-11-01
 
 - **行为变更**：widget 行预算溢出时，未完成项先占行，剩下的行按表序补已完成项，仍放不下才收成 `+N more`。原先空出的行不复用 —— 1 条未完成 + 8 条已完成时只用掉 3 行（1 行任务 + `+8 more`），现在用满 `maxLines`

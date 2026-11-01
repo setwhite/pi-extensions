@@ -148,7 +148,7 @@ The design is based on these projects. Thank you.
 ## Development
 
 ```bash
-pnpm install        # dependencies
+pnpm install        # run once at the repo root; installs all three packages
 pnpm check          # the four checks below
 pnpm test           # unit tests (vitest)
 pnpm lint           # biome
@@ -157,7 +157,7 @@ pnpm check:imports  # dependency direction, per docs/ARCHITECTURE.md
 pnpm test:e2e       # real herdr plus real pi children, not part of pnpm check
 ```
 
-Run `git config core.hooksPath .githooks` once to run `pnpm check` on every commit.
+CI, the pre-commit gate and releases are managed per repo; see the [pi-extensions root README](https://github.com/setwhite/pi-extensions#开发).
 
 E2E starts an isolated herdr session and agent directory, and skips the suite with a reason when herdr, pi or `auth.json` is missing. `PI_E2E_MODEL` picks another model; `PI_E2E_KEEP=1` keeps the temp directories.
 

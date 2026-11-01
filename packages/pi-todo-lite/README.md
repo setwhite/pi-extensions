@@ -90,7 +90,7 @@ pi install npm:pi-todo-lite
 ## 开发
 
 ```bash
-pnpm install
+pnpm install                       # 在仓库根跑一次，装齐三个包的依赖
 pnpm lint                          # biome check：lint 与格式检查（`--write` 落盘）
 pnpm check:imports                 # 依赖方向闸：docs/ARCHITECTURE.md「依赖方向」的机读版
 pnpm typecheck                     # tsc --noEmit
@@ -98,9 +98,7 @@ pnpm test                          # vitest
 pi -ne -e ./src/index.ts           # 从工作区直接运行，不写 settings
 ```
 
-提交前闸（可选，按 clone 启用）：`git config core.hooksPath .githooks`。启用后每次提交运行同样四条命令，约 3 秒。
-
-发版：改 `package.json` 的 `version` 与 `CHANGELOG.md`，推送到 `main`。流水线见 `.github/workflows/npm-publish.yml`。
+CI、提交前闸、发版由仓库统一管理，见 [pi-extensions 根 README](https://github.com/setwhite/pi-extensions#开发)。
 
 ## 文档
 

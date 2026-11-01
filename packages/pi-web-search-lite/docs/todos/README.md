@@ -82,12 +82,12 @@
   - 进度：随 T27–T30 一起发布（0.8.3）；跑 `pnpm lint`（85 files 零诊断）、`pnpm typecheck`、`pnpm test`（37 files / 311 tests）全绿。审计按用户确认跳过
 
 - [x] T27 仓库守卫：发布物 + 依赖方向
-  - 交付物：`test/package.test.ts`、`scripts/check-imports.mjs`、`package.json`（`check:imports`）、`ci.yml`、`npm-publish.yml`、`.githooks/pre-commit`
+  - 交付物：`test/package.test.ts`、`scripts/check-imports.mjs`、`package.json`（`check:imports`）、仓库根 `.github/workflows/ci.yml`、`.github/workflows/publish.yml`、`.githooks/pre-commit`
   - 验收：新增顶层模块目录却漏写 `files` 时 `pnpm test` 红；`providers/` 导入 `tools/`、`tools/` 导入 `undici`、`index.ts` 值导入宿主包，三者都让 `pnpm check:imports` 退出码 1；正常代码输出 `ok: 39 files`
   - 验收证据：本会话 `node scripts/check-imports.mjs` 输出 `ok: 39 files`；仓库副本注入上述两处违规后输出两条失败并退出码 1；`pnpm test` 含 `test/package.test.ts` 全绿
   - 前置：无
   - 来源：审计——`files` 是枚举式清单（新模块静默漏发），`ARCHITECTURE.md` §2 的六条边与四处单一出口无执行器
-  - 进度：已发布（0.8.3）；`.githooks/pre-commit` 跑 lint / check:imports / typecheck / test 四条，约 10 秒
+  - 进度：已发布（0.8.3）；仓库根 `.githooks/pre-commit` 跑 lint / check:imports / typecheck / test 四条，约 10 秒
 
 - [x] T28 默认值收成单一来源（指针化）
   - 交付物：`docs/modules/config.md`（删默认值列，保留 clamp / 枚举）、`README.md` / `README.en.md`（默认值归属从 config.md 改成示例本身）
@@ -104,7 +104,7 @@
   - 进度：已发布（0.8.3）
 
 - [x] T30 CI 与供应链加固
-  - 交付物：`ci.yml`、`npm-publish.yml`、`.github/workflows/dependency-audit.yml`、`package.json`（`lint` 加 `--error-on-warnings`）
+  - 交付物：仓库根 `.github/workflows/ci.yml`、`.github/workflows/publish.yml`、`.github/workflows/dependency-audit.yml`、`package.json`（`lint` 加 `--error-on-warnings`）
   - 验收：显式 `--frozen-lockfile`、warning 即错、`timeout-minutes`、action 按 SHA、publish 前 tarball 覆盖全部 `files`、每日 `pnpm audit --prod`
   - 验收证据：本会话 `pnpm pack --dry-run --json` 实测 41 文件 / 覆盖 8 项 `files`；`pnpm lint` 零诊断
   - 前置：无

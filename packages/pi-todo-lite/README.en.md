@@ -90,7 +90,7 @@ An unknown key throws. Nothing is silently ignored.
 ## Development
 
 ```bash
-pnpm install
+pnpm install                       # run once at the repo root; installs all three packages
 pnpm lint                          # biome check: lint and format check (`--write` applies fixes)
 pnpm check:imports                 # dependency gate: executable form of docs/ARCHITECTURE.md "Dependency direction"
 pnpm typecheck                     # tsc --noEmit
@@ -98,9 +98,7 @@ pnpm test                          # vitest
 pi -ne -e ./src/index.ts           # run from the working tree, no settings entry
 ```
 
-Pre-commit gate (optional, per clone): `git config core.hooksPath .githooks`. After that, each commit runs the same four commands, about 3 seconds.
-
-Release: change `version` in `package.json` and update `CHANGELOG.md`. Push to `main`. The workflow is `.github/workflows/npm-publish.yml`.
+CI, the pre-commit gate and releases are managed per repo; see the [pi-extensions root README](https://github.com/setwhite/pi-extensions#开发).
 
 ## Docs
 
