@@ -25,7 +25,7 @@ pi -e git:github.com/setwhite/pi-todo-lite        # 只试一次，不写 settin
 
 模型侧只有一个工具 `todo(tasks)`。一次调用提交整张表，整表替换旧表。`tasks: []` 清空表。
 
-表显示在输入框上方。行数超过 `ui.widget.maxLines` 时先丢已完成的任务。按 `alt+t` 折叠表，任务数据不变。
+表显示在输入框上方。行数超过 `ui.widget.maxLines` 时未完成项先占行，剩下的行按表序补已完成项，仍放不下才收成 `+N more`。按 `alt+t` 折叠表，任务数据不变。
 
 整表完成后，表留在屏幕上。你发下一条消息时表清空。改 `lifecycle.onFinish` 可换这个行为。
 

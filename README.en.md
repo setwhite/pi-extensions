@@ -25,7 +25,7 @@ pi -e git:github.com/setwhite/pi-todo-lite        # one try, nothing saved
 
 The model gets one tool, `todo(tasks)`. One call submits the whole table. The new table replaces the old table. `tasks: []` clears the table.
 
-The table shows above the editor. If the table needs more lines than `ui.widget.maxLines`, completed tasks drop first. Press `alt+t` to collapse the table. The task data does not change.
+The table shows above the editor. If the table needs more lines than `ui.widget.maxLines`, unfinished tasks get the lines first and completed tasks fill the rest in table order; what still does not fit becomes `+N more`. Press `alt+t` to collapse the table. The task data does not change.
 
 A finished table stays on screen. The table clears when you send the next message. Set `lifecycle.onFinish` to change this behavior.
 
