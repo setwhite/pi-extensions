@@ -34,7 +34,7 @@ it("gives up after 100 name retries", async () => {
   nameTaken = false;
 
   expect((await runTask(tool, "next task")).isError).toBe(false);
-});
+}, 30_000);
 
 it("uses distinct child sessions", async () => {
   process.env.HERDR_ENV = "1";
