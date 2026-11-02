@@ -147,10 +147,10 @@ You are a read-only explorer. Answer with file paths and line numbers.
 
 Error codes: [contract section 2](docs/specs/0001-v1-contract.md#2-profile). Defaults: `src/profile/frontmatter.ts` and `test/profile/`. A file without `name` or with an invalid field stays out of the list. The extension rejects all duplicate names in one layer. `run` returns `profile_invalid` with the file, the field and the reason.
 
-The extension ships a bundled example. The file name and the `name` of the example are both `domain`. Loading reads `profiles/*.md` only. The extension writes the example only when the example is missing, so copy the example one level up:
+The extension ships a bundled example. The file name and the `name` of the example are both `worker`. Loading reads `profiles/*.md` only. On every load the extension makes `profiles/examples/` match the bundled examples: it rewrites the bundled files and deletes extra files. So copy the example one level up:
 
 ```bash
-cd <agent-dir>/pi-herdr-subagents-lite/profiles && cp examples/domain.md domain.md
+cd <agent-dir>/pi-herdr-subagents-lite/profiles && cp examples/worker.md worker.md
 ```
 
 ## Credits

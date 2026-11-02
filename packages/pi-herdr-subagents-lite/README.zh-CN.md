@@ -147,10 +147,10 @@ disable-model-invocation: false
 
 错误码见[契约 §2](docs/specs/0001-v1-contract.md#2-profile)。默认值见 `src/profile/frontmatter.ts` 与 `test/profile/`。没写 `name` 的文件、字段非法的文件与同层同名的文件都不进列表。对它调用 `run`，返回 `profile_invalid`，带文件、字段与原因。
 
-扩展自带一个示例 profile。文件名和 `name` 都是 `domain`。加载只读 `profiles/*.md`。示例也只在缺失时写入。所以复制一份到上一层即可：
+扩展自带一个示例 profile。文件名和 `name` 都是 `worker`。加载只读 `profiles/*.md`。每次加载都把 `profiles/examples/` 对齐到扩展自带的示例：重写自带文件，删掉多余文件。所以复制一份到上一层即可：
 
 ```bash
-cd <agent-dir>/pi-herdr-subagents-lite/profiles && cp examples/domain.md domain.md
+cd <agent-dir>/pi-herdr-subagents-lite/profiles && cp examples/worker.md worker.md
 ```
 
 ## 参考项目

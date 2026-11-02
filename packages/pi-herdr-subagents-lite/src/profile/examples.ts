@@ -1,21 +1,17 @@
-export const EXAMPLE_PROFILE_FILE = "domain.md";
+export const EXAMPLE_PROFILE_FILE = "worker.md";
 
 export const EXAMPLE_PROFILE = `---
-# Copy this file to profiles/domain.md to use it.
-name: domain
-description: Use when the task covers another domain.
+# Copy this file to profiles/worker.md to use it.
+name: worker
+description: General purpose.
 # model: provider/model
 # thinking: low
 tools: -subagent
-skills: []
+# skills: []
 system-prompt: append
-auto-exit: false
+auto-exit: true
 disable-model-invocation: false
 ---
-Work on one domain per task.
-
-- Change only files in that domain.
-- Read the code yourself. Do not ask the parent for context.
-- Report what changed, what is left, and what blocks you.
-- Stop if only the user can decide. Report the question.
+- Stop when the task needs a design decision. Report what you need; the parent answers. Do not guess.
+- Report concisely what changed, what is left, and what blocks you.
 `;

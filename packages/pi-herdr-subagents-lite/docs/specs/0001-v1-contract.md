@@ -67,7 +67,7 @@
 - 未知字段忽略。解析失败只跳过该 profile，并在工具错误里说明。
 - `name` 缺失、不是字符串或为空白：该 profile 不加载。`run` 返回 `profile_invalid`，按文件名定位。
 - 同一层两个文件同名：两个都不加载。`profile_invalid` 列出两个文件。项目层与全局层同名仍是项目覆盖。
-- 安装后扩展写一份示例到 `profiles/examples/domain.md`。只在文件缺失时写，不覆盖。示例的 `name` 也是 `domain`。加载只看 `profiles/*.md`，所以示例默认不生效。复制一层即用。
+- 扩展每次加载都把 `profiles/examples/` 对齐到包内示例：自带文件重写，多余文件删除。`profiles/*.md` 不写。示例的文件名与 `name` 都是 `worker`。加载只看 `profiles/*.md`，所以示例默认不生效。复制一层即用。
 
 ## 3. 工具
 

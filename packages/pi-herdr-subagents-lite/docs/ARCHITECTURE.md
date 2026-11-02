@@ -28,7 +28,7 @@
 | [`profile`](modules/profile.md) | profile 读取、校验、分层、示例落盘 | `loadProfiles`、`seedExampleProfile`、`globalProfilesDir`、`agentDir`、`resolveSkillPaths`、`Profile`、`ProfileCatalog`、`ProfileSources`、`EXAMPLE_PROFILE`、`EXAMPLE_PROFILE_FILE` | `index.ts` `frontmatter.ts` `layers.ts` `examples.ts` `seed.ts` `skills.ts` |
 | [`bridge`](modules/bridge.md) | `ui_prompt_*` → `herdr:blocked`，按 `bridge.enabled` / `blockedOn` 过滤 | `createBridge` | `index.ts` |
 
-入口不是模块。它构造真实 host、配置、profile 加载器、session 读取器，并注入 `createExtension`。加载时它还调一次 `seedExampleProfile(globalProfilesDir())` 写示例（DEC-0057）。
+入口不是模块。它构造真实 host、配置、profile 加载器、session 读取器，并注入 `createExtension`。加载时它还调一次 `seedExampleProfile(globalProfilesDir())` 把 `profiles/examples/` 对齐到包内示例（DEC-0057）。
 
 ## 3. 依赖方向
 
@@ -81,7 +81,7 @@ profile -> error
 |---|---|---|
 | pi 扩展 API + 注入 HerdrHost | fake pi、fake host、fake timers、临时 session JSONL。`PI_CODING_AGENT_DIR` 指向临时目录 | 工具契约、run 生命周期、profile argv、身份文件、并发、send 续聊与重启、结果消息、关闭 |
 | `loadConfig` | 临时 agent 目录 + 真实 fs | 默认值、clamp、严格校验 |
-| `loadProfiles` | 临时 agent 目录、临时项目目录 + 真实 fs | frontmatter、`name` 必填、字段校验、坏字段、同层同名、受信项目覆盖。示例只在缺失时写 |
+| `loadProfiles` | 临时 agent 目录、临时项目目录 + 真实 fs | frontmatter、`name` 必填、字段校验、坏字段、同层同名、受信项目覆盖。示例目录每次加载对齐到包内 |
 | `readLastAssistant` | 表驱动 + 临时 JSONL | JSONL 解析边界、空文件、不可读 |
 | `inbox` | 临时 session 路径 + 真实 fs。子侧泵经 fake pi + fake timers | 建目录、入队顺序、按序投递、投递后删除、失败保留 |
 | bridge | fake pi events | `ui_prompt_*` → `herdr:blocked`、`blockedOn` 过滤 |
