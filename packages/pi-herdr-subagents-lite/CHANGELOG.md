@@ -2,6 +2,11 @@
 
 本文件记录已发布版本的用户可见变更。更细的过程见 git log。破坏性变更标 **BREAKING**。0.5.2 及更早的变更见旧仓 `setwhite/pi-herdr-subagents-lite` 的 tag `v0.3.0`–`v0.5.2`。
 
+## 0.7.2 — 2026-11-03
+
+- 内置工具文案改为讲用法：`description` 说何时用 `run`、何时用 `send`。
+- 删掉 guideline 里 "The parent handles user interaction, cross-task synthesis, and decisions; subagents execute." 一行。剩下三条讲 `run` 与 `send` 的语义，最后一条列 profile。
+
 ## 0.7.1 — 2026-11-03
 
 - 发布：`CHANGELOG.md` 进 `files`。此前 tarball 里没有它，pi 更新扩展后看不到变更。本版起补上。首次更新到本版时，"Extension Updates" 下只有这一条。
