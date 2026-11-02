@@ -71,12 +71,11 @@ The block below lists every key. Each value is the default.
   // Tool text overrides. Each key defaults to unset, which keeps the built-in text shown below.
   "prompts": {
     // Replaces the built-in description.
-    "description": "Run subagents and send them messages.",
+    "description": "Use run when a task is self-contained and long-running. Use send to pass information to a subagent.",
     // The one-line entry in Available tools. Empty = keep the tool out of that list.
     "snippet": "",
     // Replaces the built-in guideline lines. Keep {{profiles}} to list the profiles.
     "guidelines": [
-      "The parent handles user interaction, cross-task synthesis, and decisions; subagents execute.",
       "run only starts; it does not wait. The result arrives later as a message.",
       "send only delivers; no state tracking.",
       "Available profiles:\n{{profiles}}"

@@ -71,12 +71,11 @@ pi -e /path/to/pi-herdr-subagents-lite/src/index.ts # 只对当前进程生效
   // 工具文案覆盖。每个键默认未设置，用下面这份内置文案。
   "prompts": {
     // 替换内置描述。
-    "description": "Run subagents and send them messages.",
+    "description": "Use run when a task is self-contained and long-running. Use send to pass information to a subagent.",
     // Available tools 里的那一行。空 = 不出现在该列表。
     "snippet": "",
     // 替换内置 guideline 各行。保留 {{profiles}} 才会列出 profile。
     "guidelines": [
-      "The parent handles user interaction, cross-task synthesis, and decisions; subagents execute.",
       "run only starts; it does not wait. The result arrives later as a message.",
       "send only delivers; no state tracking.",
       "Available profiles:\n{{profiles}}"

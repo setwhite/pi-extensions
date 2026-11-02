@@ -93,10 +93,11 @@ it("rejects outside herdr", async () => {
 it("keeps the default prompt short", () => {
   const tool = loadTool(fakeHost().host);
 
-  expect(tool.description).toBe("Run subagents and send them messages.");
+  expect(tool.description).toBe(
+    "Use run when a task is self-contained and long-running. Use send to pass information to a subagent.",
+  );
   expect(tool.promptSnippet).toBe("");
   expect(tool.promptGuidelines).toEqual([
-    "subagent: The parent handles user interaction, cross-task synthesis, and decisions; subagents execute.",
     "subagent: run only starts; it does not wait. The result arrives later as a message.",
     "subagent: send only delivers; no state tracking.",
     expect.stringMatching(/^subagent: Available profiles:\n/),
