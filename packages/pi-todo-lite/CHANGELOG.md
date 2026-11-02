@@ -2,6 +2,13 @@
 
 本文件记录已发布版本的用户可见变更。更细的过程见 git log。破坏性变更标 **BREAKING**。
 
+## 0.3.0 — 2026-11-03
+
+- `/todos` 有参数补全。输入 `clear`、`export` 或 `import` 时列出候选，Tab 收下当前项。关掉的子命令不列。
+- `/todos import ` 之后列会话目录下的文件与目录。目录带 `/`。带空格的路径自动加引号。
+- 命令列表里 `/todos` 的说明写出子命令：`clear | export | import <file>`。pi 不给扩展命令转发参数提示语，这句说明是唯一提示。
+- 发布：`CHANGELOG.md` 进 `files`。pi 在扩展更新后，于 "Extension Updates" 下显示比上次所见版本更新的条目。
+
 ## 0.2.0 — 2026-11-01
 
 - **BREAKING**：源码并入 [setwhite/pi-extensions](https://github.com/setwhite/pi-extensions)，只从 npm 安装。pi 的 git 安装只认仓库根，指不到子目录。`git:` 安装留在旧仓，不再更新。

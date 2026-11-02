@@ -2,6 +2,10 @@
 
 本文件记录已发布版本的用户可见变更。更细的过程见 git log。破坏性变更标 **BREAKING**。0.5.2 及更早的变更见旧仓 `setwhite/pi-herdr-subagents-lite` 的 tag `v0.3.0`–`v0.5.2`。
 
+## 0.7.1 — 2026-11-03
+
+- 发布：`CHANGELOG.md` 进 `files`。此前 tarball 里没有它，pi 更新扩展后看不到变更。本版起补上。首次更新到本版时，"Extension Updates" 下只有这一条。
+
 ## 0.7.0 — 2026-11-02
 
 - **BREAKING**：`profiles/examples/` 每次加载都镜像到包内示例。自带文件重写，多余文件与子目录删除。这个目录是分发物。自己的 profile 放在 `profiles/`，不放 `examples/`。
