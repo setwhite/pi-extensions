@@ -56,6 +56,10 @@ describe("发布物", () => {
 		expect(empty).toEqual([]);
 	});
 
+	it("CHANGELOG.md 随包发布（pi 靠它显示更新日志）", () => {
+		expect(shipped("CHANGELOG.md")).toBe(true);
+	});
+
 	it("pi.extensions 指向的入口存在且随包发布", () => {
 		const entry = pkg.pi.extensions[0].replace("./", "");
 		expect(tracked).toContain(entry);

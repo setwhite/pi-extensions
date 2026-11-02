@@ -30,7 +30,8 @@
     "typecheck": "tsc --noEmit"
   },
   "files": [
-    "src"
+    "src",
+    "CHANGELOG.md"
   ],
   "peerDependencies": {
     "@earendil-works/pi-ai": "*",

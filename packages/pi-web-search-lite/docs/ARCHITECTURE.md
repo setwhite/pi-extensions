@@ -47,7 +47,7 @@ tools/{search,fetch}.ts ─→ tools/result.ts（宿主截断工具） / tools/r
 
 ## 3. 目录与测试约定
 
-- 源码在 `src/`，测试在 `test/`，仓库脚本在 `scripts/`，文档在 `docs/`，README 用的图在 `assets/`。只有前两者与发布产物相关（`files` 只列 `src`）。
+- 源码在 `src/`，测试在 `test/`，仓库脚本在 `scripts/`，文档在 `docs/`，README 用的图在 `assets/`。发布产物只有 `src/` 与根 `CHANGELOG.md`（`files` 列这两项）。`CHANGELOG.md` 进包，pi 才能读它显示更新日志。
 - 模块以目录为单位。单文件模块用 `<name>/index.ts`。多文件模块在目录内平铺（如 `src/providers/tavily.ts`）。
 - 模块文档统一放 `docs/modules/`，与模块同名（`src/config/` → `docs/modules/config.md`）。写什么见 §4。改动时同 PR 更新（[ADR-0011](adr/0011-contracts-in-code.md)）。术语见 `docs/GLOSSARY.md`。
 - 测试统一放包根 `test/`。单个测试文件放根（如 `test/http.test.ts`）。同一模块多个文件时建子目录（如 `test/providers/tavily.test.ts`）。跨模块回归放 `test/regression/`。共享夹具用 `fixtures.ts` / `stub.ts`。测试不进 npm 发布产物。测试标题与夹具可用中文（不进 pi）。断言运行时文案时，必须与源码英文一致。

@@ -19,7 +19,8 @@
 		"node": ">=22.19.0"
 	},
 	"files": [
-		"src"
+		"src",
+		"CHANGELOG.md"
 	],
 	"keywords": [
 		"pi-package",

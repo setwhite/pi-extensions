@@ -1,5 +1,5 @@
 /**
- * 发布物断言：`files` 只列 `src`，新顶层目录忘加时本地全绿、只有装包的用户会崩。
+ * 发布物断言：`files` 列 `src` 与根 `CHANGELOG.md`，新顶层目录忘加时本地全绿、只有装包的用户会崩。
  * 只需 git 索引与 package.json，不联网、不打包。
  */
 
@@ -44,6 +44,10 @@ describe("发布物", () => {
   it("files 的每一项都命中至少一个文件", () => {
     const empty = pkg.files.filter((entry) => !tracked.some((file) => file === entry || file.startsWith(`${entry}/`)));
     expect(empty).toEqual([]);
+  });
+
+  it("CHANGELOG.md 随包发布（pi 靠它显示更新日志）", () => {
+    expect(shipped("CHANGELOG.md")).toBe(true);
   });
 
   it("pi.extensions 指向的入口存在且随包发布", () => {
