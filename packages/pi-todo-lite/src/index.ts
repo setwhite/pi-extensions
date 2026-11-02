@@ -1,10 +1,21 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+	type Dirent,
+	mkdirSync,
+	readdirSync,
+	readFileSync,
+	writeFileSync,
+} from "node:fs";
 import { isAbsolute, join, resolve } from "node:path";
 import type {
 	ExtensionAPI,
 	ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
-import type { Component, KeyId, TUI } from "@earendil-works/pi-tui";
+import type {
+	AutocompleteItem,
+	Component,
+	KeyId,
+	TUI,
+} from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import { type Config, loadConfig } from "./config.ts";
 import {
@@ -30,6 +41,12 @@ const COMMAND_NAME = "todos";
 const EXPORT_NAME_ATTEMPTS = 100;
 
 const USAGE = `Usage: /${COMMAND_NAME} [clear | export | import <file>]`;
+
+const SUBCOMMANDS = [
+	{ name: "clear", description: "Clear the list" },
+	{ name: "export", description: "Export the list to a Markdown file" },
+	{ name: "import", description: "Import a Markdown checklist" },
+] as const;
 
 function exportDir(cwd: string, dir: string): string {
 	return dir === "" ? cwd : resolve(cwd, dir);
@@ -108,6 +125,9 @@ export default function piTodo(pi: ExtensionAPI): void {
 
 	/** 只切视图，不碰账。 */
 	let collapsed = false;
+
+	/** handler 按 ctx.cwd 解析 import 路径；补全拿不到 ctx，只能记最近一次会话的目录。 */
+	let sessionCwd = process.cwd();
 
 	/** 结构化类型，省得 import pi 内部的 Theme。 */
 	type StyleTheme = {
@@ -229,9 +249,71 @@ export default function piTodo(pi: ExtensionAPI): void {
 		},
 	});
 
+	const subcommands = SUBCOMMANDS.filter(
+		(sub) =>
+			(sub.name !== "export" || config.commands.export.enabled) &&
+			(sub.name !== "import" || config.commands.import.enabled),
+	);
+
+	/** 只列当前一层，路径原样拼回，不动用户敲的大小写与分隔符。 */
+	const completeImport = (typed: string): AutocompleteItem[] | null => {
+		const quote = typed[0] === '"' || typed[0] === "'" ? typed[0] : "";
+		const body = quote === "" ? typed : typed.slice(1);
+		// 引号已闭合：路径写完了，没有可补的
+		if (quote !== "" && body.endsWith(quote)) return null;
+		const cut = Math.max(body.lastIndexOf("/"), body.lastIndexOf("\\"));
+		const typedDir = cut === -1 ? "" : body.slice(0, cut + 1);
+		const partial = body.slice(cut + 1);
+		let entries: Dirent[];
+		try {
+			entries = readdirSync(
+				typedDir === "" ? sessionCwd : resolve(sessionCwd, typedDir),
+				{ withFileTypes: true },
+			);
+		} catch {
+			// 目录不存在或读不了：没有候选，让用户自己敲
+			return null;
+		}
+		const items = entries
+			.filter((entry) => entry.name.startsWith(partial))
+			.filter((entry) => partial.startsWith(".") || !entry.name.startsWith("."))
+			.sort((a, b) => (a.name < b.name ? -1 : 1))
+			.map((entry) => {
+				const isDir = entry.isDirectory();
+				const path = `${typedDir}${entry.name}${isDir ? "/" : ""}`;
+				// stripQuotes 要求整段包在引号里：带空格或已经开了引号就补上
+				const value = quote !== "" || /[\s"']/.test(path) ? `"${path}"` : path;
+				return {
+					value: `import ${value}`,
+					label: isDir ? `${entry.name}/` : entry.name,
+				};
+			});
+		return items.length > 0 ? items : null;
+	};
+
+	const completeArgument = (prefix: string): AutocompleteItem[] | null => {
+		const space = prefix.indexOf(" ");
+		if (space === -1) {
+			const items = subcommands
+				.filter((sub) => sub.name.startsWith(prefix))
+				.map((sub) => ({
+					// import 后面还要跟路径，补完留一个空格
+					value: sub.name === "import" ? "import " : sub.name,
+					label: sub.name,
+					description: sub.description,
+				}));
+			return items.length > 0 ? items : null;
+		}
+		if (prefix.slice(0, space) !== "import" || !config.commands.import.enabled)
+			return null;
+		return completeImport(prefix.slice(space + 1));
+	};
+
 	if (config.commands.todos.enabled) {
 		pi.registerCommand(COMMAND_NAME, {
-			description: "Show or edit the todo list",
+			// pi 不给扩展命令传 argumentHint：子命令只能写在 description 里
+			description: "Show or edit the todo list: clear | export | import <file>",
+			getArgumentCompletions: completeArgument,
 			handler: async (args, ctx) => {
 				// 子命令后面剩下的整段原样留着：import 的路径可以有空格
 				const parts = /^(\S+)(?:\s+([\s\S]*))?$/.exec(args.trim());
@@ -363,7 +445,10 @@ export default function piTodo(pi: ExtensionAPI): void {
 		});
 	}
 
-	pi.on("session_start", (_event, ctx) => restore(ctx));
+	pi.on("session_start", (_event, ctx) => {
+		sessionCwd = ctx.cwd;
+		restore(ctx);
+	});
 	pi.on("session_compact", (_event, ctx) => restore(ctx));
 	pi.on("session_tree", (_event, ctx) => restore(ctx));
 }

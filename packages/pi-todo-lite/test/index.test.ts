@@ -15,7 +15,7 @@ import type {
 	ExtensionToolContext,
 	ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
-import type { Component, TUI } from "@earendil-works/pi-tui";
+import type { AutocompleteItem, Component, TUI } from "@earendil-works/pi-tui";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import piTodo from "../src/index.ts";
 import { exportFileName } from "../src/view.ts";
@@ -60,6 +60,7 @@ type WidgetCall = {
 type CommandOptions = {
 	description?: string;
 	handler: (args: string, ctx: ExtensionContext) => Promise<void>;
+	getArgumentCompletions?: (prefix: string) => AutocompleteItem[] | null;
 };
 type CommandCall = { name: string; options: CommandOptions };
 type Note = { message: string; type?: string };
@@ -82,6 +83,7 @@ interface Harness {
 	renders: () => number;
 	lines: (width: number) => string[];
 	run: (args: string) => Promise<void>;
+	complete: (prefix: string) => AutocompleteItem[] | null;
 	fireShortcut: () => Promise<void>;
 }
 
@@ -153,6 +155,10 @@ function harness(
 	const run = (args: string): Promise<void> =>
 		(commands[0] as CommandCall).options.handler(args, ctx as never);
 
+	const complete = (prefix: string): AutocompleteItem[] | null =>
+		(commands[0] as CommandCall).options.getArgumentCompletions?.(prefix) ??
+		null;
+
 	return {
 		api,
 		handlers,
@@ -166,6 +172,7 @@ function harness(
 		renders: () => renders,
 		lines: (width) => widgets.at(-1)?.component?.render(width) ?? [],
 		run,
+		complete,
 		fireShortcut: async () =>
 			void (await shortcuts[0]?.options.handler(ctx as never)),
 	};
@@ -653,7 +660,7 @@ describe("index：折叠键（T11）", () => {
 });
 
 describe("index：/todos 命令（T8）", () => {
-	it("注册命令 todos，带一句 description", () => {
+	it("注册命令 todos，description 里列出子命令（pi 不传 argumentHint）", () => {
 		useConfig();
 		const harnessed = harness();
 
@@ -663,7 +670,7 @@ describe("index：/todos 命令（T8）", () => {
 			"todos",
 		]);
 		expect(harnessed.commands[0]?.options.description).toBe(
-			"Show or edit the todo list",
+			"Show or edit the todo list: clear | export | import <file>",
 		);
 	});
 
@@ -743,6 +750,83 @@ describe("index：/todos 命令（T8）", () => {
 
 		expect(harnessed.entries).toEqual([
 			{ type: "custom", customType: "pi-todo-state", data: { tasks: [] } },
+		]);
+	});
+});
+
+describe("index：/todos 补全", () => {
+	it("空参数列三个子命令；import 补完留一个空格好接着敲路径", () => {
+		useConfig();
+		const harnessed = harness();
+		piTodo(harnessed.api);
+
+		expect(harnessed.complete("")).toEqual([
+			{ value: "clear", label: "clear", description: "Clear the list" },
+			{
+				value: "export",
+				label: "export",
+				description: "Export the list to a Markdown file",
+			},
+			{
+				value: "import ",
+				label: "import",
+				description: "Import a Markdown checklist",
+			},
+		]);
+		expect(harnessed.complete("i")).toEqual([
+			{
+				value: "import ",
+				label: "import",
+				description: "Import a Markdown checklist",
+			},
+		]);
+		expect(harnessed.complete("nope")).toBeNull();
+		expect(harnessed.complete("clear ")).toBeNull();
+	});
+
+	it("export / import 关掉时不出现在候选中，后面的路径也不补", () => {
+		useConfig({
+			commands: { export: { enabled: false }, import: { enabled: false } },
+		});
+		const harnessed = harness();
+		piTodo(harnessed.api);
+
+		expect(harnessed.complete("")?.map((item) => item.value)).toEqual([
+			"clear",
+		]);
+		expect(harnessed.complete("import ")).toBeNull();
+	});
+
+	it("import 的路径补全：只列一层，目录带斜杠，带空格的补引号，点开头的按需列出", () => {
+		useConfig();
+		const cwd = makeTempDir("cwd");
+		mkdirSync(join(cwd, "plans"));
+		writeFileSync(join(cwd, "plans", "q3.md"), "", "utf-8");
+		writeFileSync(join(cwd, "a.md"), "", "utf-8");
+		writeFileSync(join(cwd, "a b.md"), "", "utf-8");
+		writeFileSync(join(cwd, ".hidden.md"), "", "utf-8");
+		const harnessed = harness({ cwd });
+		piTodo(harnessed.api);
+		emit(harnessed, "session_start");
+
+		expect(harnessed.complete("import ")).toEqual([
+			{ value: `import "a b.md"`, label: "a b.md" },
+			{ value: "import a.md", label: "a.md" },
+			{ value: "import plans/", label: "plans/" },
+		]);
+		expect(harnessed.complete("import plans/")).toEqual([
+			{ value: "import plans/q3.md", label: "q3.md" },
+		]);
+		expect(harnessed.complete("import .")).toEqual([
+			{ value: "import .hidden.md", label: ".hidden.md" },
+		]);
+		// 引号已经闭合，或者目录不存在：没有候选
+		expect(harnessed.complete('import "a b.md"')).toBeNull();
+		expect(harnessed.complete("import missing/")).toBeNull();
+		// 开了引号就一路带引号，补完自动闭合
+		expect(harnessed.complete('import "a')).toEqual([
+			{ value: `import "a b.md"`, label: "a b.md" },
+			{ value: `import "a.md"`, label: "a.md" },
 		]);
 	});
 });

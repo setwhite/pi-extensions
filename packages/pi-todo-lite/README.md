@@ -85,6 +85,8 @@ A completed table stays on screen. The table clears when you send the next messa
 
 `/todos export` names the file after `commands.export.fileNamePattern`. On a name clash, `/todos export` yields and does not overwrite the file. `/todos import <file>` needs an empty table. Run `/todos clear` first.
 
+`/todos` completes its arguments. Start typing `clear`, `export` or `import` and the list pops up. Press Tab to take the entry. After `/todos import `, the list shows the files and directories in the session directory. A directory ends with `/`. A path with spaces gets quotes.
+
 ## Docs
 
 | Document | Content |

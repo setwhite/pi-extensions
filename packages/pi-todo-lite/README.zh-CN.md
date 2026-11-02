@@ -85,6 +85,8 @@ pi install npm:pi-todo-lite
 
 `/todos export` 按 `commands.export.fileNamePattern` 命名文件。同名时 `/todos export` 让位，不覆盖。`/todos import <file>` 要求表为空。表不为空时，先跑 `/todos clear`。
 
+`/todos` 有参数补全。开始输入 `clear`、`export` 或 `import` 时列表弹出。Tab 收下当前项。`/todos import ` 之后列会话目录下的文件与目录。目录带 `/`。带空格的路径自动加引号。
+
 ## 文档
 
 | 文档 | 内容 |
