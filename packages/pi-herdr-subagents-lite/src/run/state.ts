@@ -6,6 +6,7 @@ import type { ResultHandler, RunResult } from "./result.ts";
 
 export interface RunServiceDeps {
   host: HerdrHost;
+  sessionsDir: string;
   readLastAssistant: SessionReader;
   readExitReceipt: ExitReceiptReader;
   loadProfiles: () => ProfileCatalog;
@@ -37,6 +38,8 @@ export interface RunRecord {
   pane: RunPane | undefined;
   paneLabel: string;
   sessionFile: string;
+  // brief、identity、inbox、exit 回执、结果 artifact 共用的前缀。
+  runBase: string;
   cwd: string;
   autoExit: boolean;
   lastHandledSeq: number;
@@ -53,7 +56,6 @@ export interface RunRecord {
 }
 
 export interface RunState extends RunServiceDeps {
-  sessionsDir: string;
   runs: RunRecord[];
   pending: Set<Promise<unknown>>;
   stopped: boolean;

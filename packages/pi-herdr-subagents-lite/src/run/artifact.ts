@@ -1,11 +1,11 @@
 import { rename, rm, writeFile } from "node:fs/promises";
 
-function artifactPath(sessionFile: string, seq: number): string {
-  return `${sessionFile}.result-${seq}.md`;
+function artifactPath(base: string, seq: number): string {
+  return `${base}.result-${seq}.md`;
 }
 
-export async function writeArtifact(sessionFile: string, seq: number, text: string): Promise<string> {
-  const path = artifactPath(sessionFile, seq);
+export async function writeArtifact(base: string, seq: number, text: string): Promise<string> {
+  const path = artifactPath(base, seq);
   const temp = `${path}.tmp`;
   try {
     await writeFile(temp, text);

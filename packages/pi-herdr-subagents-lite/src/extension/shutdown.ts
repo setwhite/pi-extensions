@@ -1,6 +1,6 @@
 import type { Config, ShutdownReason } from "../config/index.ts";
 import { hasInbox } from "../inbox/index.ts";
-import type { RunService } from "../run/index.ts";
+import { type RunService, runBaseOf } from "../run/index.ts";
 import type { ExitReceiptWriter } from "../session-file/index.ts";
 import type { ExtensionRegistrar, SessionContext } from "./index.ts";
 
@@ -21,8 +21,9 @@ export function watchShutdown(pi: ExtensionRegistrar, deps: ShutdownDeps): void 
     deps.stopInbox();
     const closing = deps.takeService();
     const sessionFile = ctx.sessionManager.getSessionFile();
-    if (sessionFile && hasInbox(sessionFile)) {
-      deps.writeExitReceipt(sessionFile, event.reason);
+    const base = sessionFile === undefined ? undefined : runBaseOf(sessionFile);
+    if (base !== undefined && hasInbox(base)) {
+      deps.writeExitReceipt(base, event.reason);
     }
     if (closing && deps.config.closeChildrenOn.includes(event.reason)) {
       const { failed } = await closing.closeChildren();

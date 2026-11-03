@@ -89,7 +89,7 @@ async function pollRun(state: RunState, agents: AgentEntry[], run: RunRecord): P
 
 // 死亡只认事实：回执，或 pane 消失。
 async function missing(state: RunState, run: RunRecord): Promise<void> {
-  const receipt = state.readExitReceipt(run.sessionFile);
+  const receipt = state.readExitReceipt(run.runBase);
   if (receipt !== null) {
     await exited(state, run, receipt);
     return;

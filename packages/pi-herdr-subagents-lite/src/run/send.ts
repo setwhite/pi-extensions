@@ -48,16 +48,16 @@ export async function send(state: RunState, name: string, message: string): Prom
       run.pollFailures = 0;
     }
     wake(state);
-    await enqueue(run.sessionFile, inboxMessage(message));
+    await enqueue(run.runBase, inboxMessage(message));
     return { state: "sent", name };
   }
 
   if (!existsSync(run.sessionFile)) {
-    throw new ToolError("session_missing", `child session "${run.sessionFile}" is missing; start a new run`);
+    throw new ToolError("session_missing", `"${name}" has no child session to resume; start a new run`);
   }
   const tail = state.readLastAssistant(run.sessionFile);
   if (tail.unreadable) {
-    throw new ToolError("session_unreadable", `child session "${run.sessionFile}" cannot be read; start a new run`);
+    throw new ToolError("session_unreadable", `"${name}" has a child session that cannot be read; start a new run`);
   }
   if (tail.pendingToolCall) {
     throw new ToolError(
@@ -70,7 +70,7 @@ export async function send(state: RunState, name: string, message: string): Prom
   requireSlot(state);
   const cwd = run.cwd;
   const skillPaths = await resolveSkills(profile, cwd, state.trusted);
-  const identityFile = `${run.sessionFile}.identity.md`;
+  const identityFile = `${run.runBase}.identity.md`;
   const previousPaneId = run.pane?.paneId;
   const envChanged = run.autoExit !== profile.autoExit;
   run.autoExit = profile.autoExit;
@@ -97,7 +97,7 @@ export async function send(state: RunState, name: string, message: string): Prom
     if (profile.systemPrompt !== "task") {
       await writeFile(identityFile, profile.body, "utf8");
     }
-    createInbox(run.sessionFile);
+    createInbox(run.runBase);
     await state.host.startAgent({
       name: run.name,
       paneId: pane.paneId,
@@ -119,6 +119,6 @@ export async function send(state: RunState, name: string, message: string): Prom
   run.busy = false;
   run.absentSince = undefined;
   wake(state);
-  await enqueue(run.sessionFile, inboxMessage(message));
+  await enqueue(run.runBase, inboxMessage(message));
   return { state: "restarted", name: run.name, paneId: run.pane.paneId };
 }

@@ -5,7 +5,7 @@ import { errorText } from "../error/index.ts";
 import type { HerdrHost } from "../herdr/index.ts";
 import { drain, hasInbox, pumpInbox } from "../inbox/index.ts";
 import type { ProfileCatalog, ProfileSources } from "../profile/index.ts";
-import { createRunService, type RunService } from "../run/index.ts";
+import { childSessionsDir, createRunService, type RunService, runBaseOf } from "../run/index.ts";
 import type { ExitReceiptReader, ExitReceiptWriter, SessionReader } from "../session-file/index.ts";
 import { createTool, type ResultMessage, type SubagentTool, sendResults } from "../tool/index.ts";
 import { watchAutoExit } from "./auto-exit.ts";
@@ -76,7 +76,11 @@ export function createExtension(deps: ExtensionDeps): (pi: ExtensionRegistrar) =
 
     const startInbox = (ctx: SessionContext) => {
       const sessionFile = ctx.sessionManager.getSessionFile();
-      if (!sessionFile || !hasInbox(sessionFile)) {
+      if (sessionFile === undefined) {
+        return;
+      }
+      const base = runBaseOf(sessionFile);
+      if (!hasInbox(base)) {
         return;
       }
       inboxFailures = 0;
@@ -85,7 +89,7 @@ export function createExtension(deps: ExtensionDeps): (pi: ExtensionRegistrar) =
       };
       stopPump = pumpInbox({
         pollMs: config.inboxPollMs,
-        tick: () => drain(sessionFile, deliver),
+        tick: () => drain(base, deliver),
         onCycle(error) {
           if (error === undefined) {
             inboxFailures = 0;
@@ -106,6 +110,7 @@ export function createExtension(deps: ExtensionDeps): (pi: ExtensionRegistrar) =
       service?.shutdown();
       service = createRunService({
         host,
+        sessionsDir: childSessionsDir(ctx.sessionManager.getSessionFile()),
         readLastAssistant: deps.readLastAssistant,
         readExitReceipt: deps.readExitReceipt,
         loadProfiles: () => deps.loadProfiles(sources),

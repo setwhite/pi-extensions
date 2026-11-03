@@ -1,5 +1,5 @@
 import { inboxCount } from "../inbox/index.ts";
-import { AUTO_EXIT_ENV } from "../run/index.ts";
+import { AUTO_EXIT_ENV, runBaseOf } from "../run/index.ts";
 import type { ExtensionRegistrar } from "./index.ts";
 
 export function watchAutoExit(pi: ExtensionRegistrar): { reset(): void } {
@@ -19,7 +19,7 @@ export function watchAutoExit(pi: ExtensionRegistrar): { reset(): void } {
       return;
     }
     const sessionFile = ctx.sessionManager.getSessionFile();
-    if (!sessionFile || inboxCount(sessionFile) > 0) {
+    if (!sessionFile || inboxCount(runBaseOf(sessionFile)) > 0) {
       return;
     }
     exiting = true;

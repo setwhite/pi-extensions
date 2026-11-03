@@ -20,7 +20,7 @@ const UNKNOWN_TEXT: Record<UnknownReason, string> = {
 
 function resultText(result: RunResult): string {
   if (result.state === "unknown") {
-    return `[subagent ${result.name}] ${UNKNOWN_TEXT[result.reason]}\n\nSession file: ${result.sessionFile}`;
+    return `[subagent ${result.name}] ${UNKNOWN_TEXT[result.reason]}`;
   }
   const artifact = result.artifact ? `\n\nFull result: ${result.artifact}` : "";
   const warning = result.warning ? `\n\n${result.warning}` : "";

@@ -4,13 +4,13 @@ import { join } from "node:path";
 
 const MESSAGE_SUFFIX = ".md";
 
-function inboxDir(sessionFile: string): string {
-  return `${sessionFile}.inbox`;
+function inboxDir(base: string): string {
+  return `${base}.inbox`;
 }
 
-export function hasInbox(sessionFile: string): boolean {
+export function hasInbox(base: string): boolean {
   try {
-    return statSync(inboxDir(sessionFile)).isDirectory();
+    return statSync(inboxDir(base)).isDirectory();
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
       return false;
@@ -19,12 +19,12 @@ export function hasInbox(sessionFile: string): boolean {
   }
 }
 
-export function createInbox(sessionFile: string): void {
-  mkdirSync(inboxDir(sessionFile), { recursive: true });
+export function createInbox(base: string): void {
+  mkdirSync(inboxDir(base), { recursive: true });
 }
 
-export function removeInbox(sessionFile: string): void {
-  rmSync(inboxDir(sessionFile), { recursive: true, force: true });
+export function removeInbox(base: string): void {
+  rmSync(inboxDir(base), { recursive: true, force: true });
 }
 
 function pendingNames(dir: string): string[] {
@@ -40,12 +40,12 @@ function pendingNames(dir: string): string[] {
   }
 }
 
-export function inboxCount(sessionFile: string): number {
-  return pendingNames(inboxDir(sessionFile)).length;
+export function inboxCount(base: string): number {
+  return pendingNames(inboxDir(base)).length;
 }
 
-export function enqueue(sessionFile: string, text: string): void {
-  const dir = inboxDir(sessionFile);
+export function enqueue(base: string, text: string): void {
+  const dir = inboxDir(base);
   mkdirSync(dir, { recursive: true });
   const name = `${String(process.hrtime.bigint()).padStart(20, "0")}-${randomUUID()}${MESSAGE_SUFFIX}`;
   const temp = join(dir, `.${randomUUID()}.tmp`);
@@ -53,8 +53,8 @@ export function enqueue(sessionFile: string, text: string): void {
   renameSync(temp, join(dir, name));
 }
 
-export function drain(sessionFile: string, deliver: (text: string) => void): number {
-  const dir = inboxDir(sessionFile);
+export function drain(base: string, deliver: (text: string) => void): number {
+  const dir = inboxDir(base);
   let delivered = 0;
   for (const name of pendingNames(dir)) {
     const path = join(dir, name);

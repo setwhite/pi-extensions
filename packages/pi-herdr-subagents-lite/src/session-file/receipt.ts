@@ -4,18 +4,18 @@ export interface ExitReceipt {
   reason: string;
 }
 
-export type ExitReceiptReader = (sessionFile: string) => ExitReceipt | null;
+export type ExitReceiptReader = (base: string) => ExitReceipt | null;
 
-export type ExitReceiptWriter = (sessionFile: string, reason: string) => void;
+export type ExitReceiptWriter = (base: string, reason: string) => void;
 
-function receiptFile(sessionFile: string): string {
-  return `${sessionFile}.exit`;
+function receiptFile(base: string): string {
+  return `${base}.exit`;
 }
 
-export const readExitReceipt: ExitReceiptReader = (sessionFile) => {
+export const readExitReceipt: ExitReceiptReader = (base) => {
   let raw: string;
   try {
-    raw = readFileSync(receiptFile(sessionFile), "utf8");
+    raw = readFileSync(receiptFile(base), "utf8");
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
       return null;
@@ -34,6 +34,6 @@ export const readExitReceipt: ExitReceiptReader = (sessionFile) => {
   return { reason: parsed.reason };
 };
 
-export const writeExitReceipt: ExitReceiptWriter = (sessionFile, reason) => {
-  writeFileSync(receiptFile(sessionFile), JSON.stringify({ reason }));
+export const writeExitReceipt: ExitReceiptWriter = (base, reason) => {
+  writeFileSync(receiptFile(base), JSON.stringify({ reason }));
 };

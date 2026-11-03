@@ -1,6 +1,3 @@
-import { join } from "node:path";
-import { dataDir } from "../config/index.ts";
-import { agentDir } from "../profile/index.ts";
 import { createAggregator } from "./aggregate.ts";
 import { type CloseChildrenResult, closeRuns } from "./close.ts";
 import { createNamer } from "./naming.ts";
@@ -36,7 +33,6 @@ function takeRuns(state: RunState): RunRecord[] {
 export function createRunService(deps: RunServiceDeps): RunService {
   const state: RunState = {
     ...deps,
-    sessionsDir: join(dataDir(agentDir()), "sessions"),
     runs: [],
     pending: new Set(),
     stopped: false,
@@ -95,6 +91,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 
 export type { CloseChildrenResult } from "./close.ts";
 export { ToolError } from "./errors.ts";
+export { childSessionsDir, runBaseOf, runsDir } from "./paths.ts";
 export { profileLabel } from "./resolve.ts";
 export type { ResultHandler, RunResult, UnknownReason } from "./result.ts";
 export type { SendResult } from "./send.ts";

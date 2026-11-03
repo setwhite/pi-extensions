@@ -14,17 +14,10 @@ interface ToolDeps {
   service: () => RunService;
 }
 
-function started(result: RunStarted) {
+// content 进模型上下文，只放模型能用的字段。details 只给 UI 和 session 条目。
+function envelope(result: RunStarted | SendResult) {
   return {
-    content: [{ type: "text" as const, text: JSON.stringify(result) }],
-    details: result,
-    isError: false,
-  };
-}
-
-function sent(result: SendResult) {
-  return {
-    content: [{ type: "text" as const, text: JSON.stringify(result) }],
+    content: [{ type: "text" as const, text: JSON.stringify({ state: result.state, name: result.name }) }],
     details: result,
     isError: false,
   };
@@ -42,9 +35,9 @@ export function createTool({ config, profiles, service }: ToolDeps) {
       }
       try {
         if (params.action === "run") {
-          return started(await service().run(params.profile, params.task, params.cwd));
+          return envelope(await service().run(params.profile, params.task, params.cwd));
         }
-        return sent(await service().send(params.name, params.message));
+        return envelope(await service().send(params.name, params.message));
       } catch (error) {
         if (error instanceof ToolError) {
           return toolFailed(error);

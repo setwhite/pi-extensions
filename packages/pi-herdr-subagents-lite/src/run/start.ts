@@ -6,6 +6,7 @@ import { createInbox, enqueue, removeInbox } from "../inbox/index.ts";
 import { spawnFailed, ToolError } from "./errors.ts";
 import { paneLabel } from "./naming.ts";
 import { createPane } from "./pane.ts";
+import { runBaseOf, runsDir } from "./paths.ts";
 import { wake } from "./poll.ts";
 import { resolveProfile, resolveSkills } from "./resolve.ts";
 import { requireSlot } from "./slot.ts";
@@ -43,10 +44,12 @@ async function launch(state: RunState, profileName: string, task: string, rawCwd
   const runId = randomUUID();
   const files = (name: string) => {
     const sessionFile = join(state.sessionsDir, `${name}-${runId}.jsonl`);
+    const runBase = runBaseOf(sessionFile);
     return {
       sessionFile,
-      briefFile: `${sessionFile}.brief.md`,
-      identityFile: `${sessionFile}.identity.md`,
+      runBase,
+      briefFile: `${runBase}.brief.md`,
+      identityFile: `${runBase}.identity.md`,
     };
   };
   const name = state.nextName(profileName);
@@ -58,6 +61,7 @@ async function launch(state: RunState, profileName: string, task: string, rawCwd
     pane: undefined,
     paneLabel: "",
     sessionFile: current.sessionFile,
+    runBase: current.runBase,
     cwd,
     autoExit: profile.autoExit,
     lastHandledSeq: 0,
@@ -77,6 +81,7 @@ async function launch(state: RunState, profileName: string, task: string, rawCwd
     run.paneLabel = paneLabel(task) || run.name;
     run.pane = await createPane(state, run, cwd, run.paneLabel);
     await mkdir(state.sessionsDir, { recursive: true });
+    await mkdir(runsDir(), { recursive: true });
 
     for (let retry = 1; ; retry++) {
       if (state.stopped) {
@@ -86,7 +91,7 @@ async function launch(state: RunState, profileName: string, task: string, rawCwd
       if (profile.systemPrompt !== "task") {
         await writeFile(current.identityFile, profile.body, "utf8");
       }
-      await createInbox(current.sessionFile);
+      createInbox(current.runBase);
       try {
         await state.host.startAgent({
           name: run.name,
@@ -95,7 +100,7 @@ async function launch(state: RunState, profileName: string, task: string, rawCwd
           agentArgs: agentArgs(profile, current.identityFile, state.toolName, skillPaths),
         });
         // `agent start` 等到 idle 才算就绪，先入队会让第一轮抢跑并把它拖到超时（DEC-0023）。
-        enqueue(current.sessionFile, `@${current.briefFile}`);
+        enqueue(current.runBase, `@${current.briefFile}`);
         break;
       } catch (error) {
         if (!(error instanceof HerdrHostError && error.code === "name_taken")) {
@@ -104,7 +109,7 @@ async function launch(state: RunState, profileName: string, task: string, rawCwd
         await Promise.all([
           rm(current.briefFile, { force: true }),
           rm(current.identityFile, { force: true }),
-          removeInbox(current.sessionFile),
+          removeInbox(current.runBase),
         ]);
         if (retry >= NAME_ATTEMPTS) {
           throw new ToolError(
@@ -116,6 +121,7 @@ async function launch(state: RunState, profileName: string, task: string, rawCwd
         await state.host.renameTab({ tabId: run.pane.tabId, label: run.name });
         current = files(run.name);
         run.sessionFile = current.sessionFile;
+        run.runBase = current.runBase;
       }
     }
 
