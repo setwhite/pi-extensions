@@ -33,7 +33,8 @@ it("resumes the exited child in its pane", async () => {
   const result = await sendTask(tool, "explore-1", "continue the task");
 
   expect(result.isError).toBe(false);
-  expect(firstText(result)).toBe(JSON.stringify({ state: "restarted", name: "explore-1", paneId: started.paneId }));
+  expect(firstText(result)).toBe('{"state":"restarted","name":"explore-1"}');
+  expect(result.details).toMatchObject({ state: "restarted", name: "explore-1", paneId: started.paneId });
   expect(fake.agents).toHaveLength(2);
   expect(fake.inboxAtStart).toEqual([0, 0]);
   expect(fake.agents[1]).toMatchObject({
@@ -52,11 +53,8 @@ it("opens a new tab when the pane is gone", async () => {
   const result = await sendTask(tool, "explore-1", "continue the task");
 
   expect(result.isError).toBe(false);
-  expect(JSON.parse(firstText(result))).toEqual({
-    state: "restarted",
-    name: "explore-1",
-    paneId: "w1:p2",
-  });
+  expect(JSON.parse(firstText(result))).toEqual({ state: "restarted", name: "explore-1" });
+  expect(result.details).toMatchObject({ state: "restarted", name: "explore-1", paneId: "w1:p2" });
   expect(fake.tabs.at(-1)).toEqual({ cwd: process.cwd(), label: "explore-1", env: { PI_SUBAGENT_AUTO_EXIT: "0" } });
   expect(fake.agents[1]?.paneId).toBe("w1:p2");
   expect(fake.agents[1]?.sessionFile).toBe(started.sessionFile);

@@ -5,6 +5,7 @@ import type { RunStarted } from "../../src/run/index.ts";
 import { writeExitReceipt } from "../../src/session-file/index.ts";
 import { writeConfig } from "../support/env.ts";
 import { fakeHost } from "../support/host.ts";
+import { baseOf } from "../support/paths.ts";
 import { writeProfile } from "../support/profiles.ts";
 import { assistantLine, parseStarted } from "../support/result.ts";
 import { runTask } from "../support/run.ts";
@@ -87,7 +88,7 @@ it("delivers a done result from the exit receipt", async () => {
 
   const started = parseStarted(await runTask(tool, "finished task"));
   writeFileSync(started.sessionFile, `${assistantLine("final answer")}\n`);
-  writeExitReceipt(started.sessionFile, "quit");
+  writeExitReceipt(baseOf(started.sessionFile), "quit");
 
   await vi.advanceTimersByTimeAsync(1000);
 
@@ -117,7 +118,7 @@ it("reports a quitted run when the receipt has no final answer", async () => {
   const { sent, tool } = loadTimedSession(async () => null);
 
   const started = parseStarted(await runTask(tool, "vanished task"));
-  writeExitReceipt(started.sessionFile, "quit");
+  writeExitReceipt(baseOf(started.sessionFile), "quit");
 
   await vi.advanceTimersByTimeAsync(1000);
 
@@ -129,14 +130,13 @@ it("reports pane exited without a receipt", async () => {
   const { calls, fake, sent, tool } = loadTimedSession(async () => null);
   fake.setPaneExists(false);
 
-  const started = parseStarted(await runTask(tool, "vanished task"));
+  await runTask(tool, "vanished task");
 
   await vi.advanceTimersByTimeAsync(1000);
 
   const content = sent[0]?.message.content ?? "";
   expect(sent).toHaveLength(1);
   expect(content).toContain("the pane exited without a result");
-  expect(content).toContain(`Session file: ${started.sessionFile}`);
   expect(calls.filter((call) => call === "closePane")).toHaveLength(0);
 
   await vi.advanceTimersByTimeAsync(5000);

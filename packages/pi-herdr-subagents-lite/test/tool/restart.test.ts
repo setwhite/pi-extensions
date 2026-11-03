@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { expect, it, vi } from "vitest";
 import { agentDir, writeConfig } from "../support/env.ts";
 import { fakeHost } from "../support/host.ts";
+import { identityOf } from "../support/paths.ts";
 import { writeProfile } from "../support/profiles.ts";
 import { assistantLine, firstText, parseStarted } from "../support/result.ts";
 import { exitedChild, runTask, sendTask } from "../support/run.ts";
@@ -20,7 +21,7 @@ it("re-reads the profile on restart", async () => {
 
   expect(result.isError).toBe(false);
   expect(fake.agents[1]?.agentArgs).toEqual(expect.arrayContaining(["--model", "new/model"]));
-  expect(await readFile(`${started.sessionFile}.identity.md`, "utf8")).toBe("New body.");
+  expect(await readFile(identityOf(started.sessionFile), "utf8")).toBe("New body.");
 
   rmSync(join(agentDir, "pi-herdr-subagents-lite", "profiles", "explore.md"), { force: true });
   setAfterResume(null);
@@ -114,7 +115,8 @@ it("re-reads auto-exit when restarting", async () => {
 
   const result = await sendTask(tool, "explore-1", "continue the task");
 
-  expect(JSON.parse(firstText(result))).toEqual({ state: "restarted", name: "explore-1", paneId: "w1:p2" });
+  expect(JSON.parse(firstText(result))).toEqual({ state: "restarted", name: "explore-1" });
+  expect(result.details).toMatchObject({ state: "restarted", name: "explore-1", paneId: "w1:p2" });
   expect(started.paneId).toBe("w1:p1");
   expect(fake.tabs.at(-1)?.env).toEqual({ PI_SUBAGENT_AUTO_EXIT: "1" });
   expect(fake.agents[1]?.paneId).toBe("w1:p2");

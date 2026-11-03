@@ -5,20 +5,21 @@ import { dirname, join } from "node:path";
 import { expect, it } from "vitest";
 import { fakeHost } from "../support/host.ts";
 import { drainInbox } from "../support/inbox.ts";
+import { briefOf, identityOf } from "../support/paths.ts";
 import { sessionsRoot, writeProfile } from "../support/profiles.ts";
 import { startRun } from "../support/run.ts";
 import "../support/hooks.ts";
 
-it("keeps brief and identity next to the session", async () => {
+it("keeps brief and identity in the runs dir", async () => {
   process.env.HERDR_ENV = "1";
   writeProfile("worker.md", "---\ndescription: worker\n---\n\nWorker body.\n");
   const { agent, started } = await startRun(fakeHost());
 
-  const identity = `${started.sessionFile}.identity.md`;
+  const identity = identityOf(started.sessionFile);
   expect(dirname(started.sessionFile)).toBe(sessionsRoot());
   expect(agent.agentArgs).toEqual(expect.arrayContaining(["--append-system-prompt", identity]));
-  expect(await readFile(`${started.sessionFile}.brief.md`, "utf8")).toContain("inspect the repo");
-  expect(drainInbox(started.sessionFile)).toEqual([`@${started.sessionFile}.brief.md`]);
+  expect(await readFile(briefOf(started.sessionFile), "utf8")).toContain("inspect the repo");
+  expect(drainInbox(started.sessionFile)).toEqual([`@${briefOf(started.sessionFile)}`]);
   expect(await readFile(identity, "utf8")).toBe("Worker body.");
 });
 
@@ -98,22 +99,22 @@ it("writes the identity file", async () => {
   writeProfile("worker.md", "---\ndescription: append\n---\n\nExplore body.\n");
 
   const appended = await startRun(fakeHost());
-  const identity = `${appended.started.sessionFile}.identity.md`;
+  const identity = identityOf(appended.started.sessionFile);
   expect(await readFile(identity, "utf8")).toBe("Explore body.");
   expect(appended.agent.agentArgs).toEqual(expect.arrayContaining(["--append-system-prompt", identity]));
   expect(appended.agent.agentArgs).not.toContain("--system-prompt");
 
   writeProfile("worker.md", "---\nsystem-prompt: replace\n---\n\nReplace body.\n");
   const replaced = await startRun(fakeHost());
-  const secondIdentity = `${replaced.started.sessionFile}.identity.md`;
+  const secondIdentity = identityOf(replaced.started.sessionFile);
   expect(await readFile(secondIdentity, "utf8")).toBe("Replace body.");
   expect(replaced.agent.agentArgs).toEqual(expect.arrayContaining(["--system-prompt", secondIdentity]));
   expect(replaced.agent.agentArgs).not.toContain("--append-system-prompt");
 
   writeProfile("worker.md", "---\nsystem-prompt: task\n---\n\nTask body.\n");
   const tasked = await startRun(fakeHost());
-  expect(existsSync(`${tasked.started.sessionFile}.identity.md`)).toBe(false);
+  expect(existsSync(identityOf(tasked.started.sessionFile))).toBe(false);
   expect(tasked.agent.agentArgs).not.toContain("--append-system-prompt");
   expect(tasked.agent.agentArgs).not.toContain("--system-prompt");
-  expect((await readFile(`${tasked.started.sessionFile}.brief.md`, "utf8")).startsWith("Task body.")).toBe(true);
+  expect((await readFile(briefOf(tasked.started.sessionFile), "utf8")).startsWith("Task body.")).toBe(true);
 });

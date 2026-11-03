@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { expect, it, vi } from "vitest";
 import { writeConfig } from "../support/env.ts";
 import { fakeHost } from "../support/host.ts";
+import { artifactOf } from "../support/paths.ts";
 import { writeProfile } from "../support/profiles.ts";
 import { assistantLine, firstText, flushDelivery, parseStarted } from "../support/result.ts";
 import { runTask, runTasks } from "../support/run.ts";
@@ -22,7 +23,7 @@ it("does not split surrogate pairs when truncating", async () => {
   expect(content).toContain("h".repeat(16383));
   expect(content).toContain("Full result:");
   expect(content).not.toMatch(/\p{Cs}/u);
-  expect(readFileSync(`${started.sessionFile}.result-1.md`, "utf8")).toContain("😀");
+  expect(readFileSync(artifactOf(started.sessionFile, 1), "utf8")).toContain("😀");
 });
 
 async function expectDoneDespiteClose(closePane: (paneId: string) => Error | undefined, closeFailed = false) {
@@ -40,9 +41,7 @@ async function expectDoneDespiteClose(closePane: (paneId: string) => Error | und
   expect(content).toContain("hello");
   expect(content).not.toContain("error");
   if (closeFailed) {
-    expect(sent[1]?.message.content).toBe(
-      `[subagent worker-1] result delivered, but the pane did not close\n\nSession file: ${started.sessionFile}`,
-    );
+    expect(sent[1]?.message.content).toBe("[subagent worker-1] result delivered, but the pane did not close");
   }
   expect(calls.filter((call) => call === "closePane")).toHaveLength(1);
 

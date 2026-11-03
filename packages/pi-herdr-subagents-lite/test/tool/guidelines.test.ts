@@ -4,6 +4,7 @@ import { expect, it } from "vitest";
 import { HerdrHostError } from "../../src/herdr/index.ts";
 import { projectDir, writeConfig } from "../support/env.ts";
 import { fakeHost } from "../support/host.ts";
+import { briefOf, identityOf, inboxOf } from "../support/paths.ts";
 import { sessionsRoot, writeProfile, writeProjectProfile } from "../support/profiles.ts";
 import { firstText, parseStarted } from "../support/result.ts";
 import { runProfiles, runTask } from "../support/run.ts";
@@ -112,16 +113,15 @@ it("retries name_taken with next worker", async () => {
   expect(agents[0]?.sessionFile.startsWith(join(sessionsRoot(), "worker-1-"))).toBe(true);
   expect(agents[1]?.sessionFile.startsWith(join(sessionsRoot(), "worker-2-"))).toBe(true);
   expect(agents[1]?.sessionFile).not.toBe(agents[0]?.sessionFile);
-  expect(existsSync(`${agents[1]?.sessionFile}.brief.md`)).toBe(true);
   const [firstAgent, secondAgent] = agents;
   if (!firstAgent || !secondAgent) {
     throw new Error("expected two startAgent calls");
   }
-  expect(existsSync(`${firstAgent.sessionFile}.brief.md`)).toBe(false);
-  expect(existsSync(`${firstAgent.sessionFile}.identity.md`)).toBe(false);
-  expect(existsSync(`${firstAgent.sessionFile}.inbox`)).toBe(false);
-  expect(existsSync(`${secondAgent.sessionFile}.brief.md`)).toBe(true);
-  expect(existsSync(`${secondAgent.sessionFile}.identity.md`)).toBe(true);
-  expect(existsSync(`${secondAgent.sessionFile}.inbox`)).toBe(true);
+  expect(existsSync(briefOf(firstAgent.sessionFile))).toBe(false);
+  expect(existsSync(identityOf(firstAgent.sessionFile))).toBe(false);
+  expect(existsSync(inboxOf(firstAgent.sessionFile))).toBe(false);
+  expect(existsSync(briefOf(secondAgent.sessionFile))).toBe(true);
+  expect(existsSync(identityOf(secondAgent.sessionFile))).toBe(true);
+  expect(existsSync(inboxOf(secondAgent.sessionFile))).toBe(true);
   expect(sent).toHaveLength(0);
 });

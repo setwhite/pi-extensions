@@ -9,8 +9,9 @@ export function firstText(result: { content: Array<{ type: string; text?: string
   return block.text;
 }
 
-export function parseStarted(result: { content: Array<{ type: string; text?: string }> }): RunStarted {
-  return JSON.parse(firstText(result)) as RunStarted;
+// 工具把完整 RunStarted 放在 details，content 只给模型 state 与 name。
+export function parseStarted(result: { details?: unknown }): RunStarted {
+  return result.details as RunStarted;
 }
 
 export function assistantLine(text: string): string {

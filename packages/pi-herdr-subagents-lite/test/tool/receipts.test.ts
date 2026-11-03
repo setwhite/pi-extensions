@@ -102,7 +102,6 @@ it("reports unreadable result as unknown", async () => {
   const content = sent[0]?.message.content ?? "";
   expect(sent).toHaveLength(1);
   expect(content).toContain("no result was read");
-  expect(content).toContain(`Session file: ${started.sessionFile}`);
   expect(calls.filter((call) => call === "closePane")).toHaveLength(0);
 
   const next = await runTask(tool, "next task");

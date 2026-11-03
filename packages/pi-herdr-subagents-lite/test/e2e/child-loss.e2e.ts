@@ -31,7 +31,6 @@ describe.skipIf(!state.ok)(`herdr e2e: child loss${state.ok ? "" : ` (skipped: $
 
     const unknown = await waitFor(() => messages(parent, "subagent_result")[0], "unknown result", 60_000);
     expect(NO_RESULT_TEXTS.some((text) => unknown.includes(`[subagent ${started.name}] ${text}`))).toBe(true);
-    expect(unknown).toContain(`Session file: ${started.sessionFile}`);
     expect(await e2e.tabFor(started.name)).toBeDefined();
     await e2e.closeChildren();
   });

@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { expect, it, vi } from "vitest";
 import { writeConfig } from "../support/env.ts";
 import { fakeHost } from "../support/host.ts";
+import { briefOf, inboxOf } from "../support/paths.ts";
 import { fakePi } from "../support/pi.ts";
 import { sessionsRoot, writeProfile } from "../support/profiles.ts";
 import { startRun } from "../support/run.ts";
@@ -112,7 +113,7 @@ it("launches a worker", async () => {
   expect(started).toMatchObject({ state: "running", name: "worker-1", paneId: "w1:p1" });
   expect(fake.tabs).toEqual([{ cwd: process.cwd(), label: "worker-1", env: { PI_SUBAGENT_AUTO_EXIT: "0" } }]);
   expect(agent).toMatchObject({ name: "worker-1", paneId: started.paneId, sessionFile: started.sessionFile });
-  const brief = await readFile(`${started.sessionFile}.brief.md`, "utf8");
+  const brief = await readFile(briefOf(started.sessionFile), "utf8");
   expect(brief).toBe("# Task\ninspect the repo\n");
 });
 
@@ -133,6 +134,6 @@ it("creates the child inbox before start", async () => {
 
   const { started } = await startRun(fake);
 
-  expect(existsSync(`${started.sessionFile}.inbox`)).toBe(true);
+  expect(existsSync(inboxOf(started.sessionFile))).toBe(true);
   expect(fake.inboxAtStart).toEqual([0]);
 });

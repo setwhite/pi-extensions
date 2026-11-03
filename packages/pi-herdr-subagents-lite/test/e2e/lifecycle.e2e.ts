@@ -22,7 +22,7 @@ describe.skipIf(!state.ok)(`herdr e2e: run lifecycle${state.ok ? "" : ` (skipped
 
     const started = await waitFor(() => results<StartedRun>(parent, "running")[0], "running result");
     expect(started.name).toBe("explore-1");
-    expect(dirname(started.sessionFile)).toBe(join(e2e.agentDir, "pi-herdr-subagents-lite", "sessions"));
+    expect(dirname(started.sessionFile)).toBe(join(dirname(parent), "runs"));
 
     const done = await waitFor(() => messages(parent, "subagent_result")[0], "done result");
     expect(done).toContain(`[subagent ${started.name}] done`);

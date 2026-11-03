@@ -27,7 +27,11 @@ export function writeSkill(dir: string, name: string) {
 }
 
 export function sessionsRoot(): string {
-  return join(agentDir, "pi-herdr-subagents-lite", "sessions");
+  return join(agentDir, "sessions", "runs");
+}
+
+export function runsRoot(): string {
+  return join(agentDir, "pi-herdr-subagents-lite", "runs");
 }
 
 export function writeProjectProfile(fileName: string, content: string) {

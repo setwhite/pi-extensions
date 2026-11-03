@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, it, vi } from "vitest";
 import { childSessionFile, writeInbox } from "../support/inbox.ts";
+import { inboxOf, receiptOf } from "../support/paths.ts";
 import { loadChild } from "../support/session.ts";
 import "../support/hooks.ts";
 
@@ -12,7 +13,7 @@ it("writes an exit receipt for a child session", async () => {
 
   await child.shutdownSession("quit");
 
-  expect(JSON.parse(readFileSync(`${sessionFile}.exit`, "utf8"))).toEqual({ reason: "quit" });
+  expect(JSON.parse(readFileSync(receiptOf(sessionFile), "utf8"))).toEqual({ reason: "quit" });
 });
 
 it("skips the receipt when there is no inbox", async () => {
@@ -21,7 +22,7 @@ it("skips the receipt when there is no inbox", async () => {
 
   await child.shutdownSession("quit");
 
-  expect(existsSync(`${sessionFile}.exit`)).toBe(false);
+  expect(existsSync(receiptOf(sessionFile))).toBe(false);
 });
 
 it("delivers inbox messages in order", async () => {
@@ -39,9 +40,9 @@ it("delivers inbox messages in order", async () => {
     { content: "first", options: undefined },
     { content: "second", options: undefined },
   ]);
-  expect(existsSync(join(`${sessionFile}.inbox`, "a.md"))).toBe(false);
-  expect(existsSync(join(`${sessionFile}.inbox`, "b.md"))).toBe(false);
-  expect(existsSync(join(`${sessionFile}.inbox`, ".delivered"))).toBe(false);
+  expect(existsSync(join(inboxOf(sessionFile), "a.md"))).toBe(false);
+  expect(existsSync(join(inboxOf(sessionFile), "b.md"))).toBe(false);
+  expect(existsSync(join(inboxOf(sessionFile), ".delivered"))).toBe(false);
 
   await vi.advanceTimersByTimeAsync(250);
 

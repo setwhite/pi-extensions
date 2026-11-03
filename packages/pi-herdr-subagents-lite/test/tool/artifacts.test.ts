@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { expect, it, vi } from "vitest";
+import { artifactOf, receiptOf } from "../support/paths.ts";
 import { assistantLine, flushDelivery, longResult, parseStarted } from "../support/result.ts";
 import { runTask, sendTask } from "../support/run.ts";
 import { loadTimedSession } from "../support/session.ts";
@@ -9,7 +10,7 @@ it("reports poll_failed when the exit receipt cannot be read", async () => {
   const { sent, tool } = loadTimedSession(async () => null);
 
   const started = parseStarted(await runTask(tool, "vanished task"));
-  mkdirSync(`${started.sessionFile}.exit`);
+  mkdirSync(receiptOf(started.sessionFile));
 
   await vi.advanceTimersByTimeAsync(3000);
 
@@ -27,7 +28,7 @@ it("writes an artifact for long results", async () => {
   await vi.advanceTimersByTimeAsync(1000);
   await flushDelivery(sent);
 
-  const artifact = `${started.sessionFile}.result-1.md`;
+  const artifact = artifactOf(started.sessionFile, 1);
   expect(existsSync(artifact)).toBe(true);
   expect(readFileSync(artifact, "utf8")).toBe(full);
   const content = sent[0]?.message.content ?? "";
@@ -51,7 +52,7 @@ it("writes an artifact for a long exited result", async () => {
   await vi.advanceTimersByTimeAsync(1000);
   await flushDelivery(sent);
 
-  const artifact = `${started.sessionFile}.result-1.md`;
+  const artifact = artifactOf(started.sessionFile, 1);
   expect(existsSync(artifact)).toBe(true);
   expect(readFileSync(artifact, "utf8")).toBe(full);
   expect(sent[0]?.message.content).toContain(`Full result: ${artifact}`);
@@ -63,7 +64,7 @@ it("keeps the message when the artifact write fails", async () => {
   const started = parseStarted(await runTask(tool, "write a long report"));
   const { head, full } = longResult();
   writeFileSync(started.sessionFile, `${assistantLine(full)}\n`);
-  mkdirSync(`${started.sessionFile}.result-1.md`);
+  mkdirSync(artifactOf(started.sessionFile, 1));
 
   await vi.advanceTimersByTimeAsync(1000);
   await flushDelivery(sent);
@@ -73,7 +74,7 @@ it("keeps the message when the artifact write fails", async () => {
   expect(content).toContain(head);
   expect(content).not.toContain("TAIL_MARKER");
   expect(content).toContain("artifact write failed");
-  expect(existsSync(`${started.sessionFile}.result-1.md.tmp`)).toBe(false);
+  expect(existsSync(`${artifactOf(started.sessionFile, 1)}.tmp`)).toBe(false);
 });
 
 it("keeps artifacts when the completion seq resets", async () => {
@@ -84,7 +85,7 @@ it("keeps artifacts when the completion seq resets", async () => {
 
   await vi.advanceTimersByTimeAsync(1000);
   await flushDelivery(sent);
-  expect(readFileSync(`${started.sessionFile}.result-1.md`, "utf8")).toBe(first);
+  expect(readFileSync(artifactOf(started.sessionFile, 1), "utf8")).toBe(first);
 
   fake.setAgents(async () => null);
   await vi.advanceTimersByTimeAsync(1000);
@@ -101,8 +102,8 @@ it("keeps artifacts when the completion seq resets", async () => {
   await flushDelivery(sent, 2);
 
   expect(sent).toHaveLength(2);
-  expect(readFileSync(`${started.sessionFile}.result-1.md`, "utf8")).toBe(first);
-  expect(readFileSync(`${started.sessionFile}.result-2.md`, "utf8")).toBe(second);
+  expect(readFileSync(artifactOf(started.sessionFile, 1), "utf8")).toBe(first);
+  expect(readFileSync(artifactOf(started.sessionFile, 2), "utf8")).toBe(second);
 });
 
 it("does not write an artifact for short results", async () => {
@@ -115,7 +116,7 @@ it("does not write an artifact for short results", async () => {
 
   const content = sent[0]?.message.content ?? "";
   expect(sent).toHaveLength(1);
-  expect(existsSync(`${started.sessionFile}.result-1.md`)).toBe(false);
+  expect(existsSync(artifactOf(started.sessionFile, 1))).toBe(false);
   expect(content).toContain("short answer");
   expect(content).not.toContain("Full result:");
 });
