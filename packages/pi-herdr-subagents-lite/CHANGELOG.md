@@ -2,7 +2,7 @@
 
 本文件记录已发布版本的用户可见变更。更细的过程见 git log。破坏性变更标 **BREAKING**。0.5.2 及更早的变更见旧仓 `setwhite/pi-herdr-subagents-lite` 的 tag `v0.3.0`–`v0.5.2`。
 
-## 未发布
+## 0.8.0 — 2026-11-03
 
 - 模型不再看到子 session 路径与 pane id：`run` 与 `send` 的工具返回只剩 `state` 与 `name`，`paneId` 与 `sessionFile` 留在 `details`。`unknown` 结果消息不再附 `Session file:`。`send` 的错误只报子代理名。目的是不让父代理顺着路径去读子会话正文。
 - **BREAKING**：文件位置改了。子 session 落在父会话桶的 `runs/` 子目录，brief、identity、inbox、exit 回执、结果 artifact 落在 `<agent-dir>/pi-herdr-subagents-lite/runs/` 一层平铺，共用 `<name>-<runId>` 前缀。超长结果的 `Full result:` 指向新位置。路径只影响新 run。
