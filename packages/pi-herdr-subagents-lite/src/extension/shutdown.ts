@@ -25,10 +25,7 @@ export function watchShutdown(pi: ExtensionRegistrar, deps: ShutdownDeps): void 
       deps.writeExitReceipt(sessionFile, event.reason);
     }
     if (closing && deps.config.closeChildrenOn.includes(event.reason)) {
-      const { kept, failed } = await closing.closeChildren();
-      for (const name of kept) {
-        ctx.ui.notify(`child "${name}" kept running: its tab has more than one pane`, "warning");
-      }
+      const { failed } = await closing.closeChildren();
       for (const failure of failed) {
         ctx.ui.notify(`could not close child "${failure.name}": ${failure.reason}`, "error");
       }

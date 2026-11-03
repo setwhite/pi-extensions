@@ -62,6 +62,8 @@ async function launch(state: RunState, profileName: string, task: string, rawCwd
     autoExit: profile.autoExit,
     lastHandledSeq: 0,
     lastDeliveredText: null,
+    lastDeliveredSize: -1,
+    paneClosed: false,
     artifactSeq: 0,
     pollFailures: 0,
     busy: false,
@@ -130,7 +132,7 @@ async function launch(state: RunState, profileName: string, task: string, rawCwd
     state.release(run);
     if (state.stopped && pane) {
       // 清理失败不改变结论：会话已在关闭，run 已被取消。
-      await state.host.closeTabIfOnlyPane(pane).catch(() => "missing");
+      await state.host.closePane(pane.paneId).catch(() => undefined);
     }
     if (error instanceof ToolError) {
       throw error;

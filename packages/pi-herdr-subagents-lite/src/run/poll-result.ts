@@ -1,5 +1,5 @@
 import type { ExitReceipt } from "../session-file/index.ts";
-import { closeTab, shouldClose } from "./close.ts";
+import { closeRunPane, shouldClose } from "./close.ts";
 import type { RunResult } from "./result.ts";
 import { doneResult, unknownResult } from "./result.ts";
 import type { RunRecord, RunState } from "./state.ts";
@@ -18,6 +18,16 @@ export async function recordFailure(state: RunState, run: RunRecord): Promise<vo
   }
 }
 
+// 文本相同也要看字节数：另一个回合可能写出逐字相同的答案。
+function newTail(run: RunRecord, text: string, size: number): boolean {
+  return text !== run.lastDeliveredText || size !== run.lastDeliveredSize;
+}
+
+function markDelivered(run: RunRecord, text: string, size: number): void {
+  run.lastDeliveredText = text;
+  run.lastDeliveredSize = size;
+}
+
 export async function readResult(state: RunState, run: RunRecord, seq: number, attempt: number): Promise<void> {
   run.read = undefined;
   if (!run.live) {
@@ -30,10 +40,10 @@ export async function readResult(state: RunState, run: RunRecord, seq: number, a
   }
   if (snapshot.text !== null) {
     run.lastHandledSeq = seq;
-    if (snapshot.text === run.lastDeliveredText) {
+    if (!newTail(run, snapshot.text, snapshot.size)) {
       return;
     }
-    run.lastDeliveredText = snapshot.text;
+    markDelivered(run, snapshot.text, snapshot.size);
     await finish(state, run, await doneResult(run, snapshot.text, state.maxResultChars));
     return;
   }
@@ -56,24 +66,40 @@ export async function exited(state: RunState, run: RunRecord, receipt: ExitRecei
   const tail = state.readLastAssistant(run.sessionFile);
   const text = tail.pendingToolCall ? null : tail.text;
   if (text !== null) {
-    if (text !== run.lastDeliveredText) {
-      run.lastDeliveredText = text;
+    if (newTail(run, text, tail.size)) {
+      markDelivered(run, text, tail.size);
       await finish(state, run, await doneResult(run, text, state.maxResultChars));
+      return;
     }
   } else if (run.lastDeliveredText === null) {
-    const reason = receipt === null ? "pane_exited" : "quitted";
-    await finish(state, run, unknownResult(run, reason));
+    await finish(state, run, unknownResult(run, receipt === null ? "pane_exited" : "quitted"));
+    return;
   }
+  await closeAfterExit(state, run);
   state.settle(run);
+}
+
+// 投递过结果不代表 pane 关掉了：子代理死亡是最后一次补关机会。
+async function closeAfterExit(state: RunState, run: RunRecord): Promise<void> {
+  if (!run.autoExit || run.pane === undefined || run.paneClosed) {
+    return;
+  }
+  try {
+    await closeRunPane(state, run);
+  } catch {
+    await state.results?.push(unknownResult(run, "close_failed"));
+  }
 }
 
 async function finish(state: RunState, run: RunRecord, result: RunResult): Promise<void> {
   await state.results?.push(result);
   if (shouldClose(run, result)) {
     try {
-      await closeTab(state, run);
+      await closeRunPane(state, run);
     } catch {
+      // 关不掉不算结算：保留 live，子代理死亡时再试一次（DEC-0060）。
       await state.results?.push(unknownResult(run, "close_failed"));
+      return;
     }
     state.settle(run);
     return;

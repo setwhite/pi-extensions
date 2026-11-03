@@ -13,7 +13,7 @@ interface MessageSink {
 const UNKNOWN_TEXT: Record<UnknownReason, string> = {
   poll_failed: "status could not be read",
   no_result: "no result was read",
-  close_failed: "result delivered, but the tab did not close",
+  close_failed: "result delivered, but the pane did not close",
   quitted: "the child exited without a result",
   pane_exited: "the pane exited without a result",
 };

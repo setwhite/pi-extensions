@@ -1,43 +1,43 @@
 import { errorText } from "../error/index.ts";
 import type { RunResult } from "./result.ts";
-import type { RunPane, RunRecord, RunState } from "./state.ts";
+import type { RunRecord, RunState } from "./state.ts";
 
 export function shouldClose(run: RunRecord, result: RunResult): boolean {
   return result.state === "done" && run.autoExit;
 }
 
-export async function closeTab(state: RunState, run: RunRecord): Promise<void> {
-  if (!run.pane) {
+// 只关自己记下的 pane，所以不需要先确认 tab 里有什么。pane 已经不在了也算关掉。
+export async function closeRunPane(state: RunState, run: RunRecord): Promise<void> {
+  const pane = run.pane;
+  if (pane === undefined) {
     return;
   }
-  await state.host.closeTabIfOnlyPane(run.pane);
+  await state.host.closePane(pane.paneId);
+  run.paneClosed = true;
 }
 
 export interface CloseChildrenResult {
-  kept: string[];
   failed: Array<{ name: string; reason: string }>;
 }
 
 interface CloseOutcome {
   name: string;
-  kept: boolean;
   failure?: string;
 }
 
-async function closePane(state: RunState, run: RunRecord, pane: RunPane): Promise<CloseOutcome> {
-  try {
-    const outcome = await state.host.closeTabIfOnlyPane(pane);
-    return { name: run.name, kept: outcome === "kept" };
-  } catch (error) {
-    return { name: run.name, kept: false, failure: errorText(error) };
-  }
-}
-
 export async function closeRuns(state: RunState, runs: RunRecord[]): Promise<CloseChildrenResult> {
-  const targets = runs.filter((run): run is RunRecord & { pane: RunPane } => run.pane !== undefined);
-  const outcomes = await Promise.all(targets.map((run) => closePane(state, run, run.pane)));
+  const targets = runs.filter((run) => run.pane !== undefined);
+  const outcomes: CloseOutcome[] = await Promise.all(
+    targets.map(async (run) => {
+      try {
+        await closeRunPane(state, run);
+        return { name: run.name };
+      } catch (error) {
+        return { name: run.name, failure: errorText(error) };
+      }
+    }),
+  );
   return {
-    kept: outcomes.filter((outcome) => outcome.kept).map((outcome) => outcome.name),
     failed: outcomes.flatMap((outcome) =>
       outcome.failure === undefined ? [] : [{ name: outcome.name, reason: outcome.failure }],
     ),

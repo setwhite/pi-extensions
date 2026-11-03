@@ -41,6 +41,9 @@ export interface RunRecord {
   autoExit: boolean;
   lastHandledSeq: number;
   lastDeliveredText: string | null;
+  // session 文件的字节数：只追加，变大就说明尾部换了一条消息。
+  lastDeliveredSize: number;
+  paneClosed: boolean;
   artifactSeq: number;
   read?: RunRead;
   pollFailures: number;

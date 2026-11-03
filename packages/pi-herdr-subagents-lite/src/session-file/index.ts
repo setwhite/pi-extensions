@@ -10,9 +10,14 @@ export {
   writeExitReceipt,
 } from "./receipt.ts";
 
-export type SessionReader = (path: string) => SessionSnapshot;
+export interface SessionRead extends SessionSnapshot {
+  // 读取时文件的字节数。session 只追加，所以它同时是尾部的身份。读不到时为 -1。
+  size: number;
+}
 
-const UNREADABLE: SessionSnapshot = { text: null, pendingToolCall: false, empty: false, unreadable: true };
+export type SessionReader = (path: string) => SessionRead;
+
+const UNREADABLE: SessionRead = { text: null, pendingToolCall: false, empty: false, unreadable: true, size: -1 };
 
 export const readLastAssistant: SessionReader = (path) => {
   try {
@@ -20,10 +25,10 @@ export const readLastAssistant: SessionReader = (path) => {
     if (size > TAIL_WINDOW_BYTES) {
       const tail = parseLastAssistant(readTail(path, size));
       if (!tail.empty) {
-        return tail;
+        return { ...tail, size };
       }
     }
-    return parseLastAssistant(readFileSync(path, "utf8"));
+    return { ...parseLastAssistant(readFileSync(path, "utf8")), size };
   } catch {
     return { ...UNREADABLE };
   }

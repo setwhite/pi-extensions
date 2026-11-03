@@ -25,13 +25,6 @@ function envArgs(env: Record<string, string>): string[] {
   return Object.entries(env).flatMap(([key, value]) => ["--env", `${key}=${value}`]);
 }
 
-export interface CloseTabInput {
-  tabId: string;
-  paneId: string;
-}
-
-export type CloseTabResult = "closed" | "kept" | "missing";
-
 export interface RenameTabInput {
   tabId: string;
   label: string;
@@ -48,13 +41,10 @@ interface WorkspaceInfo {
 
 interface TabInfo {
   tab_id: string;
-  workspace_id: string;
-  pane_count: number;
 }
 
 interface PaneInfo {
   pane_id: string;
-  tab_id: string;
 }
 
 export function createPaneCommands(exec: ExecHerdr) {
@@ -104,24 +94,14 @@ export function createPaneCommands(exec: ExecHerdr) {
       return result.panes.some((pane) => pane.pane_id === paneId);
     },
 
-    async closeTabIfOnlyPane({ tabId, paneId }: CloseTabInput): Promise<CloseTabResult> {
+    // 只关自己记下的 pane，不看 tab 里还有什么。pane 已经不在了也算关掉。
+    async closePane(paneId: string): Promise<void> {
       try {
-        const { tab } = await exec<{ tab: TabInfo }>(["tab", "get", tabId]);
-        if (tab.pane_count !== 1) {
-          return "kept";
-        }
-        const panes = await exec<{ panes: PaneInfo[] }>(["pane", "list", "--workspace", tab.workspace_id]);
-        const tabPanes = panes.panes.filter((pane) => pane.tab_id === tabId);
-        if (tabPanes.length !== 1 || tabPanes[0]?.pane_id !== paneId) {
-          return "kept";
-        }
-        await exec(["tab", "close", tabId]);
-        return "closed";
+        await exec(["pane", "close", paneId]);
       } catch (error) {
-        if (error instanceof HerdrHostError && error.code === "tab_not_found") {
-          return "missing";
+        if (!(error instanceof HerdrHostError && error.code === "pane_not_found")) {
+          throw error;
         }
-        throw error;
       }
     },
   };

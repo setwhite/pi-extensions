@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { createInbox, enqueue } from "../inbox/index.ts";
-import { closeTab } from "./close.ts";
+import { closeRunPane } from "./close.ts";
 import { spawnFailed, ToolError } from "./errors.ts";
 import { findAgent } from "./find.ts";
 import { createPane } from "./pane.ts";
@@ -81,7 +81,7 @@ export async function send(state: RunState, name: string, message: string): Prom
       run.pane = undefined;
     } else if (envChanged) {
       try {
-        await closeTab(state, run);
+        await closeRunPane(state, run);
       } catch (error) {
         throw spawnFailed(error, previousPaneId, false);
       }
@@ -93,6 +93,7 @@ export async function send(state: RunState, name: string, message: string): Prom
   try {
     const pane = run.pane ?? (await createPane(state, run, cwd, run.paneLabel || run.name));
     run.pane = pane;
+    run.paneClosed = false;
     if (profile.systemPrompt !== "task") {
       await writeFile(identityFile, profile.body, "utf8");
     }
