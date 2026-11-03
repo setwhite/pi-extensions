@@ -21,8 +21,8 @@
 | [`extension`](modules/extension.md) | pi 装配：注册工具，挂 `session_start` / `session_shutdown`，子侧 inbox 泵，退出回执，父会话收尾 | `createExtension`、`ExtensionDeps`、`ExtensionRegistrar`、`SessionContext`、`SubagentTool` | `index.ts` `auto-exit.ts` `shutdown.ts` |
 | [`tool`](modules/tool.md) | 模型面：参数 schema、文案、错误渲染、结果消息信封 | `createTool`、`SubagentTool`、`sendResults`、`ResultMessage` | `index.ts` `schema.ts` `text.ts` `errors.ts` `message.ts` |
 | [`run`](modules/run.md) | run 生命周期：槽位、命名、启动、轮询、结果、聚合、send、关闭 | `createRunService`、`ToolError`、`profileLabel`、`RunService`、`RunServiceDeps`、`RunStarted`、`SendResult`、`RunResult`、`UnknownReason`、`ResultHandler`、`CloseChildrenResult`、`AUTO_EXIT_ENV` | `index.ts` `start.ts` `slot.ts` `naming.ts` `resolve.ts` `truncate.ts` `spawn-args.ts` `paths.ts` `pane.ts` `poll.ts` `poll-result.ts` `result.ts` `send.ts` `state.ts` `errors.ts` `close.ts` `find.ts` `aggregate.ts` `artifact.ts` |
-| [`herdr`](modules/herdr.md) | herdr CLI 端口 | `HerdrHost`、`createHerdrHost`、`HerdrHostError`、`AgentSnapshot`、`AgentEntry`、`StartAgentInput`、`CloseTabResult` | `index.ts` `cli.ts` `agent.ts` `pane.ts` |
-| [`session-file`](modules/session-file.md) | session 旁边的文件：最后一条 assistant、`.exit` 回执 | `readLastAssistant`、`SessionReader`、`readExitReceipt`、`ExitReceiptReader`、`writeExitReceipt`、`ExitReceiptWriter`、`ExitReceipt` | `index.ts` `jsonl.ts` `tail.ts` `receipt.ts` |
+| [`herdr`](modules/herdr.md) | herdr CLI 端口 | `HerdrHost`、`createHerdrHost`、`HerdrHostError`、`AgentSnapshot`、`AgentEntry`、`StartAgentInput` | `index.ts` `cli.ts` `agent.ts` `pane.ts` |
+| [`session-file`](modules/session-file.md) | session 旁边的文件：最后一条 assistant、`.exit` 回执 | `readLastAssistant`、`SessionReader`、`SessionRead`、`readExitReceipt`、`ExitReceiptReader`、`writeExitReceipt`、`ExitReceiptWriter`、`ExitReceipt` | `index.ts` `jsonl.ts` `tail.ts` `receipt.ts` |
 | [`inbox`](modules/inbox.md) | `<childSession>.inbox/` 文件协议与子侧泵 | `createInbox`、`enqueue`、`drain`、`hasInbox`、`inboxCount`、`removeInbox`、`pumpInbox` | `index.ts` `pump.ts` |
 | [`config`](modules/config.md) | 全局配置读取与严格校验 | `loadConfig`、`dataDir`、`Config`、`BlockedKind`、`ShutdownReason`、`isRaw`、`Raw` | `index.ts` `schema.ts` |
 | [`profile`](modules/profile.md) | profile 读取、校验、分层、示例落盘 | `loadProfiles`、`seedExampleProfile`、`globalProfilesDir`、`agentDir`、`resolveSkillPaths`、`Profile`、`ProfileCatalog`、`ProfileSources`、`EXAMPLE_PROFILE`、`EXAMPLE_PROFILE_FILE` | `index.ts` `frontmatter.ts` `layers.ts` `examples.ts` `seed.ts` `skills.ts` |
@@ -85,7 +85,7 @@ profile -> error
 | `readLastAssistant` | 表驱动 + 临时 JSONL | JSONL 解析边界、空文件、不可读 |
 | `inbox` | 临时 session 路径 + 真实 fs。子侧泵经 fake pi + fake timers | 建目录、入队顺序、按序投递、投递后删除、失败保留 |
 | bridge | fake pi events | `ui_prompt_*` → `herdr:blocked`、`blockedOn` 过滤 |
-| 真实 HerdrHost + 真实 pi | `pnpm test:e2e`（`test/e2e/`，不进 `pnpm check`） | CLI argv/JSON、tab/agent/pane、真实 child、结果回投、续聊、关 tab |
+| 真实 HerdrHost + 真实 pi | `pnpm test:e2e`（`test/e2e/`，不进 `pnpm check`） | CLI argv/JSON、tab/agent/pane、真实 child、结果回投、续聊、关 pane |
 | `createPaneCommands` | fake `exec`（记 argv、回固定 JSON） | workspace / tab 的 argv 与 JSON 字段解析 |
 
 mock 只有三处：pi 扩展 API、注入的 `HerdrHost`、注入的 `exec`。不 mock 模块内部，不 mock Node fs。真实 herdr 行为变化时，先补[研究记录](research/)再改代码。真机回归跑 `pnpm test:e2e`。

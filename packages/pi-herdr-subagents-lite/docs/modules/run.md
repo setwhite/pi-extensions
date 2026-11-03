@@ -21,12 +21,14 @@ run 生命周期内核。对外行为见 [v1 契约](../specs/0001-v1-contract.m
 
 - 只有显式 `send` 才重启。死亡不自动重启（DEC-0031）。
 - 重启重读 profile，不用快照。非 `task` 模式按新 profile 重写身份文件。
-- auto-exit 走 pane env（DEC-0056）。新 profile 的 `auto-exit` 与建 tab 时的值不一致时，关掉旧 tab（只在它只剩该 pane 时）并新建 tab。否则在原 pane 重新 `agent start`。
+- auto-exit 走 pane env（DEC-0056）。新 profile 的 `auto-exit` 与建 tab 时的值不一致时，关掉旧 pane 并新建 tab。否则在原 pane 重新 `agent start`。
 - 三类拒绝重启见契约 §5：宁可报错也不重放副作用。
 
 ## 结果与关闭
 
 - 结果超限时，消息里只留可读的头与路径，全文落 artifact。写失败仍按 `done` 投递并附警告（DEC-0036）。
 - 聚合窗口为 0 与非 0 时，投递失败都走 `onError` → 父会话收到 `subagent result not delivered`。0 不排队，直接投递。
-- `shutdown` 置 stopped 后直接丢掉在途 `start()`。`closeChildren` 会等它们结束再关 tab，避免刚关完又被创建。
-- `closeChildren` 先停轮询再并发关 tab，所以不会再投 `pane_exited`。保留与失败的逐条通知由 [extension](extension.md) 发（DEC-0048）。
+- `shutdown` 置 stopped 后直接丢掉在途 `start()`。`closeChildren` 会等它们结束再关 pane，避免刚关完又被创建。
+- `closeChildren` 先停轮询再并发关 pane，所以不会再投 `pane_exited`。失败的逐条通知由 [extension](extension.md) 发（DEC-0048）。
+- 关闭是 `pane close`，幂等（DEC-0060）。关失败不结算：保留 live、补一条 `close_failed`，子代理死亡时再关一次。
+- 投递判据是「尾部换过没有」，不是「文本和上次不同」。文本相同、session 文件变大也算新消息。投递与关闭互不依赖。

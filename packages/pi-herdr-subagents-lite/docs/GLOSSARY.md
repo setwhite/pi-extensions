@@ -21,7 +21,7 @@
 | **结果 artifact** | 超限结果的全文文件，`<childSession>.result-<seq>.md` | 不是子 session 文件，也不是每次结果都写 |
 | **子侧 inbox** | `<childSession>.inbox/`。父侧写（brief 与 send 消息），子进程读（DEC-0023、DEC-0026） | 不是 herdr 的消息队列，也不是结果通道 |
 | **subagent_result** | 回投父会话的异步结果消息 | 不是工具的同步返回值 |
-| **auto-exit** | profile 字段。true = 子代理收工后自己 shutdown，父侧在 done 结果后关 tab（v1） | 不是全局配置 |
+| **auto-exit** | profile 字段。true = 子代理收工后自己 shutdown，父侧在 done 结果后关它的 pane（v1） | 不是全局配置 |
 | **exit 回执** | `<childSession>.exit`。子进程 shutdown 时写，仅在有子侧 inbox 时。有回执 = 走过 shutdown | 不是 session 文件本身，也不承载结果正文 |
 | **run** | 一个子代理从启动到退出的记录。`run` 返回后，`name` 与 `sessionFile` 在其生命周期内不变 | 不是 profile，也不是 herdr 的 agent 定义 |
 | **快照** | 每拍一次 `herdr agent list` 的返回。父侧唯一状态来源。间隔两档（DEC-0052） | 不是事件流，也不是本地缓存 |

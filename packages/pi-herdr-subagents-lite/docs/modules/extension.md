@@ -11,7 +11,7 @@ pi 适配层。不持有 run 状态。本文只写取舍。
 ## session_shutdown
 
 - 先停 inbox，再取走 service，然后写退出回执（仅当有子侧 inbox）。
-- reason 命中 `closeChildrenOn` 时走 `closeChildren()`：保留与关闭失败逐条通知。未命中只 `shutdown()`，不关 tab（DEC-0048）。
+- reason 命中 `closeChildrenOn` 时走 `closeChildren()`：关闭失败逐条通知。未命中只 `shutdown()`，不关 pane（DEC-0048）。
 - 顺序固定：先停投递再关 tab。关闭过程中的死亡不会被当成新结果。
 
 ## auto-exit

@@ -30,6 +30,7 @@
 | [0023](0023-start-then-prompt.md) | brief 不进启动参数，等 idle 后经 inbox 投递 |
 | [0047](0047-close-on-done-default-keep.md) | 完成默认保留 tab。关闭由 auto-exit 与 closeChildrenOn 决定 |
 | [0048](0048-close-children-on.md) | 父会话结束按 closeChildrenOn 清理 |
+| [0060](0060-close-pane-not-tab.md) | 关闭按 pane，不按 tab。投递判据按尾部是否换过 |
 | [0032](0032-death-detection.md) | died 判定。已由 0052 改为只认事实 |
 | [0053](0053-session-dir.md) | 子 session 放在 agent dir |
 | [0056](0056-auto-exit-channel.md) | auto-exit 用 pane env 传 |

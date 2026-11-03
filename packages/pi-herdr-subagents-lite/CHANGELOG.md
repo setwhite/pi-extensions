@@ -2,6 +2,12 @@
 
 本文件记录已发布版本的用户可见变更。更细的过程见 git log。破坏性变更标 **BREAKING**。0.5.2 及更早的变更见旧仓 `setwhite/pi-herdr-subagents-lite` 的 tag `v0.3.0`–`v0.5.2`。
 
+## 未发布
+
+- 修：子代理收工、会话关掉后 tab 留在原地。关闭改用 `pane close`，不再先核对 tab 里只有一个 pane —— 那个核对撞上 herdr 重登记 pane 的窗口就会静默放弃。同 tab 里人开的 pane 不受影响。
+- 关 pane 失败不再是终态：补一条 `close_failed`，子代理死亡时再关一次。
+- 修：新回合写出和上一轮逐字相同的答案时，结果被当成重复丢掉，也不关 tab。判据改成「session 文件尾部换过没有」。
+
 ## 0.7.2 — 2026-11-03
 
 - 内置工具文案改为讲用法：`description` 说何时用 `run`、何时用 `send`。

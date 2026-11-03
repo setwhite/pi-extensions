@@ -29,7 +29,7 @@
 | `prompts` | object | — | 提示词覆盖。键与展开见 `src/tool/text.ts` |
 | `bridge` | object | — | 见第 7 节 |
 
-`closeChildrenOn` 未命中时只停止投递，不关 tab。父进程自己关 tab 前先停轮询，所以关掉之后不会再发死亡通知。tab 有多个 pane 时不关，保留并通知。父进程崩溃没有 shutdown，不关，不认领。
+`closeChildrenOn` 未命中时只停止投递，不关 pane。父进程自己关 pane 前先停轮询，所以关掉之后不会再发死亡通知。关闭只动父侧自己创建的 pane，同一 tab 里其他 pane 不受影响。父进程崩溃没有 shutdown，不关，不认领。
 
 固定文件：
 
@@ -59,7 +59,7 @@
 | `tools` | string | 省略 = pi 默认集，加 `--exclude-tools <toolName>`（防嵌套。`--tools -<toolName>` 不过滤扩展工具）。纯名字 = 严格 allowlist。`+name` / `-name` = 在默认集增删，除显式写 `+<toolName>` 外仍排除本工具。两者不能混用。空字符串 = 空 allowlist |
 | `skills` | string / list | 省略 = pi 默认发现。`""` 或 `[]` = 不加载 skill。非空列表 = 只加载列出的项，名字按 pi 默认发现集解析（agent-dir、项目 `.pi/skills`、`.agents/skills`、包内、settings 配置）。列表项是名字，不带 `+` / `-`。查不到报 `profile_invalid` |
 | `system-prompt` | string | append / replace / task。见 [DEC-0051](../decisions/0051-system-prompt.md) |
-| `auto-exit` | boolean | true = 任务收工后子进程自己 shutdown，父侧关 tab。有未答对话框或未取 inbox 消息时不退 |
+| `auto-exit` | boolean | true = 任务收工后子进程自己 shutdown，父侧关它的 pane。有未答对话框或未取 inbox 消息时不退 |
 | `disable-model-invocation` | boolean | true = 从 guidelines 隐藏。显式 run 仍可用 |
 
 - `ask_user_question` 不自动加入。想反问就写进 `tools`。
@@ -153,11 +153,11 @@
 
 「尾部干净」看最后一条 assistant 消息里有没有未完成的 toolCall。尾部是 toolResult、user 或 custom 条目都不改变这个判断。
 
-重启用 run 记录的 `cwd`。profile 重新读取（DEC-0031），非 `task` 模式按新 profile 重写身份文件。新 profile 的 `auto-exit` 与建 tab 时的值不一致时，关掉旧 tab（只在它只剩该 pane 时）并新建 tab。一致则复用原 pane。cwd 与父 cwd 不同时，用新 workspace 的初始 tab。相同时，`tab create` 不带 `--workspace`，由 herdr 落在当前 workspace（实测父会话所在 workspace）。
+重启用 run 记录的 `cwd`。profile 重新读取（DEC-0031），非 `task` 模式按新 profile 重写身份文件。新 profile 的 `auto-exit` 与建 tab 时的值不一致时，关掉旧 pane 并新建 tab。一致则复用原 pane。cwd 与父 cwd 不同时，用新 workspace 的初始 tab。相同时，`tab create` 不带 `--workspace`，由 herdr 落在当前 workspace（实测父会话所在 workspace）。
 
 ## 6. 结果消息
 
-完成检测按 `completion_seq` 与本 run 的 `lastHandledSeq` 去重。每次完成最多投递一条 done 结果。同一个 run 经 `send` 续聊后可有多条。`close_failed` 是在 done 之后、关 tab 失败时补投的 unknown。
+完成检测按 `completion_seq` 与本 run 的 `lastHandledSeq` 去重。每次完成最多投递一条 done 结果。同一个 run 经 `send` 续聊后可有多条。`close_failed` 是关 pane 失败时补投的 unknown。第一次失败不结算，子代理死亡时再关一次（DEC-0060）。
 
 单次 `agent list` 失败不是死亡。死亡只认事实：有退出回执，或 pane 不在 `pane list` 里。`agent list` 这一拍查不到只算「没看见」。保持 live 满 10 秒才判死（只为被 SIGKILL、写不出回执、pane 又还在的子进程）。机制见 [DEC-0052](../decisions/0052-completion-snapshot.md)。
 
@@ -193,9 +193,9 @@ Full result: <childSession>.result-3.md
 | 没有回执（没走 shutdown） | 退回读 session 尾部，同上判定。否则 `unknown`，原因 `pane_exited` |
 
 - `agent list` 里找不到该 run 时：有退出回执或 pane 已不在，当场判死。否则只算「这一拍没看见」，保持 live 与活跃档，满 10 秒再报 `pane_exited`（只为被 SIGKILL 的子进程存在）。
-- 同一个 run 只投一次同一段文本。回执路径与轮询路径都跳过已投递的文本。
+- 同一个 run 的同一 turn 只投一次。判据是尾部换过没有：文本或 session 文件字节数任一变化都算换了。文本相同、文件变大是另一个回合，照样投递。投递与关闭互不依赖：没投递过也可能要关 pane。
 - 子代理还没写过 assistant 消息时不结算。继续等它写完或死亡（防止启动阶段的 idle 被当成完成）。
-- 其余 `unknown` 原因：`no_result`（读 3 次仍没有文本，且这个 run 从未投递过结果）、`poll_failed`（连续 3 拍失败：每拍 `agent list` 失败记一次，单个 run 的处理抛错也记一次）、`close_failed`（关 tab 失败后补投）。
+- 其余 `unknown` 原因：`no_result`（读 3 次仍没有文本，且这个 run 从未投递过结果）、`poll_failed`（连续 3 拍失败：每拍 `agent list` 失败记一次，单个 run 的处理抛错也记一次）、`close_failed`（关 pane 失败后补投）。
 
 ~~~text
 [subagent explore-1] the pane exited without a result
@@ -206,7 +206,7 @@ Session file: <childSession>
 - 死亡消息是该 run 的终态：最多一条，不受 `lastHandledSeq` 约束。
 - 子代理 blocked（`agent_status = blocked`）时，父侧不发消息，也不读它的 toolCall。问题与答案都留在子 pane，由人处理。blocked 期间不结算结果，继续等它离开 blocked。
 - 投递失败不重发。父会话收到一条 `subagent result not delivered` 通知。
-- `auto-exit: true` 的子代理收工并投递 `done` 结果后，父侧再关只含该 pane 的 tab。`unknown` 不关。
+- `auto-exit: true` 的子代理收工并投递 `done` 结果后，父侧关掉它的 pane。`unknown` 不关。关闭失败不算结算：子代理死亡时补关一次（DEC-0060）。
 
 ## 7. bridge
 
