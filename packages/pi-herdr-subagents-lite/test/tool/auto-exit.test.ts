@@ -88,21 +88,6 @@ it("flushes at the window boundary", async () => {
   expect(sent).toHaveLength(1);
 });
 
-it("keeps a tab with several panes", async () => {
-  writeConfig({ closeChildrenOn: ["quit"] });
-  const { notifications, shutdownSession, tool } = loadTimedSession(
-    async () => ({ status: "working", completionSeq: 0 }),
-    () => "kept",
-  );
-
-  await runTask(tool, "long task");
-  await shutdownSession("quit");
-
-  expect(notifications).toEqual([
-    { message: 'child "worker-1" kept running: its tab has more than one pane', type: "warning" },
-  ]);
-});
-
 it("shuts down after settle when auto-exit is on", async () => {
   const settled = loadAutoExitChild();
   settled.fake.settle();

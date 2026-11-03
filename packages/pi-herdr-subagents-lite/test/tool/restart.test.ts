@@ -125,5 +125,5 @@ it("re-reads auto-exit when restarting", async () => {
 
   expect(sent).toHaveLength(2);
   expect(sent[1]?.message.content).toContain("new result");
-  expect(fake.calls.filter((call) => call === "closeTabIfOnlyPane")).toHaveLength(2);
+  expect(fake.calls.filter((call) => call === "closePane")).toHaveLength(2);
 });

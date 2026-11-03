@@ -13,7 +13,7 @@ it("re-arms a finished child that is still alive", async () => {
   vi.useFakeTimers();
   process.env.HERDR_ENV = "1";
   writeProfile("explore.md", "---\nmodel: old/model\n---\n\nExplore body.\n");
-  const fake = fakeHost({ closeTab: () => "kept" });
+  const fake = fakeHost();
   fake.setAgents(async () => ({ status: "idle", completionSeq: 1 }));
   const { tool } = loadSession(fake.host);
   const started = parseStarted(await runTask(tool, "inspect the repo", "explore"));

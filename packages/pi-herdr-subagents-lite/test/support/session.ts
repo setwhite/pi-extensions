@@ -6,7 +6,7 @@ import {
   type SessionContext,
   type SubagentTool,
 } from "../../src/extension/index.ts";
-import type { AgentSnapshot, CloseTabResult, HerdrHost } from "../../src/herdr/index.ts";
+import type { AgentSnapshot, HerdrHost } from "../../src/herdr/index.ts";
 import { loadProfiles, agentDir as resolveAgentDir } from "../../src/profile/index.ts";
 import { readExitReceipt, readLastAssistant, writeExitReceipt } from "../../src/session-file/index.ts";
 import { fakeHost } from "./host.ts";
@@ -42,12 +42,12 @@ export function loadTool(host: HerdrHost, ctx?: Partial<SessionContext>): Subage
 
 export function loadTimedSession(
   getAgent: (name: string) => Promise<AgentSnapshot | null>,
-  closeTab?: () => CloseTabResult | Error,
+  closePane?: (paneId: string) => Error | undefined,
 ) {
   vi.useFakeTimers();
   process.env.HERDR_ENV = "1";
   const calls: string[] = [];
-  const fake = fakeHost({ events: calls, closeTab });
+  const fake = fakeHost({ events: calls, closePane });
   fake.setAgents(getAgent);
   return { ...loadSession(fake.host, calls), calls, fake };
 }

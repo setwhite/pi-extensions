@@ -37,7 +37,7 @@ it("reports three consecutive poll failures", async () => {
   await vi.advanceTimersByTimeAsync(1000);
   expect(sent).toHaveLength(1);
   expect(sent[0]?.message.content).toContain("status could not be read");
-  expect(calls.filter((call) => call === "closeTabIfOnlyPane")).toHaveLength(0);
+  expect(calls.filter((call) => call === "closePane")).toHaveLength(0);
 
   await vi.advanceTimersByTimeAsync(1000);
   expect(sent).toHaveLength(1);
@@ -62,7 +62,7 @@ it("resets poll failure count on success", async () => {
   expect(sent).toHaveLength(1);
   expect(content.startsWith("[subagent worker-1] done")).toBe(true);
   expect(content).not.toContain("unknown");
-  expect(calls.filter((call) => call === "closeTabIfOnlyPane")).toHaveLength(0);
+  expect(calls.filter((call) => call === "closePane")).toHaveLength(0);
 });
 
 it("waits while the worker is blocked in a tool call", async () => {
@@ -73,7 +73,7 @@ it("waits while the worker is blocked in a tool call", async () => {
 
   await vi.advanceTimersByTimeAsync(5000);
   expect(sent).toHaveLength(0);
-  expect(calls.filter((call) => call === "closeTabIfOnlyPane")).toHaveLength(0);
+  expect(calls.filter((call) => call === "closePane")).toHaveLength(0);
 
   writeFileSync(started.sessionFile, `${assistantLine("answered")}\n`);
   await vi.advanceTimersByTimeAsync(1000);
@@ -82,7 +82,7 @@ it("waits while the worker is blocked in a tool call", async () => {
   expect(sent).toHaveLength(1);
   expect(content.startsWith("[subagent worker-1] done")).toBe(true);
   expect(content).toContain("answered");
-  expect(calls.filter((call) => call === "closeTabIfOnlyPane")).toHaveLength(0);
+  expect(calls.filter((call) => call === "closePane")).toHaveLength(0);
 });
 
 it("reports unreadable result as unknown", async () => {
@@ -103,7 +103,7 @@ it("reports unreadable result as unknown", async () => {
   expect(sent).toHaveLength(1);
   expect(content).toContain("no result was read");
   expect(content).toContain(`Session file: ${started.sessionFile}`);
-  expect(calls.filter((call) => call === "closeTabIfOnlyPane")).toHaveLength(0);
+  expect(calls.filter((call) => call === "closePane")).toHaveLength(0);
 
   const next = await runTask(tool, "next task");
   expect(next.isError).toBe(false);

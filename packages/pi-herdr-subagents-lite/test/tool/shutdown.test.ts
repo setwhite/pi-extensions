@@ -1,6 +1,5 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { expect, it, vi } from "vitest";
-import type { CloseTabResult } from "../../src/herdr/index.ts";
 import { writeConfig } from "../support/env.ts";
 import { fakeHost } from "../support/host.ts";
 import { writeProfile } from "../support/profiles.ts";
@@ -26,9 +25,9 @@ it("does not split surrogate pairs when truncating", async () => {
   expect(readFileSync(`${started.sessionFile}.result-1.md`, "utf8")).toContain("😀");
 });
 
-async function expectDoneDespiteClose(closeTab: () => CloseTabResult | Error, closeFailed = false) {
+async function expectDoneDespiteClose(closePane: (paneId: string) => Error | undefined, closeFailed = false) {
   writeProfile("worker.md", "---\nauto-exit: true\n---\n\nWorker body.\n");
-  const { calls, sent, tool } = loadTimedSession(async () => ({ status: "idle", completionSeq: 1 }), closeTab);
+  const { calls, sent, tool } = loadTimedSession(async () => ({ status: "idle", completionSeq: 1 }), closePane);
 
   const started = parseStarted(await runTask(tool, "say hello"));
   writeFileSync(started.sessionFile, `${assistantLine("hello")}\n`);
@@ -42,22 +41,44 @@ async function expectDoneDespiteClose(closeTab: () => CloseTabResult | Error, cl
   expect(content).not.toContain("error");
   if (closeFailed) {
     expect(sent[1]?.message.content).toBe(
-      `[subagent worker-1] result delivered, but the tab did not close\n\nSession file: ${started.sessionFile}`,
+      `[subagent worker-1] result delivered, but the pane did not close\n\nSession file: ${started.sessionFile}`,
     );
   }
-  expect(calls.filter((call) => call === "closeTabIfOnlyPane")).toHaveLength(1);
+  expect(calls.filter((call) => call === "closePane")).toHaveLength(1);
 
   const next = await runTask(tool, "next task");
   expect(next.isError).toBe(false);
   expect(parseStarted(next).name).toBe("worker-2");
 }
 
-it("keeps tab when close is refused", async () => {
-  await expectDoneDespiteClose(() => "kept");
+it("reports a failed close", async () => {
+  await expectDoneDespiteClose(() => new Error("herdr pane close failed"), true);
 });
 
-it("reports a failed close", async () => {
-  await expectDoneDespiteClose(() => new Error("herdr tab close failed"), true);
+it("closes the pane after the child dies when the close failed", async () => {
+  writeProfile("worker.md", "---\nauto-exit: true\n---\n\nWorker body.\n");
+  const attempts: string[] = [];
+  const { calls, fake, sent, tool } = loadTimedSession(
+    async () => ({ status: "idle", completionSeq: 1 }),
+    (paneId) => {
+      attempts.push(paneId);
+      return attempts.length === 1 ? new Error("herdr pane close failed") : undefined;
+    },
+  );
+
+  const started = parseStarted(await runTask(tool, "say hello"));
+  writeFileSync(started.sessionFile, `${assistantLine("hello")}\n`);
+
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(sent).toHaveLength(2);
+  expect(calls.filter((call) => call === "closePane")).toHaveLength(1);
+
+  fake.setAgents(async () => null);
+  fake.setPaneExists(false);
+  await vi.advanceTimersByTimeAsync(1000);
+
+  expect(calls.filter((call) => call === "closePane")).toHaveLength(2);
+  expect(attempts).toEqual(["w1:p1", "w1:p1"]);
 });
 
 it("stops after session shutdown", async () => {
@@ -72,7 +93,7 @@ it("stops after session shutdown", async () => {
   await vi.advanceTimersByTimeAsync(5000);
 
   expect(sent).toHaveLength(0);
-  expect(calls.filter((call) => call === "closeTabIfOnlyPane")).toHaveLength(0);
+  expect(calls.filter((call) => call === "closePane")).toHaveLength(0);
 });
 
 it("cancels an in-flight start when the session shuts down", async () => {
@@ -95,7 +116,7 @@ it("cancels an in-flight start when the session shuts down", async () => {
   expect(result.isError).toBe(true);
   expect(firstText(result)).toContain("cancelled");
   expect(fake.calls.filter((call) => call === "startAgent")).toHaveLength(0);
-  expect(fake.calls.filter((call) => call === "closeTabIfOnlyPane")).toHaveLength(1);
+  expect(fake.calls.filter((call) => call === "closePane")).toHaveLength(1);
 });
 
 it("closes children on matching reasons", async () => {
@@ -109,7 +130,7 @@ it("closes children on matching reasons", async () => {
   await shutdownSession("quit");
   await vi.advanceTimersByTimeAsync(5000);
 
-  expect(calls.filter((call) => call === "closeTabIfOnlyPane")).toHaveLength(2);
+  expect(calls.filter((call) => call === "closePane")).toHaveLength(2);
   expect(sent.filter((message) => message.message.content.includes("unknown"))).toHaveLength(0);
 });
 
@@ -123,5 +144,5 @@ it("keeps children when the reason does not match", async () => {
   await runTask(tool, "long task");
   await shutdownSession("quit");
 
-  expect(calls.filter((call) => call === "closeTabIfOnlyPane")).toHaveLength(0);
+  expect(calls.filter((call) => call === "closePane")).toHaveLength(0);
 });

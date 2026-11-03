@@ -25,7 +25,7 @@ it("gives up after 100 name retries", async () => {
   expect(result.details).toMatchObject({ code: "name_exhausted" });
   expect(agents.map((agent) => agent.name)).toEqual(Array.from({ length: 100 }, (_, index) => `worker-${index + 1}`));
   expect(calls.filter((call) => call === "startAgent")).toHaveLength(100);
-  expect(calls.filter((call) => call === "closeTabIfOnlyPane")).toHaveLength(0);
+  expect(calls.filter((call) => call === "closePane")).toHaveLength(0);
   expect(agents.filter((agent) => existsSync(`${agent.sessionFile}.brief.md`))).toEqual([]);
   expect(agents.filter((agent) => existsSync(`${agent.sessionFile}.identity.md`))).toEqual([]);
   expect(agents.filter((agent) => existsSync(`${agent.sessionFile}.inbox`))).toEqual([]);
@@ -64,7 +64,7 @@ it("reports createTab failure", async () => {
   expect(result.details).toMatchObject({ code: "spawn_failed" });
   expect(firstText(result)).toContain("workspace is gone");
   expect(calls.filter((call) => call === "startAgent")).toHaveLength(0);
-  expect(calls.filter((call) => call === "closeTabIfOnlyPane")).toHaveLength(0);
+  expect(calls.filter((call) => call === "closePane")).toHaveLength(0);
   expect(sent).toHaveLength(0);
 
   createTabError = undefined;
@@ -92,7 +92,7 @@ it("reports startAgent failure with pane", async () => {
   const text = firstText(result);
   expect(text).toContain("w1:p1");
   expect(text).toContain("trust");
-  expect(calls.filter((call) => call === "closeTabIfOnlyPane")).toHaveLength(0);
+  expect(calls.filter((call) => call === "closePane")).toHaveLength(0);
   expect(sent).toHaveLength(0);
 
   ready = true;
@@ -116,12 +116,12 @@ it("delivers one done result", async () => {
   expect(message?.content.startsWith("[subagent worker-1] done")).toBe(true);
   expect(message?.content).toContain("hello");
   expect(sent[0]?.options).toEqual({ triggerTurn: true });
-  expect(calls.filter((call) => call === "closeTabIfOnlyPane")).toHaveLength(0);
+  expect(calls.filter((call) => call === "closePane")).toHaveLength(0);
 
   await vi.advanceTimersByTimeAsync(5000);
 
   expect(sent).toHaveLength(1);
-  expect(calls.filter((call) => call === "closeTabIfOnlyPane")).toHaveLength(0);
+  expect(calls.filter((call) => call === "closePane")).toHaveLength(0);
 });
 
 it("keeps polling while the agent is not registered yet", async () => {

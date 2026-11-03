@@ -137,7 +137,7 @@ it("reports pane exited without a receipt", async () => {
   expect(sent).toHaveLength(1);
   expect(content).toContain("the pane exited without a result");
   expect(content).toContain(`Session file: ${started.sessionFile}`);
-  expect(calls.filter((call) => call === "closeTabIfOnlyPane")).toHaveLength(0);
+  expect(calls.filter((call) => call === "closePane")).toHaveLength(0);
 
   await vi.advanceTimersByTimeAsync(5000);
   expect(sent).toHaveLength(1);

@@ -1,4 +1,4 @@
-import type { AgentEntry, AgentSnapshot, CloseTabResult, HerdrHost, StartAgentInput } from "../../src/herdr/index.ts";
+import type { AgentEntry, AgentSnapshot, HerdrHost, StartAgentInput } from "../../src/herdr/index.ts";
 import type { CreateTabInput, CreateWorkspaceInput, RenamePaneInput, RenameTabInput } from "../../src/herdr/pane.ts";
 import { drainInbox, pendingInbox } from "./inbox.ts";
 
@@ -10,7 +10,7 @@ export function fakeHost(
       startAgent?: (attempt: number) => Error | undefined;
     };
     hooks?: { renamePane?: () => Promise<void> };
-    closeTab?: () => CloseTabResult | Error;
+    closePane?: (paneId: string) => Error | undefined;
   } = {},
 ) {
   const calls: string[] = options.events ?? [];
@@ -86,13 +86,12 @@ export function fakeHost(
       }
       return entries;
     },
-    async closeTabIfOnlyPane() {
-      calls.push("closeTabIfOnlyPane");
-      const outcome = options.closeTab?.() ?? "closed";
-      if (outcome instanceof Error) {
-        throw outcome;
+    async closePane(paneId) {
+      calls.push("closePane");
+      const error = options.closePane?.(paneId);
+      if (error) {
+        throw error;
       }
-      return outcome;
     },
   };
   return {

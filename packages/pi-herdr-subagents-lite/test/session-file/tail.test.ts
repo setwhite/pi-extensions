@@ -28,7 +28,13 @@ it("reads the last assistant message from the tail window of a large session fil
   ]);
 
   expect(statSync(file).size).toBeGreaterThan(TAIL_WINDOW);
-  expect(readLastAssistant(file)).toEqual({ text: "last", pendingToolCall: false, empty: false, unreadable: false });
+  expect(readLastAssistant(file)).toEqual({
+    text: "last",
+    pendingToolCall: false,
+    empty: false,
+    unreadable: false,
+    size: statSync(file).size,
+  });
 });
 
 it("reads a large session file when the only assistant message is outside the window", () => {
@@ -40,6 +46,7 @@ it("reads a large session file when the only assistant message is outside the wi
     pendingToolCall: false,
     empty: false,
     unreadable: false,
+    size: statSync(file).size,
   });
 });
 
@@ -71,5 +78,11 @@ it("keeps text intact when the tail window starts inside a multi-byte character"
   const boundary = bytes.length - TAIL_WINDOW;
   expect(boundary).toBeGreaterThanOrEqual(head.length + runStart);
   expect((bytes[boundary] ?? 0) & 0xc0).toBe(0x80);
-  expect(readLastAssistant(file)).toEqual({ text, pendingToolCall: false, empty: false, unreadable: false });
+  expect(readLastAssistant(file)).toEqual({
+    text,
+    pendingToolCall: false,
+    empty: false,
+    unreadable: false,
+    size: statSync(file).size,
+  });
 });

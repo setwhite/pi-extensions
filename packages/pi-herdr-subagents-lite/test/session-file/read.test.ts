@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { expect, it } from "vitest";
 import { readLastAssistant } from "../../src/session-file/index.ts";
 import { message, tempFile } from "../support/session-file-fixture.ts";
@@ -93,6 +93,7 @@ it.each(cases)("$name", ({ lines, directory, expected }) => {
   if (directory) {
     mkdirSync(file);
   }
+  const size = existsSync(file) && !directory ? statSync(file).size : -1;
 
-  expect(readLastAssistant(file)).toEqual(expected);
+  expect(readLastAssistant(file)).toEqual({ ...expected, size });
 });

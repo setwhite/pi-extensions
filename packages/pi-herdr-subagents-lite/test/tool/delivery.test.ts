@@ -1,4 +1,4 @@
-import { writeFileSync } from "node:fs";
+import { appendFileSync, writeFileSync } from "node:fs";
 import { expect, it, vi } from "vitest";
 import type { AgentSnapshot } from "../../src/herdr/index.ts";
 import { writeConfig } from "../support/env.ts";
@@ -19,7 +19,7 @@ it("keeps a finished run live and delivers the next turn", async () => {
 
   expect(sent).toHaveLength(1);
   expect(sent[0]?.message.content).toContain("first");
-  expect(calls.filter((call) => call === "closeTabIfOnlyPane")).toHaveLength(0);
+  expect(calls.filter((call) => call === "closePane")).toHaveLength(0);
 
   const reply = await sendTask(tool, "worker-1", "next turn");
 
@@ -32,7 +32,7 @@ it("keeps a finished run live and delivers the next turn", async () => {
 
   expect(sent).toHaveLength(2);
   expect(sent[1]?.message.content).toContain("second");
-  expect(calls.filter((call) => call === "closeTabIfOnlyPane")).toHaveLength(0);
+  expect(calls.filter((call) => call === "closePane")).toHaveLength(0);
 });
 
 it("closes the tab when auto-exit is true", async () => {
@@ -46,8 +46,8 @@ it("closes the tab when auto-exit is true", async () => {
   await vi.advanceTimersByTimeAsync(1000);
 
   expect(sent).toHaveLength(1);
-  expect(calls.filter((call) => call === "closeTabIfOnlyPane")).toHaveLength(1);
-  expect(calls.indexOf("sendMessage")).toBeLessThan(calls.indexOf("closeTabIfOnlyPane"));
+  expect(calls.filter((call) => call === "closePane")).toHaveLength(1);
+  expect(calls.indexOf("sendMessage")).toBeLessThan(calls.indexOf("closePane"));
 
   const next = await runTask(tool, "next task");
 
@@ -69,6 +69,24 @@ it("does not deliver the same text twice", async () => {
   await vi.advanceTimersByTimeAsync(1000);
 
   expect(sent).toHaveLength(1);
+});
+
+it("delivers the same text again after a new turn", async () => {
+  let snapshot: AgentSnapshot = { status: "idle", completionSeq: 1 };
+  const { sent, tool } = loadTimedSession(async () => snapshot);
+
+  const started = parseStarted(await runTask(tool, "say hello"));
+  writeFileSync(started.sessionFile, `${assistantLine("same")}\n`);
+
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(sent).toHaveLength(1);
+
+  snapshot = { status: "idle", completionSeq: 2 };
+  appendFileSync(started.sessionFile, `${assistantLine("same")}\n`);
+  await vi.advanceTimersByTimeAsync(1000);
+
+  expect(sent).toHaveLength(2);
+  expect(sent[1]?.message.content).toContain("same");
 });
 
 it("stays quiet when a finished run has no new text", async () => {
@@ -104,7 +122,7 @@ it("ignores completion seq zero", async () => {
 
   expect(calls.filter((call) => call === "listAgents")).toHaveLength(1);
   expect(sent).toHaveLength(0);
-  expect(calls.filter((call) => call === "closeTabIfOnlyPane")).toHaveLength(0);
+  expect(calls.filter((call) => call === "closePane")).toHaveLength(0);
 
   snapshot = { status: "idle", completionSeq: 1 };
   await vi.advanceTimersByTimeAsync(1000);
