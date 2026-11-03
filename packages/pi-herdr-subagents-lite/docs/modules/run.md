@@ -26,7 +26,7 @@ run 生命周期内核。对外行为见 [v1 契约](../specs/0001-v1-contract.m
 
 ## 结果与关闭
 
-- 结果超限时，消息里只留可读的头与路径，全文落 artifact。写失败仍按 `done` 投递并附警告（DEC-0036）。
+- 结果超限时，消息里只留可读的头与路径，全文落 `<runBase>.result-<seq>.md`。写失败仍按 `done` 投递并附警告（DEC-0036）。
 - 聚合窗口为 0 与非 0 时，投递失败都走 `onError` → 父会话收到 `subagent result not delivered`。0 不排队，直接投递。
 - `shutdown` 置 stopped 后直接丢掉在途 `start()`。`closeChildren` 会等它们结束再关 pane，避免刚关完又被创建。
 - `closeChildren` 先停轮询再并发关 pane，所以不会再投 `pane_exited`。失败的逐条通知由 [extension](extension.md) 发（DEC-0048）。

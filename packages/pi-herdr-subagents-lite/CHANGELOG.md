@@ -4,6 +4,8 @@
 
 ## 未发布
 
+- 模型不再看到子 session 路径与 pane id：`run` 与 `send` 的工具返回只剩 `state` 与 `name`，`paneId` 与 `sessionFile` 留在 `details`。`unknown` 结果消息不再附 `Session file:`。`send` 的错误只报子代理名。目的是不让父代理顺着路径去读子会话正文。
+- **BREAKING**：文件位置改了。子 session 落在父会话桶的 `runs/` 子目录，brief、identity、inbox、exit 回执、结果 artifact 落在 `<agent-dir>/pi-herdr-subagents-lite/runs/` 一层平铺，共用 `<name>-<runId>` 前缀。超长结果的 `Full result:` 指向新位置。路径只影响新 run。
 - 修：子代理收工、会话关掉后 tab 留在原地。关闭改用 `pane close`，不再先核对 tab 里只有一个 pane —— 那个核对撞上 herdr 重登记 pane 的窗口就会静默放弃。同 tab 里人开的 pane 不受影响。
 - 关 pane 失败不再是终态：补一条 `close_failed`，子代理死亡时再关一次。
 - 修：新回合写出和上一轮逐字相同的答案时，结果被当成重复丢掉，也不关 tab。判据改成「session 文件尾部换过没有」。

@@ -35,12 +35,15 @@
 
 | 项 | 值 |
 |---|---|
-| 子 session | `<agent-dir>/pi-herdr-subagents-lite/sessions/<name>-<runId>.jsonl`。`runId` 每个 run 唯一 |
-| 任务简报 | `<childSession>.brief.md` |
-| 身份文件 | `<childSession>.identity.md`。存 profile body |
-| 子侧 inbox | `<childSession>.inbox/`。投递成功后删除消息文件。失败保留（at-least-once）。第一条是 `@<childSession>.brief.md`。目录在 `agent start` 前建好，消息在它返回后入队 |
-| 结果 artifact | `<childSession>.result-<seq>.md` |
-| 退出回执 | `<childSession>.exit`。只在 `<childSession>.inbox/` 存在时写 |
+| 子 session | `<agent-dir>/sessions/<cwd 桶>/runs/<name>-<runId>.jsonl`。`<cwd 桶>` 是父会话所在的桶。`runId` 每个 run 唯一 |
+| run 基名 | `<runBase>` = `<agent-dir>/pi-herdr-subagents-lite/runs/<name>-<runId>`。下面五项的公共前缀 |
+| 任务简报 | `<runBase>.brief.md` |
+| 身份文件 | `<runBase>.identity.md`。存 profile body |
+| 子侧 inbox | `<runBase>.inbox/`。投递成功后删除消息文件。失败保留（at-least-once）。第一条是 `@<runBase>.brief.md`。目录在 `agent start` 前建好，消息在它返回后入队 |
+| 结果 artifact | `<runBase>.result-<seq>.md` |
+| 退出回执 | `<runBase>.exit`。只在 `<runBase>.inbox/` 存在时写 |
+
+子侧不靠环境变量找 `<runBase>`：用自己 session 文件的主名拼同一个前缀。
 
 ## 2. Profile
 
@@ -93,10 +96,12 @@
 返回：
 
 ~~~json
-{"state":"running","name":"explore-1","paneId":"w1:p4","sessionFile":"<childSession>"}
+{"state":"running","name":"explore-1"}
 {"state":"sent","name":"explore-1"}
-{"state":"restarted","name":"explore-1","paneId":"w1:p4"}
+{"state":"restarted","name":"explore-1"}
 ~~~
+
+`paneId` 与 `sessionFile` 只在工具结果的 `details` 里，不进模型上下文。
 
 错误以 `isError: true` 返回，文本前缀是 code：
 
@@ -143,7 +148,7 @@
 
 | 子代理状态 | send 做什么 | 返回 |
 |---|---|---|
-| agent 存在（working / idle / blocked / done / unknown） | 写 `<childSession>.inbox/`。子进程按自己是否 idle 选择新 turn 或 steer。有未答对话框时排队，人回答后处理 | `{state:"sent", name}` |
+| agent 存在（working / idle / blocked / done / unknown） | 写 `<runBase>.inbox/`。子进程按自己是否 idle 选择新 turn 或 steer。有未答对话框时排队，人回答后处理 | `{state:"sent", name}` |
 | 已退出，pane 还在，尾部干净，`auto-exit` 未变 | 同 pane、同名 `agent start --session <childSession>`，再写 inbox。profile 重新读取 | `{state:"restarted", name, paneId}` |
 | 已退出，pane 已关（auto-exit） | 新建 tab，同名 `agent start --session <childSession>`，再写 inbox | `{state:"restarted", name, paneId}` |
 | 已退出（尾部干净）或已收工但仍活着，live 已达 `maxConcurrent` | 不投递，不重启 | `max_concurrent` |
@@ -168,7 +173,7 @@
 
 <result text, up to maxResultChars>
 
-Full result: <childSession>.result-3.md
+Full result: <runBase>.result-3.md
 ~~~
 
 - 只有超过 `maxResultChars` 才写 artifact，并带 `Full result:` 行。未超限时消息不带路径。
@@ -184,7 +189,7 @@ Full result: <childSession>.result-3.md
 ...
 ~~~
 
-- 子代理死亡时按子 session 尾部与 `<childSession>.exit` 判定（回执只有 `{ reason }`）：
+- 子代理死亡时按子 session 尾部与 `<runBase>.exit` 判定（回执只有 `{ reason }`）：
 
 | 回执 | 结果 |
 |---|---|
@@ -199,8 +204,6 @@ Full result: <childSession>.result-3.md
 
 ~~~text
 [subagent explore-1] the pane exited without a result
-
-Session file: <childSession>
 ~~~
 
 - 死亡消息是该 run 的终态：最多一条，不受 `lastHandledSeq` 约束。

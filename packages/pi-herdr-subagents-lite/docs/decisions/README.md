@@ -32,7 +32,7 @@
 | [0048](0048-close-children-on.md) | 父会话结束按 closeChildrenOn 清理 |
 | [0060](0060-close-pane-not-tab.md) | 关闭按 pane，不按 tab。投递判据按尾部是否换过 |
 | [0032](0032-death-detection.md) | died 判定。已由 0052 改为只认事实 |
-| [0053](0053-session-dir.md) | 子 session 放在 agent dir |
+| [0053](0053-session-dir.md) | 子 session 进父会话的桶，run 文件进扩展目录的 runs/ |
 | [0056](0056-auto-exit-channel.md) | auto-exit 用 pane env 传 |
 
 ## 任务与上下文
@@ -93,3 +93,4 @@
 | [0057](0057-example-profile.md) | 自带 worker 示例 profile |
 | [0058](0058-profile-name-key.md) | profile 名 = frontmatter name |
 | [0059](0059-skill-lookup.md) | skills 白名单按名字查 pi 的发现集 |
+| [0061](0061-no-session-path.md) | 模型面不带 session 路径与 pane id |

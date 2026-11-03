@@ -22,7 +22,7 @@ herdr 的 agent 登记在 pane 启动初期会短暂缺失。实测 domain-4 的
 
 根因是拿「这一拍没有 agent 条目」当死亡。改为死亡只由事实判定：
 
-- 有退出回执（`<session>.exit`，子扩展在 `session_shutdown` 写）→ 判死。
+- 有退出回执（`<runBase>.exit`，子扩展在 `session_shutdown` 写）→ 判死。
 - `pane list` 里没有该 pane → 判死。
 - 两者都没有、这一拍又查不到条目 → 保持 live、保持活跃档，满 `LOST_CHILD_MS`（10 秒）才判死。这条只为「子进程被 SIGKILL、回执写不出来、pane 又还活着」而存在。其余场景不走它。
 

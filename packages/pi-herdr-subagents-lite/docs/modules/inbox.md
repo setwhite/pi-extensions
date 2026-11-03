@@ -1,6 +1,6 @@
 # inbox
 
-本模块是 `<childSession>.inbox/` 的唯一读写口。文件协议见契约 §1。本文只写取舍。
+本模块是 `<runBase>.inbox/` 的唯一读写口。文件协议见契约 §1。本文只写取舍。
 
 ## 写
 
@@ -16,6 +16,6 @@
 ## 轮询成本
 
 - 子进程每 `inboxPollMs` 扫描一次目录，有消息才读文件。每个子进程各扫一份。
-- 第一条消息是 `@<childSession>.brief.md`。父侧在 `agent start` 返回后入队。子代理侧扩展的 inbox 泵取到它就起第一轮。inbox 目录必须在 `agent start` 之前就存在，否则子代理侧的泵不会启动。
+- 第一条消息是 `@<runBase>.brief.md`。父侧在 `agent start` 返回后入队。子代理侧扩展的 inbox 泵取到它就起第一轮。inbox 目录必须在 `agent start` 之前就存在，否则子代理侧的泵不会启动。
 - 取件没有回执。子代理侧没加载本扩展时，它取不到 brief，父侧看到的只是一个一直 idle 的 live run（DEC-0023 修订的已接受代价）。
 - 不用 socket 或 IPC。子进程是独立 pi 进程，文件通道避开键盘级的 `agent prompt`（DEC-0026）。轮询成本是这条通道的代价。
