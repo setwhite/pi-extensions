@@ -36,7 +36,9 @@ const posix = (path) => path.replaceAll("\\", "/");
 function moduleOf(path) {
 	if (config.moduleStyle === "file") return path.slice(path.lastIndexOf("/") + 1).replace(/\.ts$/, "");
 	const segments = path.split("/");
-	return segments.length > 2 ? segments[1] : ".";
+	if (segments.length > 2) return segments[1];
+	// 顶层只有入口。其它顶层文件按自己的名字算模块，不继承入口的边，由 requireListed 报出。
+	return segments[1] === "index.ts" ? "." : segments[1].replace(/\.ts$/, "");
 }
 
 /** 把相对导入按文件所在目录解析成包内 POSIX 路径，只用来判断归属模块。 */
