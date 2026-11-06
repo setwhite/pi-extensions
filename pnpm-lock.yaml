@@ -112,6 +112,34 @@ importers:
 
   .: {}
 
+  packages/pi-browser-use-lite:
+    dependencies:
+      '@earendil-works/pi-ai':
+        specifier: '*'
+        version: 1.4.0(@aws-sdk/credential-provider-node@3.972.92)(@smithy/signature-v4@5.7.5)(undici@8.12.3)(ws@8.22.0)
+    devDependencies:
+      '@biomejs/biome':
+        specifier: 2.5.15
+        version: 2.5.15
+      '@earendil-works/pi-coding-agent':
+        specifier: ^1.4.0
+        version: 1.4.0(@aws-sdk/credential-provider-node@3.972.92)(@smithy/signature-v4@5.7.5)(ws@8.22.0)
+      '@earendil-works/pi-tui':
+        specifier: ^1.4.0
+        version: 1.4.0
+      '@types/node':
+        specifier: ^26.6.5
+        version: 26.6.6
+      typebox:
+        specifier: ^1.4.0
+        version: 1.4.3
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.5
+        version: 5.0.5(@types/node@26.6.6)(vite@8.3.5(@types/node@26.6.6))
+
   packages/pi-herdr-subagents-lite:
     devDependencies:
       '@biomejs/biome':
@@ -1343,7 +1371,7 @@ snapshots:
       '@aws-sdk/types': 3.975.0
       '@smithy/core': 3.38.1
       '@smithy/fetch-http-handler': 5.8.0
-      '@smithy/node-http-handler': 4.12.1
+      '@smithy/node-http-handler': 4.14.1
       '@smithy/types': 4.19.0
       tslib: 2.9.1
 
