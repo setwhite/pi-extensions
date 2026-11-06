@@ -53,45 +53,25 @@
 
 ## 2. 依赖方向
 
-路径相对 `src/`。
-
-```
-index.ts
-  ├─→ config/
-  ├─→ commands/ ─→ bridge/, policy/, config/
-  └─→ tools/ ─→ bridge/ ─→ protocol/
-              ├─→ policy/ ─→ config/
-              ├─→ protocol/
-              ├─→ format/
-              └─→ fs/
-```
+路径相对 `src/`。模块以目录为单位，顶层只放 `index.ts`。
 
 规则：
 
-- 只能沿箭头依赖。`config/`、`protocol/`、`format/` 不 import 任何业务模块。
+- 只能沿边表依赖。`config/`、`protocol/`、`format/`、`fs/` 不 import 任何业务模块。
 - `bridge/` 不认识工具语义，只搬运 action 名与参数。
 - `tools/` 是唯一组装模型可见文本的地方。下层只产出结构化错误与原因片段。
 - 模型文案与界面文案用英文。注释与文档用中文。
 
-**单一出口**
-
-| 依赖 | 只允许出现在 |
-|---|---|
-| `@earendil-works/pi-coding-agent` | `src/index.ts`（type）、`src/tools/result.ts` |
-| `@earendil-works/pi-tui` | `src/tools/render.ts` |
-| `node:http` / `node:net` | `src/bridge/` |
-| `node:fs` | `src/config/`、`src/fs/` |
-
-以上由 `scripts/check-imports.mjs` 驱动本包 `scripts/import-graph.mjs` 强制。改本文件时同步改表。
+边表与「单一出口」表只写一份：本包 `scripts/import-graph.mjs`。仓库根 `scripts/check-imports.mjs` 按它执行，入口是 `pnpm check:imports`。改依赖方向时改表，本节不复述。
 
 ## 3. 目录与测试约定
 
 - 源码 `src/`，测试 `test/`，扩展在 `browser-extension/`，文档 `docs/`。
 - 参考仓库在 `_repos/`。根 `.gitignore` 已排除。`tsconfig.json` 必须 `exclude` 它。
 - 发布产物 `files` 列 `src`、`browser-extension`、`CHANGELOG.md`。相对兄弟包多一项，因为用户要加载扩展。
-- 其余 `package.json` 字段照 `packages/pi-todo-lite/package.json`：`pi.extensions` 指向 `./src/index.ts`，`peerDependencies` 为 `@earendil-works/pi-ai`、`@earendil-works/pi-coding-agent`、`@earendil-works/pi-tui`、`typebox`，`devDependencies` 为 `@biomejs/biome 2.5.15`、`typescript ^7.0.2`、`vitest ^5.0.5`，`scripts` 为 `lint`、`lint:fix`、`check:imports`、`test`、`test:e2e`、`typecheck`。
+- 其余 `package.json` 字段照 `packages/pi-todo-lite/package.json`：`pi.extensions` 指向 `./src/index.ts`，`peerDependencies` 为 `@earendil-works/pi-ai`、`@earendil-works/pi-coding-agent`、`@earendil-works/pi-tui`、`typebox`，`devDependencies` 为 `@biomejs/biome 2.5.15`、`typescript ^7.0.2`、`vitest ^5.0.5`，`scripts` 为 `lint`、`lint:fix`、`check:imports`、`test`、`typecheck`。
 - 模块文档放 `docs/modules/<module>.md`。
-- 真浏览器冒烟放 `test/e2e/`，只由 `pnpm test:e2e` 拉起，永不进 CI。e2e 不启动浏览器：它连一个已开着、已手动 load unpacked 装好扩展的 Chromium 系浏览器。浏览器没连上时失败并打印装扩展的三步，不 skip。挑战页由 e2e 用 `node:http` 起在 `127.0.0.1` 的临时端口上；manifest 的 `host_permissions` 不带端口，所以不用改 manifest。
+- 真浏览器冒烟放 `test/e2e/`，不进 `pnpm test`，永不进 CI。e2e 不启动浏览器：它连一个已开着、已手动 load unpacked 装好扩展的 Chromium 系浏览器。浏览器没连上时失败并打印装扩展的三步，不 skip。挑战页由 e2e 用 `node:http` 起在 `127.0.0.1` 的临时端口上；manifest 的 `host_permissions` 不带端口，所以不用改 manifest。
 - 收工 QA 四条：`pnpm lint`、`pnpm check:imports`、`pnpm test`、`pnpm typecheck`。
 - e2e 实测环境：本机用 Vivaldi 8.2.4133.96（Chromium 152），路径 `D:\Vivaldi浏览器\Application\vivaldi.exe`。本机没有 Google Chrome。
 
