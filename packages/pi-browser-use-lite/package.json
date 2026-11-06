@@ -18,6 +18,7 @@
 	"scripts": {
 		"lint": "biome check --error-on-warnings .",
 		"lint:fix": "biome check --write .",
+		"check:imports": "node ../../scripts/check-imports.mjs",
 		"test": "vitest run",
 		"typecheck": "tsc --noEmit"
 	},
