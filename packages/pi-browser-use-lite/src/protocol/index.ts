@@ -67,8 +67,42 @@ export interface BridgeStatus {
 	pendingCommands: number;
 }
 
+/** 桥自己会发出的错误类别，取自 SPEC-0001 错误表。 */
+export type BridgeErrorClass =
+	| "bridge_unreachable"
+	| "timeout"
+	| "page_error"
+	| "aborted";
+
+/** 每类错误的下一步动作，取自 SPEC-0001 错误表。`aborted` 没有下一步，所以是空串。 */
+const HINTS: Record<BridgeErrorClass, string> = {
+	bridge_unreachable: "Run /chrome status, or change bridge.port",
+	timeout: "Run /chrome status",
+	page_error:
+		"read the first line of the error, then retry or fix the arguments",
+	aborted: "",
+};
+
+/** 一条命令的失败。`details.error` 与工具结果信封里的同名字段形状一致。 */
+export class BridgeError extends Error {
+	readonly details: {
+		error: { class: BridgeErrorClass; message: string; hint: string };
+	};
+
+	constructor(errorClass: BridgeErrorClass, message: string) {
+		super(message);
+		this.name = "BridgeError";
+		this.details = {
+			error: { class: errorClass, message, hint: HINTS[errorClass] },
+		};
+	}
+}
+
 /** `/next` 的默认挂起时长。 */
 export const DEFAULT_HOLD_MS = 25_000;
+
+/** 一条命令的默认超时。SPEC-0001 非功能：单次工具调用超时 30 秒。 */
+export const DEFAULT_COMMAND_TIMEOUT_MS = 30_000;
 
 /** 最近一次轮询落在此窗口内算「已连接」。MV3 的 service worker 会暂停。 */
 export const CONNECTED_WINDOW_MS = 5 * 60_000;

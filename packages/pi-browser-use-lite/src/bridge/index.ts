@@ -13,10 +13,12 @@ import {
 import {
 	type ActionName,
 	type BridgeCommand,
+	BridgeError,
 	type BridgeMode,
 	type BridgeResult,
 	type BridgeStatus,
 	CONNECTED_WINDOW_MS,
+	DEFAULT_COMMAND_TIMEOUT_MS,
 	DEFAULT_HOLD_MS,
 	type NextResponse,
 } from "../protocol/index.ts";
@@ -31,13 +33,25 @@ export interface BridgeOptions {
 	holdMs?: number;
 }
 
+export interface SendOptions {
+	/** 超时从入队时刻算。默认 {@link DEFAULT_COMMAND_TIMEOUT_MS}。 */
+	timeoutMs?: number;
+	/** 取消。触发后命令出队，不再投递给扩展。 */
+	signal?: AbortSignal;
+}
+
 interface Waiter {
-	resolve: (command: BridgeCommand | undefined) => void;
+	resolve: (entry: PendingEntry | undefined) => void;
 	/** 撤掉这次等待：清定时器并 settle，长轮询断线或停服时用。 */
 	cancel: () => void;
 }
 
+/** 在途命令表里的一条。超时定时器在入队时设，所以从入队时刻算。 */
 interface PendingEntry {
+	command: BridgeCommand;
+	deliveredAt?: number;
+	timer: NodeJS.Timeout;
+	detach: () => void;
 	resolve: (value: unknown) => void;
 	reject: (error: Error) => void;
 }
@@ -47,7 +61,7 @@ export class Bridge {
 	private readonly requestedPort: number;
 	private server: Server | undefined;
 	private port = 0;
-	private queue: BridgeCommand[] = [];
+	private queue: PendingEntry[] = [];
 	private waiters: Waiter[] = [];
 	private pending = new Map<string, PendingEntry>();
 	private lastSeenAt: number | undefined;
@@ -93,15 +107,19 @@ export class Bridge {
 		this.state = "server";
 	}
 
-	/** 停服务。在途命令与排队命令都以错误结束，挂起的 `/next` 立刻返回。 */
+	/** 停服务。在途命令与排队命令都以 `bridge_unreachable` 结束，挂起的 `/next` 立刻返回。 */
 	async stop(): Promise<void> {
 		for (const waiter of this.waiters) waiter.cancel();
 		this.waiters = [];
+		for (const entry of [...this.pending.values()])
+			this.fail(
+				entry,
+				new BridgeError(
+					"bridge_unreachable",
+					"the bridge stopped before the command finished",
+				),
+			);
 		this.state = "stopped";
-		this.queue = [];
-		for (const entry of this.pending.values())
-			entry.reject(new Error("bridge stopped"));
-		this.pending.clear();
 		const server = this.server;
 		this.server = undefined;
 		if (server === undefined) return;
@@ -121,19 +139,51 @@ export class Bridge {
 		};
 	}
 
-	/** 发一条命令，返回它的应答。桥没在服务时立刻被拒，不排队等一个永远不会来的投递方。 */
-	send(action: ActionName, params?: Record<string, unknown>): Promise<unknown> {
+	/**
+	 * 发一条命令，返回它的应答。
+	 * 桥没在服务、超时、调用方取消都以 {@link BridgeError} 拒绝。
+	 */
+	send(
+		action: ActionName,
+		params?: Record<string, unknown>,
+		options: SendOptions = {},
+	): Promise<unknown> {
 		if (this.state !== "server")
-			return Promise.reject(new Error(`bridge is not running (${this.state})`));
+			return Promise.reject(
+				new BridgeError(
+					"bridge_unreachable",
+					`the bridge is not running (${this.state})`,
+				),
+			);
+
+		const { signal, timeoutMs = DEFAULT_COMMAND_TIMEOUT_MS } = options;
+		if (signal?.aborted)
+			return Promise.reject(
+				new BridgeError(
+					"aborted",
+					"the caller aborted before the command was sent",
+				),
+			);
+
 		const command: BridgeCommand = { id: randomUUID(), action, params };
 		return new Promise<unknown>((resolveSend, rejectSend) => {
-			this.pending.set(command.id, {
+			const onAbort = () =>
+				this.fail(
+					entry,
+					new BridgeError("aborted", "the caller aborted the command"),
+				);
+			const entry: PendingEntry = {
+				command,
+				timer: setTimeout(() => this.expire(entry), timeoutMs),
+				detach: () => signal?.removeEventListener("abort", onAbort),
 				resolve: resolveSend,
 				reject: rejectSend,
-			});
+			};
+			signal?.addEventListener("abort", onAbort, { once: true });
+			this.pending.set(command.id, entry);
 			const waiter = this.waiters.shift();
-			if (waiter === undefined) this.queue.push(command);
-			else waiter.resolve(command);
+			if (waiter === undefined) this.queue.push(entry);
+			else waiter.resolve(entry);
 		});
 	}
 
@@ -172,29 +222,32 @@ export class Bridge {
 		};
 		request.once("close", onClose);
 
-		const command =
+		const entry =
 			this.queue.shift() ??
 			(await this.waitForCommand((waiter) => (active = waiter)));
 
 		request.off("close", onClose);
 		if (closed) {
 			// 长轮询在投递前断线：把取走的命令放回队首，别丢。
-			if (command !== undefined) this.queue.unshift(command);
+			if (entry !== undefined) this.queue.unshift(entry);
 			return;
 		}
+		if (entry !== undefined) entry.deliveredAt = Date.now();
 		const body: NextResponse =
-			command === undefined ? { type: "none" } : { type: "command", command };
+			entry === undefined
+				? { type: "none" }
+				: { type: "command", command: entry.command };
 		sendJson(response, 200, body);
 	}
 
 	private waitForCommand(
 		register?: (waiter: Waiter) => void,
-	): Promise<BridgeCommand | undefined> {
-		return new Promise<BridgeCommand | undefined>((resolveWait) => {
+	): Promise<PendingEntry | undefined> {
+		return new Promise<PendingEntry | undefined>((resolveWait) => {
 			const waiter: Waiter = {
-				resolve: (command) => {
+				resolve: (entry) => {
 					clearTimeout(timer);
-					resolveWait(command);
+					resolveWait(entry);
 				},
 				cancel: () => {
 					clearTimeout(timer);
@@ -216,14 +269,47 @@ export class Bridge {
 	): Promise<void> {
 		const result = JSON.parse(await readBody(request)) as BridgeResult;
 		const entry = this.pending.get(result.id);
-		if (entry === undefined) {
+		if (entry === undefined || !this.retire(entry)) {
 			sendJson(response, 404, { ok: false, error: "unknown command id" });
 			return;
 		}
-		this.pending.delete(result.id);
 		if (result.ok) entry.resolve(result.result);
-		else entry.reject(new Error(result.error ?? "command failed"));
+		else
+			entry.reject(
+				new BridgeError(
+					"page_error",
+					result.error ?? "the extension reported a failure without a message",
+				),
+			);
 		sendJson(response, 200, { ok: true });
+	}
+
+	private expire(entry: PendingEntry): void {
+		this.fail(entry, new BridgeError("timeout", this.timeoutReason(entry)));
+	}
+
+	/** 三种失败原因各用一句话，模型据此判断是扩展没在跑还是取走后挂了。 */
+	private timeoutReason(entry: PendingEntry): string {
+		if (entry.deliveredAt !== undefined)
+			return "the extension took the command but never returned a result";
+		if (this.lastSeenAt === undefined)
+			return "the extension is not polling the bridge";
+		return "the extension polled the bridge but did not pick up the command";
+	}
+
+	private fail(entry: PendingEntry, error: Error): void {
+		if (!this.retire(entry)) return;
+		entry.reject(error);
+	}
+
+	/** 把命令从在途表与队列里摘掉，并清定时器与 abort 监听。已经摘过就返回 false，避免二次 settle。 */
+	private retire(entry: PendingEntry): boolean {
+		if (!this.pending.delete(entry.command.id)) return false;
+		clearTimeout(entry.timer);
+		entry.detach();
+		const index = this.queue.indexOf(entry);
+		if (index >= 0) this.queue.splice(index, 1);
+		return true;
 	}
 }
 
