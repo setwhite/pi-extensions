@@ -31,8 +31,8 @@
 | `background/index.js` | 只注册 listener，启动轮询 |
 | `background/transport.js` | 轮询循环、结果回传、请求超时、报版本头 |
 | `background/dispatch.js` | 动作路由表 |
-| `background/tabs.js` | 标签页查询、格式、分组、置前、等加载 |
-| `background/target.js` | 自动化 target 归属与会话标签台账 |
+| `background/tabs.js` | 标签页查询、格式、分组、置前、导航与等加载、会话标签台账 |
+| `background/target.js` | 自动化 target 归属 |
 | `background/capture.js` | console 与 network 的早期捕获。在 `webNavigation.onCommitted` 时注入包装，确保从导航起就抓。契约见 SPEC-0001 的 `chrome_see` 段 |
 | `background/input/debugger.js` | debugger 挂载、自愈重连、原始 CDP 调用、scripting 回退 |
 | `background/input/pointer.js` | 移动、点击、悬停、拖动、滚轮 |
@@ -109,4 +109,15 @@
 | 扩展启动 | `browser-extension/background/index.js` 的模块加载 | 挂 `globalThis.chrome` 桩后动态 `import()`，看注册的 listener 与是否抛错 |
 | 扩展轮询 | `browser-extension/background/transport.js` 的 `startTransport` | 起本地 HTTP 桩服务或真桥，看它发出的请求、dispatch 调用与回传的结果 |
 | 扩展动作路由 | `browser-extension/background/dispatch.js` 的 `dispatch(action, params)` | 挂 `globalThis.chrome` 桩，看返回值与调用记录 |
+| 调试器通道 | `browser-extension/background/input/debugger.js` 的调试器接口 | 挂 `chrome.debugger` 桩，看 attach 次数、发出的 CDP 消息与抛错 |
+| 标签页管理 | `browser-extension/background/tabs.js` 的导出函数 | 挂 `chrome.tabs`、`chrome.tabGroups`、`chrome.storage` 桩，看返回值与调用记录 |
+| 指针事件 | `browser-extension/background/input/pointer.js` | 挂调试器桩，看 CDP 事件序列与坐标 |
+| 键盘输入 | `browser-extension/background/input/keyboard.js` | 挂调试器桩，看按键事件与 `Input.insertText` |
+| 文件上传 | `browser-extension/background/input/upload.js` | 挂 `chrome.debugger` 桩，看 `DOM.setFileInputFiles` 的参数 |
+| 页面求值 | `browser-extension/background/page/evaluate.js` | 挂 `chrome.scripting` 与调试器桩，看求值结果与回退路径 |
+| 页面快照 | `browser-extension/background/page/snapshot.js` | 固定页面脚本的返回值，看 4 个模式的输出 |
+| 截屏 | `browser-extension/background/page/screenshot.js` 与 `src/fs/` | 给视口尺寸与假图，看落盘文件、文件名与修剪结果 |
+| 日志捕获 | `browser-extension/background/capture.js` | 挂 `chrome.webNavigation` 与页面桩，看日志条目 |
+| 目标隔离 | `browser-extension/background/target.js` | 挂 `chrome.storage.session` 与 `chrome.storage.local` 桩，看每个 sessionKey 的 target |
+| `/chrome` 命令 | `src/commands/` 的子命令处理函数 | 给桥桩，看打印文本与会话状态 |
 | 页面脚本自包含 | `browser-extension/page/*.js` | 静态扫描源码，断无 `import`、`export`、`require`、动态 `import()` |
