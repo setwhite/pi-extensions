@@ -15,7 +15,7 @@
 | `src/protocol/` | 桥的命令与结果信封类型、动作名表、超时常量 | 无依赖。动作名是唯一来源 |
 | `src/bridge/` | 本地 HTTP 桥：`/next` 长轮询、`/result`、`/command` 转发、`/status`、在途命令表 | 只依赖 `protocol/`。不认识工具语义 |
 | `src/policy/` | 三个策略插点：授权、硬背景模式、自动化 target 归属 | 依赖 `config/`。不做 IO |
-| `src/tools/` | 5 个工具的定义与执行器、各自的默认 `promptGuidelines` 常量，错误类别到文案与 `hint` 的映射。`guidance.*` 在此覆盖文案与规则，`prompt.guidelines` 取自配置 | 组装模型可见文本的唯一处 |
+| `src/tools/` | 5 个工具的定义与执行器、各自的默认 `promptGuidelines` 常量，错误类别到文案与 `hint` 的映射。`guidance.*` 在此覆盖文案与规则 | 组装模型可见文本的唯一处 |
 | `src/format/` | 结构化结果转模型文本的纯函数 | 无依赖 |
 | `src/fs/` | 截图落盘与按数量修剪 | 只依赖 `node:fs` |
 | `src/commands/` | `/chrome` 子命令：`authorize` `status` `background` | 依赖 `bridge/`、`policy/`、`config/` |
