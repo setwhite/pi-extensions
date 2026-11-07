@@ -27,6 +27,7 @@ export interface ChromeStub {
 	};
 	tabs: { update: Mock };
 	scripting: { executeScript: Mock };
+	runtime: { getURL: Mock };
 	/** 向已注册的 onEvent 监听器发一条调试器事件。 */
 	emit: (
 		source: { tabId?: number; targetId?: string },
@@ -46,6 +47,8 @@ export interface StubOptions {
 	detachResults?: unknown[];
 	/** 给了就让它成为 chrome.scripting.executeScript 抛出的错误。 */
 	scriptingError?: Error;
+	/** executeScript 的应答。不给就返回 `[{ result: 1 }]`。 */
+	executeScript?: (spec: Record<string, unknown>) => unknown;
 }
 
 /** 扩展侧的 JS 没有类型声明，用文件 URL 动态载入。 */
@@ -96,16 +99,35 @@ export function stubChrome(options: StubOptions = {}): ChromeStub {
 	};
 	const debuggerStub = { attach, detach, sendCommand, onEvent };
 	const scripting = {
-		executeScript: vi.fn(async () => {
+		executeScript: vi.fn(async (spec: Record<string, unknown>) => {
 			if (options.scriptingError) throw options.scriptingError;
+			if (options.executeScript) return options.executeScript(spec) as unknown;
 			return [{ result: 1 }] as unknown;
 		}),
 	};
 	const tabs = { update: vi.fn(async () => ({})) };
+	const runtime = {
+		getURL: vi.fn((path: string) => `chrome-extension://test/${path}`),
+	};
+	const session = new Map<string, unknown>();
+	const storage = {
+		session: {
+			get: vi.fn(async (key: string) => {
+				const value = session.get(key);
+				return value === undefined ? {} : { [key]: value };
+			}),
+			set: vi.fn(async (values: Record<string, unknown>) => {
+				for (const [key, value] of Object.entries(values))
+					session.set(key, value);
+			}),
+		},
+	};
 	(globalThis as { chrome?: unknown }).chrome = {
 		debugger: options.withDebugger === false ? undefined : debuggerStub,
 		scripting,
+		storage,
 		tabs,
+		runtime,
 	};
 	return {
 		calls,
@@ -113,6 +135,7 @@ export function stubChrome(options: StubOptions = {}): ChromeStub {
 		debugger: debuggerStub,
 		tabs,
 		scripting,
+		runtime,
 		emit,
 	};
 }

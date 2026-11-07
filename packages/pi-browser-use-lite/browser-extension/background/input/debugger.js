@@ -96,6 +96,34 @@ export async function executeScriptWithFallback({
 	}
 }
 
+/**
+ * 把注入目录里的经典脚本送进页面。被权限拒绝时读源码改走 CDP。
+ * @param {object} options
+ * @param {number} options.tabId 标签 id
+ * @param {string} options.path 相对扩展根目录的路径
+ * @param {string} [options.world] 执行世界
+ * @returns {Promise<unknown>} 与 chrome.scripting.executeScript 同形
+ */
+export async function injectScriptFile({ tabId, path, world = "MAIN" }) {
+	try {
+		return await chrome.scripting.executeScript({
+			target: { tabId },
+			files: [path],
+			world,
+		});
+	} catch (error) {
+		if (!isAccessDenied(error)) throw error;
+		await evaluate(tabId, await readScriptSource(path));
+		return [{ result: undefined }];
+	}
+}
+
+/** 读扩展自己的脚本源码；扩展资源不受页面 CSP 管。 */
+async function readScriptSource(path) {
+	const response = await fetch(chrome.runtime.getURL(path));
+	return await response.text();
+}
+
 /** 会话失效的自愈：清缓存，detach 残留，再挂一次。只重试一次由调用方保证。 */
 async function reconnect(tabId) {
 	attachedTabs.delete(tabId);
