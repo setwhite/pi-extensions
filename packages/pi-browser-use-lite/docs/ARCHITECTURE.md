@@ -106,5 +106,6 @@
 | 桥端点 | `src/bridge/` 起的真 HTTP 服务 | 发真请求，看状态码与 JSON |
 | 桥 lifecycle | `src/bridge/` 的桥实例 | 停服后或 client 模式下看状态与发命令的结果 |
 | 策略判定 | `src/policy/` 的判定函数 | 给状态与调用参数，看是否拒绝 |
+| 扩展启动 | `browser-extension/background/index.js` 的模块加载 | 挂 `globalThis.chrome` 桩后动态 `import()`，看注册的 listener 与是否抛错 |
 | 扩展动作路由 | `browser-extension/background/dispatch.js` 的 `dispatch(action, params)` | 挂 `globalThis.chrome` 桩，看返回值与调用记录 |
 | 页面脚本自包含 | `browser-extension/page/*.js` | 静态扫描源码，断无 `import`、`export`、`require`、动态 `import()` |
