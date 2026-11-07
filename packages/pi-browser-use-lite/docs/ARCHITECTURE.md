@@ -13,7 +13,7 @@
 | `src/index.ts` | 读配置，按 `tools.*` 注册工具（默认 5 个），挂 `/chrome` 命令。`before_agent_start` 把 `prompt.guidelines` 合并进 `systemPromptOptions.promptGuidelines` | 只有扩展入口。不导出可复用 API |
 | `src/config/` | 定位、加载、校验、clamp 配置文件 | 只依赖 `node:`。不碰网络与浏览器 |
 | `src/protocol/` | 桥的命令与结果信封类型、动作名表、错误类别与 hint、超时常量 | 无依赖。动作名与错误 hint 是唯一来源 |
-| `src/bridge/` | 本地 HTTP 桥：`/next` 长轮询、`/result`、`/command` 转发、`/status`、在途命令表。端口上先到者当 server，其余当 client 转发，owner 消失时抢端口升为 server | 只依赖 `protocol/`。不认识工具语义 |
+| `src/bridge/` | 本地 HTTP 桥：`/next` 长轮询、`/result`、`/command` 转发、`/status`、在途命令表、扩展版本闸。端口上先到者当 server，其余当 client 转发，owner 消失时抢端口升为 server | 只依赖 `protocol/`。不认识工具语义 |
 | `src/policy/` | 三个策略插点：授权、硬背景模式、自动化 target 归属 | 依赖 `config/`。不做 IO |
 | `src/tools/` | 5 个工具的定义与执行器、各自的默认 `promptGuidelines` 常量。`guidance.*` 在此覆盖文案与规则 | 组装模型可见文本的唯一处。错误文案取自 `protocol/` 的 hint |
 | `src/format/` | 结构化结果转模型文本的纯函数 | 无依赖 |
@@ -29,7 +29,7 @@
 | 文件 | 职责 |
 |---|---|
 | `background/index.js` | 只注册 listener，启动轮询 |
-| `background/transport.js` | 轮询循环、结果回传、请求超时 |
+| `background/transport.js` | 轮询循环、结果回传、请求超时、报版本头 |
 | `background/dispatch.js` | 动作路由表 |
 | `background/tabs.js` | 标签页查询、格式、分组、置前、等加载 |
 | `background/target.js` | 自动化 target 归属与会话标签台账 |
@@ -107,5 +107,6 @@
 | 桥 lifecycle | `src/bridge/` 的桥实例 | 停服后或 client 模式下看状态与发命令的结果 |
 | 策略判定 | `src/policy/` 的判定函数 | 给状态与调用参数，看是否拒绝 |
 | 扩展启动 | `browser-extension/background/index.js` 的模块加载 | 挂 `globalThis.chrome` 桩后动态 `import()`，看注册的 listener 与是否抛错 |
+| 扩展轮询 | `browser-extension/background/transport.js` 的 `startTransport` | 起本地 HTTP 桩服务或真桥，看它发出的请求、dispatch 调用与回传的结果 |
 | 扩展动作路由 | `browser-extension/background/dispatch.js` 的 `dispatch(action, params)` | 挂 `globalThis.chrome` 桩，看返回值与调用记录 |
 | 页面脚本自包含 | `browser-extension/page/*.js` | 静态扫描源码，断无 `import`、`export`、`require`、动态 `import()` |
