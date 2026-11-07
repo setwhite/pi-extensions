@@ -1,4 +1,5 @@
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, expect, it } from "vitest";
+import { extensionUrl, stubChrome, uninstallChrome } from "./chrome-stub.ts";
 
 interface DebuggerModule {
 	attach: (tabId: number) => Promise<void>;
@@ -15,71 +16,12 @@ interface DebuggerModule {
 	}) => Promise<unknown>;
 }
 
-/** 扩展侧的 JS 没有类型声明，用文件 URL 动态载入。 */
-function extensionUrl(path: string): string {
-	return new URL(
-		`../../../browser-extension/background/${path}`,
-		import.meta.url,
-	).href;
-}
-
 const { sendCommand, executeScriptWithFallback } = (await import(
 	extensionUrl("input/debugger.js")
 )) as DebuggerModule;
 
-type Mock = ReturnType<typeof vi.fn>;
-
-interface StubOptions {
-	withDebugger?: boolean;
-	sendResults?: unknown[];
-	detachResults?: unknown[];
-}
-
-interface ChromeStub {
-	calls: string[];
-	debugger: { attach: Mock; detach: Mock; sendCommand: Mock } | undefined;
-	scripting: { executeScript: Mock };
-	tabs: { update: Mock };
-}
-
-/** 挂 chrome 桩。attach 与 detach 只记调用顺序，sendCommand 按队列应答。 */
-function stubChrome(options: StubOptions = {}): ChromeStub {
-	const calls: string[] = [];
-	const next = (queue: unknown[] | undefined, fallback: unknown) => {
-		const value = queue?.shift();
-		if (value instanceof Error) throw value;
-		return value ?? fallback;
-	};
-	const debuggerStub =
-		options.withDebugger === false
-			? undefined
-			: {
-					attach: vi.fn(async () => {
-						calls.push("attach");
-					}),
-					detach: vi.fn(async () => {
-						calls.push("detach");
-						next(options.detachResults, undefined);
-					}),
-					sendCommand: vi.fn(async () => {
-						calls.push("send");
-						return next(options.sendResults, "ok");
-					}),
-				};
-	const scripting = {
-		executeScript: vi.fn(async () => [{ result: 1 }] as unknown),
-	};
-	const tabs = { update: vi.fn(async () => undefined) };
-	(globalThis as { chrome?: unknown }).chrome = {
-		debugger: debuggerStub,
-		scripting,
-		tabs,
-	};
-	return { calls, debugger: debuggerStub, scripting, tabs };
-}
-
 afterEach(() => {
-	delete (globalThis as { chrome?: unknown }).chrome;
+	uninstallChrome();
 });
 
 it("AC3: Detached 时先 detach 残留条目，再重挂并重试一次", async () => {
@@ -95,7 +37,7 @@ it("AC3: Detached 时先 detach 残留条目，再重挂并重试一次", async 
 	});
 
 	expect(result).toBe("retried");
-	expect(stub.calls).toEqual(["attach", "send", "detach", "attach", "send"]);
+	expect(stub.methods).toEqual(["attach", "send", "detach", "attach", "send"]);
 	expect(stub.debugger?.sendCommand).toHaveBeenCalledTimes(2);
 });
 
@@ -207,7 +149,7 @@ it("AC3: 会话被外部收回报 Debugger is not attached 时也自愈", async 
 	});
 
 	expect(result).toBe("retried");
-	expect(stub.calls).toEqual(["attach", "send", "detach", "attach", "send"]);
+	expect(stub.methods).toEqual(["attach", "send", "detach", "attach", "send"]);
 });
 
 it("AC5: 其它权限拒绝文案也走 CDP", async () => {

@@ -1,7 +1,11 @@
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, expect, it } from "vitest";
 import { DEFAULTS } from "../../../src/config/index.ts";
-
-type Mock = ReturnType<typeof vi.fn>;
+import {
+	type ChromeStub,
+	extensionUrl,
+	stubChrome,
+	uninstallChrome,
+} from "./chrome-stub.ts";
 
 interface MouseEvent {
 	type: string;
@@ -10,12 +14,6 @@ interface MouseEvent {
 	button?: string;
 	buttons?: number;
 	deltaY?: number;
-}
-
-interface ChromeStub {
-	calls: Array<{ method: string; params: Record<string, unknown> }>;
-	debugger: { attach: Mock; sendCommand: Mock };
-	tabs: { update: Mock };
 }
 
 interface PointerModule {
@@ -28,55 +26,27 @@ interface PointerModule {
 	scroll: (target: Record<string, unknown>) => Promise<unknown>;
 }
 
-/** 扩展侧的 JS 没有类型声明，用文件 URL 动态载入。 */
-function extensionUrl(path: string): string {
-	return new URL(
-		`../../../browser-extension/background/input/${path}`,
-		import.meta.url,
-	).href;
-}
-
 const { click, hover, moveMouse, drag, scroll } = (await import(
-	extensionUrl("pointer.js")
+	extensionUrl("input/pointer.js")
 )) as PointerModule;
 
 const RECT = { left: 8, top: 16, width: 4, height: 8, x: 10, y: 20 };
 
-/** 挂 chrome 桩。Runtime.evaluate 按表达式回三种结果：可见性、元素中心、视口中心。 */
-function stubChrome(
+/** 桩的 Runtime.evaluate 应答：可见性、元素中心、视口中心。 */
+function stubPointer(
 	options: { visibility?: string; element?: boolean } = {},
 ): ChromeStub {
-	const calls: Array<{ method: string; params: Record<string, unknown> }> = [];
 	const visibility = options.visibility ?? "visible";
 	const element = options.element ?? true;
-	const sendCommand = vi.fn(
-		async (
-			_target: unknown,
-			method: string,
-			params: Record<string, unknown>,
-		) => {
-			calls.push({ method, params });
-			if (method !== "Runtime.evaluate") return {};
-			const expression = String(params.expression);
-			if (expression === "document.visibilityState") {
-				if (visibility === "unreadable") return {};
-				return { result: { value: visibility } };
-			}
+	return stubChrome({
+		evaluate: (expression) => {
+			if (expression === "document.visibilityState")
+				return visibility === "unreadable" ? undefined : visibility;
 			if (expression.includes("querySelector"))
-				return { result: { value: element ? { x: RECT.x, y: RECT.y } : null } };
-			return { result: { value: { x: 400, y: 300 } } };
+				return element ? { x: RECT.x, y: RECT.y } : null;
+			return { x: 400, y: 300 };
 		},
-	);
-	const debuggerStub = {
-		attach: vi.fn(async () => undefined),
-		sendCommand,
-	};
-	const tabs = { update: vi.fn(async () => ({})) };
-	(globalThis as { chrome?: unknown }).chrome = {
-		debugger: debuggerStub,
-		tabs,
-	};
-	return { calls, debugger: debuggerStub, tabs };
+	});
 }
 
 function mouseEvents(stub: ChromeStub): MouseEvent[] {
@@ -86,11 +56,11 @@ function mouseEvents(stub: ChromeStub): MouseEvent[] {
 }
 
 afterEach(() => {
-	delete (globalThis as { chrome?: unknown }).chrome;
+	uninstallChrome();
 });
 
 it("AC7: 一个定位都没给时抛 bad_args 且不发 CDP", async () => {
-	const stub = stubChrome();
+	const stub = stubPointer();
 
 	await expect(click({ tabId: 101 })).rejects.toThrow("bad_args");
 
@@ -98,7 +68,7 @@ it("AC7: 一个定位都没给时抛 bad_args 且不发 CDP", async () => {
 });
 
 it("AC7: 同时给 selector 与坐标时抛 bad_args 且不发 CDP", async () => {
-	const stub = stubChrome();
+	const stub = stubPointer();
 
 	await expect(
 		click({ tabId: 102, selector: "#a", x: 1, y: 2 }),
@@ -108,7 +78,7 @@ it("AC7: 同时给 selector 与坐标时抛 bad_args 且不发 CDP", async () =>
 });
 
 it("AC7: 只给 ref 时抛 bad_args，ref 由快照解析", async () => {
-	const stub = stubChrome();
+	const stub = stubPointer();
 
 	await expect(click({ tabId: 103, ref: "e3" })).rejects.toThrow("bad_args");
 
@@ -116,7 +86,7 @@ it("AC7: 只给 ref 时抛 bad_args，ref 由快照解析", async () => {
 });
 
 it("AC2/AC3: 按 selector 点击落在元素矩形内，事件序为 moved、pressed、released", async () => {
-	const stub = stubChrome();
+	const stub = stubPointer();
 
 	await click({ tabId: 201, selector: "#submit" });
 
@@ -138,7 +108,7 @@ it("AC2/AC3: 按 selector 点击落在元素矩形内，事件序为 moved、pre
 });
 
 it("AC2: 按坐标点击直接使用给定坐标", async () => {
-	const stub = stubChrome();
+	const stub = stubPointer();
 
 	await click({ tabId: 202, x: 15, y: 25 });
 
@@ -156,7 +126,7 @@ it("AC2: 按坐标点击直接使用给定坐标", async () => {
 });
 
 it("AC4: 目标标签不可见时抛错，不发鼠标事件，也不激活标签", async () => {
-	const stub = stubChrome({ visibility: "hidden" });
+	const stub = stubPointer({ visibility: "hidden" });
 
 	await expect(click({ tabId: 203, selector: "#a" })).rejects.toThrow("hidden");
 
@@ -165,7 +135,7 @@ it("AC4: 目标标签不可见时抛错，不发鼠标事件，也不激活标�
 });
 
 it("AC5: dragSteps 为 3 时发出 3 次中间 mouseMoved", async () => {
-	const stub = stubChrome();
+	const stub = stubPointer();
 
 	await drag({
 		tabId: 301,
@@ -185,7 +155,7 @@ it("AC5: dragSteps 为 3 时发出 3 次中间 mouseMoved", async () => {
 });
 
 it("AC5: 默认配置 10 步时 drag 发出 10 次中间 mouseMoved", async () => {
-	const stub = stubChrome();
+	const stub = stubPointer();
 
 	await drag({
 		tabId: 302,
@@ -201,7 +171,7 @@ it("AC5: 默认配置 10 步时 drag 发出 10 次中间 mouseMoved", async () =
 });
 
 it("AC6: scrollSteps 为 2 时发出恰好 2 个 mouseWheel 事件", async () => {
-	const stub = stubChrome();
+	const stub = stubPointer();
 
 	await scroll({ tabId: 401, dx: 0, dy: 300, steps: 2 });
 
@@ -216,7 +186,7 @@ it("AC6: scrollSteps 为 2 时发出恰好 2 个 mouseWheel 事件", async () =>
 });
 
 it("AC6: 默认配置 5 步时 scroll 发出 5 个 mouseWheel 事件", async () => {
-	const stub = stubChrome();
+	const stub = stubPointer();
 
 	await scroll({
 		tabId: 402,
@@ -232,7 +202,7 @@ it("AC6: 默认配置 5 步时 scroll 发出 5 个 mouseWheel 事件", async () 
 });
 
 it("交付物: hover 只发一次 mouseMoved，落在元素中心", async () => {
-	const stub = stubChrome();
+	const stub = stubPointer();
 
 	const point = await hover({ tabId: 501, selector: "#menu" });
 
@@ -241,7 +211,7 @@ it("交付物: hover 只发一次 mouseMoved，落在元素中心", async () => 
 });
 
 it("质量: moveMouse 也查可见性，不可见时不发事件", async () => {
-	const stub = stubChrome({ visibility: "hidden" });
+	const stub = stubPointer({ visibility: "hidden" });
 
 	await expect(moveMouse({ tabId: 601, x: 1, y: 2 })).rejects.toThrow(
 		"page_error",
@@ -251,7 +221,7 @@ it("质量: moveMouse 也查可见性，不可见时不发事件", async () => {
 });
 
 it("质量: 可见性读不到时抛 page_error，不当作可见", async () => {
-	const stub = stubChrome({ visibility: "unreadable" });
+	const stub = stubPointer({ visibility: "unreadable" });
 
 	await expect(click({ tabId: 602, x: 1, y: 2 })).rejects.toThrow("page_error");
 
@@ -259,7 +229,7 @@ it("质量: 可见性读不到时抛 page_error，不当作可见", async () => 
 });
 
 it("质量: 非有限坐标抛 bad_args 且不发 CDP", async () => {
-	const stub = stubChrome();
+	const stub = stubPointer();
 
 	await expect(click({ tabId: 603, x: Number.NaN, y: 2 })).rejects.toThrow(
 		"bad_args",
@@ -272,7 +242,7 @@ it("质量: 非有限坐标抛 bad_args 且不发 CDP", async () => {
 });
 
 it("质量: selector 匹配不到元素时抛 page_error", async () => {
-	const stub = stubChrome({ element: false });
+	const stub = stubPointer({ element: false });
 
 	await expect(click({ tabId: 605, selector: "#nope" })).rejects.toThrow(
 		"page_error: selector matched no element: #nope",
