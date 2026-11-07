@@ -44,12 +44,14 @@ export async function sendCommand(tabId, method, params) {
  * 在页面里求值一次，返回结果值。
  * @param {number} tabId 标签 id
  * @param {string} expression JavaScript 表达式
+ * @param {{ userGesture?: boolean }} [options] `userGesture` 给页面一次用户激活
  * @returns {Promise<unknown>} 求值结果
  */
-export async function evaluate(tabId, expression) {
+export async function evaluate(tabId, expression, options = {}) {
 	const response = await sendCommand(tabId, "Runtime.evaluate", {
 		expression,
 		returnByValue: true,
+		userGesture: options.userGesture === true,
 	});
 	if (response?.exceptionDetails)
 		throw new Error(
