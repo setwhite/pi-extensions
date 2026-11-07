@@ -96,13 +96,13 @@ export interface ResolvedConfig {
 /**
  * 跨工具的默认规则。每条以工具名开头：两层规则平铺进系统提示后按原文去重，
  * 不加工具前缀，只有点名才看得出是哪个工具的规则。
+ * 全局规则只点名 chrome_act：别的工具可以关掉，点名它们的规则放在该工具的
+ * promptGuidelines 里，才能随工具一起消失（SPEC-0001「关掉的工具……规则也一起消失」）。
  */
 export const DEFAULT_PROMPT_GUIDELINES = [
 	"chrome_act: this is the user's real browser; confirm before destructive actions.",
-	"chrome_act: call chrome_see with mode refs before clicking by ref.",
+	"chrome_act: pass see: refs on navigate, then click the refs from that snapshot; a ref from an older page fails.",
 	"chrome_act: passing see adds a snapshot to the reply and costs extra tokens; ask for it only when the page just changed.",
-	"chrome_see: read before you act; refs is cheaper than text.",
-	"chrome_tab: do not switch or close tabs the user did not name.",
 ] as const;
 
 /** 15 个标量字段的默认值。工具记录与文案覆盖不在其中。 */

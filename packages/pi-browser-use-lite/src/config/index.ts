@@ -17,9 +17,14 @@ import { buildConfig } from "./validate.ts";
 
 export * from "./schema.ts";
 
-/** 配置文件路径：`PI_CODING_AGENT_DIR` 优先，否则 `~/.pi/agent`，再加子路径。 */
+/** agent 目录：`PI_CODING_AGENT_DIR` 优先，否则 `~/.pi/agent`。 */
+export function agentDir(env: NodeJS.ProcessEnv = process.env): string {
+	return env[ENV_AGENT_DIR] || join(homedir(), ".pi", "agent");
+}
+
+/** 配置文件路径：`<agent dir>/pi-browser-use-lite/config.json`。 */
 export function configPath(env: NodeJS.ProcessEnv = process.env): string {
-	return configFile(env[ENV_AGENT_DIR] || join(homedir(), ".pi", "agent"));
+	return configFile(agentDir(env));
 }
 
 /** 读取并校验配置。文件不存在时返回全默认值。校验失败抛 Error。 */
