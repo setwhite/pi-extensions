@@ -49,13 +49,28 @@ export interface BridgeResult {
 	error?: string;
 }
 
+/** `POST /command` 的请求体：另一个 Pi 进程把命令转给 owner。 */
+export interface ForwardRequest {
+	action: ActionName;
+	params?: Record<string, unknown>;
+	timeoutMs?: number;
+}
+
+/** `POST /command` 的响应。失败带类别与消息，转发方据此还原 {@link BridgeError}。 */
+export type ForwardResponse =
+	| { ok: true; result: unknown }
+	| { ok: false; error: { class: BridgeErrorClass; message: string } };
+
 /** `GET /next` 的响应。一次只给一条命令，没有就给 `none`。 */
 export type NextResponse =
 	| { type: "command"; command: BridgeCommand }
 	| { type: "none" };
 
-/** 桥的 lifecycle 状态。`stopped` 之后 `send()` 一律被拒。 */
-export type BridgeMode = "starting" | "server" | "stopped";
+/**
+ * 桥的 lifecycle 状态。`stopped` 之后 `send()` 一律被拒。
+ * `client` 表示端口已被另一个 Pi 进程的桥占着，命令转发给它执行。
+ */
+export type BridgeMode = "starting" | "server" | "client" | "stopped";
 
 /** `GET /status` 的响应。 */
 export interface BridgeStatus {
