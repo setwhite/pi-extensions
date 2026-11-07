@@ -104,6 +104,7 @@
 | 工具执行 | `src/tools/` 的执行器，桥用桩 | 给参数与桩返回值，看 `content` 与 `details` |
 | 配置解析 | `src/config/index.ts` 的 `loadConfig` | 给临时 agent 目录，看返回值或抛错 |
 | 桥端点 | `src/bridge/` 起的真 HTTP 服务 | 发真请求，看状态码与 JSON |
+| 桥 lifecycle | `src/bridge/` 的桥实例 | 停服后看状态与发命令的结果，不发请求 |
 | 策略判定 | `src/policy/` 的判定函数 | 给状态与调用参数，看是否拒绝 |
 | 扩展动作路由 | `browser-extension/background/dispatch.js` 的 `dispatch(action, params)` | 挂 `globalThis.chrome` 桩，看返回值与调用记录 |
 | 页面脚本自包含 | `browser-extension/page/*.js` | 静态扫描源码，断无 `import`、`export`、`require`、动态 `import()` |
