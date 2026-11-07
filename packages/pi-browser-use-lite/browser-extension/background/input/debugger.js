@@ -41,6 +41,24 @@ export async function sendCommand(tabId, method, params) {
 }
 
 /**
+ * 在页面里求值一次，返回结果值。
+ * @param {number} tabId 标签 id
+ * @param {string} expression JavaScript 表达式
+ * @returns {Promise<unknown>} 求值结果
+ */
+export async function evaluate(tabId, expression) {
+	const response = await sendCommand(tabId, "Runtime.evaluate", {
+		expression,
+		returnByValue: true,
+	});
+	if (response?.exceptionDetails)
+		throw new Error(
+			`page_error: ${response.exceptionDetails.text ?? "evaluation failed"}`,
+		);
+	return response?.result?.value;
+}
+
+/**
  * 跑 executeScript；被权限拒绝时改走 CDP 的 Runtime.evaluate。
  * @param {object} options
  * @param {number} options.tabId 标签 id

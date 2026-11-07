@@ -3,7 +3,7 @@
  * 目标标签不可见时直接抛错：Chrome 会丢弃不可见页面的可信输入，激活标签由调用方决定。
  */
 
-import { sendCommand } from "./debugger.js";
+import { evaluate, sendCommand } from "./debugger.js";
 
 /**
  * 点击一个点或元素。事件序为 mouseMoved、mousePressed、mouseReleased。
@@ -16,7 +16,7 @@ import { sendCommand } from "./debugger.js";
  */
 export async function click({ tabId, ...target } = {}) {
 	const kind = classifyTarget(target);
-	await requireVisible(tabId);
+	await assertVisible(tabId);
 	const point = await resolvePoint(tabId, kind, target);
 	await movePointer(tabId, point);
 	await dispatchMouse(tabId, "mousePressed", point, {
@@ -43,7 +43,7 @@ export async function click({ tabId, ...target } = {}) {
  */
 export async function hover({ tabId, ...target } = {}) {
 	const kind = classifyTarget(target);
-	await requireVisible(tabId);
+	await assertVisible(tabId);
 	const point = await resolvePoint(tabId, kind, target);
 	await movePointer(tabId, point);
 	return point;
@@ -59,7 +59,7 @@ export async function hover({ tabId, ...target } = {}) {
  */
 export async function moveMouse({ tabId, x, y } = {}) {
 	const point = requirePoint({ x, y });
-	await requireVisible(tabId);
+	await assertVisible(tabId);
 	await movePointer(tabId, point);
 	return point;
 }
@@ -77,7 +77,7 @@ export async function drag({ tabId, from, to, steps } = {}) {
 	const fromKind = classifyTarget(from ?? {});
 	const toKind = classifyTarget(to ?? {});
 	requireSteps("dragSteps", steps);
-	await requireVisible(tabId);
+	await assertVisible(tabId);
 	const start = await resolvePoint(tabId, fromKind, from);
 	const end = await resolvePoint(tabId, toKind, to);
 	await dispatchMouse(tabId, "mousePressed", start, {
@@ -116,7 +116,7 @@ export async function drag({ tabId, from, to, steps } = {}) {
  */
 export async function scroll({ tabId, dx = 0, dy = 0, steps } = {}) {
 	requireSteps("scrollSteps", steps);
-	await requireVisible(tabId);
+	await assertVisible(tabId);
 	const center = await viewportCenter(tabId);
 	for (let step = 0; step < steps; step++) {
 		await sendCommand(tabId, "Input.dispatchMouseEvent", {
@@ -210,7 +210,7 @@ async function viewportCenter(tabId) {
 	return { x: center.x, y: center.y };
 }
 
-async function requireVisible(tabId) {
+export async function assertVisible(tabId) {
 	const state = await evaluate(tabId, "document.visibilityState");
 	if (state === "visible") return;
 	if (state === "hidden")
@@ -220,16 +220,4 @@ async function requireVisible(tabId) {
 	throw new Error(
 		`page_error: could not read document.visibilityState for tab ${tabId}`,
 	);
-}
-
-async function evaluate(tabId, expression) {
-	const response = await sendCommand(tabId, "Runtime.evaluate", {
-		expression,
-		returnByValue: true,
-	});
-	if (response?.exceptionDetails)
-		throw new Error(
-			`page_error: ${response.exceptionDetails.text ?? "evaluation failed"}`,
-		);
-	return response?.result?.value;
 }
