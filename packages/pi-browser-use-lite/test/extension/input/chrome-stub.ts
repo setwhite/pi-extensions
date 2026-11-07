@@ -39,6 +39,8 @@ export interface ChromeStub {
 export interface StubOptions {
 	/** 传 false 时不挂 chrome.debugger。 */
 	withDebugger?: boolean;
+	/** 每条 sendCommand 按 method 与 params 应答；给了就不看 sendResults 与 evaluate。 */
+	send?: (method: string, params: Record<string, unknown>) => unknown;
 	/** Runtime.evaluate 的应答值。 */
 	evaluate?: (expression: string) => unknown;
 	/** sendCommand 按队列应答，队列里的 Error 会被抛出。给了就不走 evaluate。 */
@@ -71,6 +73,7 @@ export function stubChrome(options: StubOptions = {}): ChromeStub {
 		) => {
 			methods.push("send");
 			calls.push({ method, params });
+			if (options.send) return await options.send(method, params);
 			if (options.sendResults) return shift(options.sendResults, "ok");
 			if (method !== "Runtime.evaluate") return {};
 			return {
