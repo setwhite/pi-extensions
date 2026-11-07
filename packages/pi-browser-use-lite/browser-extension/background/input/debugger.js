@@ -44,7 +44,7 @@ export async function sendCommand(tabId, method, params) {
  * 在页面里求值一次，返回结果值。
  * @param {number} tabId 标签 id
  * @param {string} expression JavaScript 表达式
- * @param {{ userGesture?: boolean }} [options] `userGesture` 给页面一次用户激活
+ * @param {{ userGesture?: boolean, awaitPromise?: boolean }} [options] `userGesture` 给页面一次用户激活，`awaitPromise` 等 Promise
  * @returns {Promise<unknown>} 求值结果
  */
 export async function evaluate(tabId, expression, options = {}) {
@@ -52,10 +52,11 @@ export async function evaluate(tabId, expression, options = {}) {
 		expression,
 		returnByValue: true,
 		userGesture: options.userGesture === true,
+		awaitPromise: options.awaitPromise === true,
 	});
 	if (response?.exceptionDetails)
 		throw new Error(
-			`page_error: ${response.exceptionDetails.text ?? "evaluation failed"}`,
+			`page_error: ${exceptionMessage(response.exceptionDetails)}`,
 		);
 	return response?.result?.value;
 }
@@ -90,9 +91,7 @@ export async function executeScriptWithFallback({
 			awaitPromise: true,
 		});
 		if (response.exceptionDetails)
-			throw new Error(
-				response.exceptionDetails.text ?? "runtime evaluation failed",
-			);
+			throw new Error(exceptionMessage(response.exceptionDetails));
 		return [{ result: response.result?.value }];
 	}
 }
@@ -107,6 +106,20 @@ async function reconnect(tabId) {
 		if (!isNotAttached(error)) throw error;
 	}
 	await attach(tabId);
+}
+
+/**
+ * 取页面异常的首行原文。Chrome 把 `text` 写成 `Uncaught`，原文在 `exception.description`。
+ * @param {{ exception?: { description?: string, value?: unknown }, text?: string }} details 异常详情
+ * @returns {string} 首行
+ */
+function exceptionMessage(details) {
+	const raw =
+		details?.exception?.description ??
+		details?.exception?.value ??
+		details?.text ??
+		"evaluation failed";
+	return String(raw).split("\n")[0];
 }
 
 function errorMessage(error) {
