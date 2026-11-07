@@ -39,15 +39,17 @@
 | `background/input/keyboard.js` | 键位表、键事件、输入、填充、按键 |
 | `background/input/upload.js` | file chooser 截获、`DOM.setFileInputFiles` |
 | `background/page/evaluate.js` | 在页面里求值、辅助函数注入 |
+| `background/page/helpers.js` | 页面内辅助函数，按源码注入 |
 | `background/page/snapshot.js` | 快照与深查的包装 |
 | `background/page/screenshot.js` | 截屏 |
 
-`page/` 是注入页面的代码。两个文件都必须自包含：不 `import`，不引用模块作用域。原因是它们被字符串化或 `Runtime.evaluate` 送进页面。
+注入目录 `browser-extension/page/` 只放被 `executeScript({files})` 送进页面的经典脚本。文件必须自包含：不 `import`，不引用模块作用域，也不 `export`。
 
 | 文件 | 注入方式 |
 |---|---|
-| `page/helpers.js` | `executeScript({func})` 逐个注入 |
-| `page/snapshot.js` | `executeScript({files})` |
+| `browser-extension/page/snapshot.js` | `executeScript({files})` |
+
+辅助函数不进注入目录，放 `background/page/helpers.js`：具名导出、函数体自包含，由 `background/page/evaluate.js` 逐个 `executeScript({func})` 注入。`func` 形式的源码在 `chrome.scripting` 被拒时还能经 `Runtime.evaluate` 送进页面；注入目录的文件做不到这一点。
 
 没有 `page/actions.js`：CDP 输入失败时不做 DOM 假事件回退（[DEC-0007](decisions/0007-drop-redundant-pieces.md)）。
 
