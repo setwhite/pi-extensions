@@ -22,6 +22,7 @@ function readManifest(): Manifest {
 
 interface ChromeStub {
 	runtime: {
+		getManifest: () => { version: string };
 		onInstalled: { addListener: ReturnType<typeof vi.fn> };
 		onStartup: { addListener: ReturnType<typeof vi.fn> };
 	};
@@ -35,6 +36,7 @@ interface ChromeStub {
 function stubChrome(): ChromeStub {
 	const stub: ChromeStub = {
 		runtime: {
+			getManifest: () => ({ version: "0.0.0" }),
 			onInstalled: { addListener: vi.fn() },
 			onStartup: { addListener: vi.fn() },
 		},

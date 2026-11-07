@@ -80,11 +80,14 @@ export interface BridgeStatus {
 	lastSeenAt?: number;
 	queuedCommands: number;
 	pendingCommands: number;
+	/** 扩展握手时报回的版本。还没握手时不带。 */
+	extensionVersion?: string;
 }
 
 /** 桥自己会发出的错误类别，取自 SPEC-0001 错误表。 */
 export type BridgeErrorClass =
 	| "bridge_unreachable"
+	| "extension_version"
 	| "timeout"
 	| "page_error"
 	| "aborted";
@@ -92,6 +95,7 @@ export type BridgeErrorClass =
 /** 每类错误的下一步动作，取自 SPEC-0001 错误表。`aborted` 没有下一步，所以是空串。 */
 const HINTS: Record<BridgeErrorClass, string> = {
 	bridge_unreachable: "Run /chrome status, or change bridge.port",
+	extension_version: "reload the unpacked extension, then run /chrome status",
 	timeout: "Run /chrome status",
 	page_error:
 		"read the first line of the error, then retry or fix the arguments",
@@ -112,6 +116,9 @@ export class BridgeError extends Error {
 		};
 	}
 }
+
+/** 扩展在每次请求上报自身版本的请求头。扩展侧的同名常量在 transport.js。 */
+export const EXTENSION_VERSION_HEADER = "x-pi-browser-use-version";
 
 /** `/next` 的默认挂起时长。 */
 export const DEFAULT_HOLD_MS = 25_000;

@@ -21,6 +21,7 @@ import {
 	CONNECTED_WINDOW_MS,
 	DEFAULT_COMMAND_TIMEOUT_MS,
 	DEFAULT_HOLD_MS,
+	EXTENSION_VERSION_HEADER,
 	type ForwardRequest,
 	type ForwardResponse,
 	type NextResponse,
@@ -35,6 +36,8 @@ const STATUS_PROBE_MS = 1_000;
 export interface BridgeOptions {
 	/** 端口。传 0 让系统分配，测试用。 */
 	port: number;
+	/** 宿主版本，用 {@link HOST_VERSION}。扩展报回的版本与它不一致就拒绝后续命令。 */
+	hostVersion: string;
 	/** `/next` 的挂起时长，默认 {@link DEFAULT_HOLD_MS}。 */
 	holdMs?: number;
 }
@@ -65,6 +68,7 @@ interface PendingEntry {
 export class Bridge {
 	readonly holdMs: number;
 	private readonly requestedPort: number;
+	private readonly hostVersion: string;
 	private server: Server | undefined;
 	private port = 0;
 	private queue: PendingEntry[] = [];
@@ -74,10 +78,13 @@ export class Bridge {
 	private state: BridgeMode = "starting";
 	/** 进行中的抢占。并发发现 owner 消失时共用这一次，不各抢一遍。 */
 	private promotion: Promise<void> | undefined;
+	private extensionVersion: string | undefined;
+	private versionMismatch = false;
 
 	constructor(options: BridgeOptions) {
 		this.requestedPort = options.port;
 		this.holdMs = options.holdMs ?? DEFAULT_HOLD_MS;
+		this.hostVersion = options.hostVersion;
 	}
 
 	/** 服务地址。`start()` 之后端口才是真实值。 */
@@ -190,6 +197,7 @@ export class Bridge {
 			lastSeenAt: this.lastSeenAt,
 			queuedCommands: this.queue.length,
 			pendingCommands: this.pending.size,
+			extensionVersion: this.extensionVersion,
 		};
 	}
 
@@ -220,6 +228,13 @@ export class Bridge {
 		options: SendOptions,
 	): Promise<unknown> {
 		const { signal, timeoutMs = DEFAULT_COMMAND_TIMEOUT_MS } = options;
+		if (this.versionMismatch)
+			return Promise.reject(
+				new BridgeError(
+					"extension_version",
+					`the extension is on version ${this.extensionVersion} but this package is ${this.hostVersion}; reload the unpacked extension`,
+				),
+			);
 		if (signal?.aborted)
 			return Promise.reject(
 				new BridgeError(
@@ -442,6 +457,12 @@ export class Bridge {
 		response: ServerResponse,
 	): Promise<void> {
 		this.lastSeenAt = Date.now();
+		this.recordExtensionVersion(request);
+		if (this.versionMismatch) {
+			// 版本对不上就不发命令：先入队的也留着，等扩展换成同一版本再来取。
+			sendJson(response, 200, { type: "none" } satisfies NextResponse);
+			return;
+		}
 		let closed = false;
 		let active: Waiter | undefined;
 		const onClose = () => {
@@ -491,6 +512,14 @@ export class Bridge {
 			this.waiters.push(waiter);
 			register?.(waiter);
 		});
+	}
+
+	/** 记下扩展报回的版本，并据此决定后续命令能不能发。重载扩展后新版会清掉这个标记。 */
+	private recordExtensionVersion(request: IncomingMessage): void {
+		const reported = request.headers[EXTENSION_VERSION_HEADER];
+		if (typeof reported !== "string" || reported === "") return;
+		this.extensionVersion = reported;
+		this.versionMismatch = reported !== this.hostVersion;
 	}
 
 	private async handleResult(

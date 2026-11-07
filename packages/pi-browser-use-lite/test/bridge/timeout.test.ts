@@ -1,5 +1,6 @@
 import { afterEach, expect, it } from "vitest";
 import { Bridge } from "../../src/bridge/index.ts";
+import { HOST_VERSION } from "../../src/config/index.ts";
 import {
 	type BridgeError,
 	DEFAULT_COMMAND_TIMEOUT_MS,
@@ -8,7 +9,7 @@ import {
 const bridges: Bridge[] = [];
 
 async function startBridge(holdMs?: number): Promise<Bridge> {
-	const bridge = new Bridge({ port: 0, holdMs });
+	const bridge = new Bridge({ port: 0, holdMs, hostVersion: HOST_VERSION });
 	bridges.push(bridge);
 	await bridge.start();
 	return bridge;

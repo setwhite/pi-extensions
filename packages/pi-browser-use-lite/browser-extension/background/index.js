@@ -1,3 +1,6 @@
+import { dispatch } from "./dispatch.js";
+import { startTransport } from "./transport.js";
+
 const POLL_ALARM_NAME = "pi-browser-use:poll";
 const POLL_ALARM_MINUTES = 0.5;
 
@@ -8,13 +11,33 @@ function armPollAlarm() {
 	});
 }
 
-/** 醒来后把 alarm 续上。 */
-function onPollAlarm(alarm) {
-	if (alarm.name !== POLL_ALARM_NAME) return;
-	armPollAlarm();
+let polling = false;
+
+/** 起轮询。重复调用是安全的：一次只跑一个循环。 */
+function startPolling() {
+	if (polling) return;
+	// 握手：问本地的 tab.version 路由要扩展版本，之后每次请求都把它报给桥。
+	const version = dispatch("tab.version").extensionVersion;
+	polling = true;
+	const transport = startTransport({ version, dispatch });
+	void transport.done.then(() => {
+		polling = false;
+	});
 }
 
-chrome.runtime.onInstalled.addListener(armPollAlarm);
-// alarm 不保证跨浏览器重启存活，所以启动时再武装一次。
-chrome.runtime.onStartup.addListener(armPollAlarm);
+/** 醒来后把 alarm 续上，并确保轮询在跑。 */
+function onWake() {
+	armPollAlarm();
+	startPolling();
+}
+
+/** 只认自己的 alarm：唤醒前的第一件事是续上它，然后让轮询起跑。 */
+function onPollAlarm(alarm) {
+	if (alarm.name !== POLL_ALARM_NAME) return;
+	onWake();
+}
+
+chrome.runtime.onInstalled.addListener(onWake);
+chrome.runtime.onStartup.addListener(onWake);
 chrome.alarms.onAlarm.addListener(onPollAlarm);
+armPollAlarm();

@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { createServer as createTcpServer } from "node:net";
 import { afterEach, expect, it } from "vitest";
 import { Bridge } from "../../src/bridge/index.ts";
+import { HOST_VERSION } from "../../src/config/index.ts";
 import { BridgeError, type ForwardResponse } from "../../src/protocol/index.ts";
 
 const bridges: Bridge[] = [];
@@ -27,7 +28,7 @@ function portOf(url: string): number {
 }
 
 async function startBridge(port: number): Promise<Bridge> {
-	const bridge = new Bridge({ port, holdMs: 50 });
+	const bridge = new Bridge({ port, holdMs: 50, hostVersion: HOST_VERSION });
 	bridges.push(bridge);
 	await bridge.start();
 	return bridge;
@@ -118,7 +119,7 @@ async function waitFor(
 async function startPair(): Promise<{ owner: Bridge; client: Bridge }> {
 	const owner = await startBridge(0);
 	const port = portOf(owner.url);
-	const client = new Bridge({ port, holdMs: 50 });
+	const client = new Bridge({ port, holdMs: 50, hostVersion: HOST_VERSION });
 	bridges.push(client);
 	await client.start();
 	return { owner, client };
@@ -132,7 +133,7 @@ afterEach(async () => {
 it("AC2: 端口已被同包桥占用时，第二个实例的 mode 是 client", async () => {
 	const owner = await startBridge(0);
 	const port = portOf(owner.url);
-	const second = new Bridge({ port });
+	const second = new Bridge({ port, hostVersion: HOST_VERSION });
 	bridges.push(second);
 
 	await second.start();
@@ -249,7 +250,7 @@ it("AC5: 带非扩展 Origin 的 GET /next 返回 403", async () => {
 it("AC6: 端口被非本包进程占用时启动即报 bridge_unreachable，不静默换端口", async () => {
 	const foreign = await startForeignServer();
 
-	const bridge = new Bridge({ port: foreign.port });
+	const bridge = new Bridge({ port: foreign.port, hostVersion: HOST_VERSION });
 	bridges.push(bridge);
 
 	const error = await bridge.start().then(

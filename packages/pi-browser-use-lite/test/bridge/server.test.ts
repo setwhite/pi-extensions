@@ -1,11 +1,12 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { Bridge } from "../../src/bridge/index.ts";
+import { HOST_VERSION } from "../../src/config/index.ts";
 import { DEFAULT_HOLD_MS } from "../../src/protocol/index.ts";
 
 const bridges: Bridge[] = [];
 
 async function startBridge(holdMs?: number): Promise<Bridge> {
-	const bridge = new Bridge({ port: 0, holdMs });
+	const bridge = new Bridge({ port: 0, holdMs, hostVersion: HOST_VERSION });
 	bridges.push(bridge);
 	await bridge.start();
 	return bridge;

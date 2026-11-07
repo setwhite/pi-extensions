@@ -17,6 +17,13 @@ import { buildConfig } from "./validate.ts";
 
 export * from "./schema.ts";
 
+/** 宿主版本，取自 package.json。桥拿它判断扩展报回的版本是否一致。 */
+export const HOST_VERSION = (
+	JSON.parse(
+		readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
+	) as { version: string }
+).version;
+
 /** agent 目录：`PI_CODING_AGENT_DIR` 优先，否则 `~/.pi/agent`。 */
 export function agentDir(env: NodeJS.ProcessEnv = process.env): string {
 	return env[ENV_AGENT_DIR] || join(homedir(), ".pi", "agent");
