@@ -44,6 +44,8 @@ export interface StubOptions {
 	sendResults?: unknown[];
 	/** detach 按队列应答，队列里的 Error 会被抛出。 */
 	detachResults?: unknown[];
+	/** 给了就让它成为 chrome.scripting.executeScript 抛出的错误。 */
+	scriptingError?: Error;
 }
 
 /** 扩展侧的 JS 没有类型声明，用文件 URL 动态载入。 */
@@ -94,7 +96,10 @@ export function stubChrome(options: StubOptions = {}): ChromeStub {
 	};
 	const debuggerStub = { attach, detach, sendCommand, onEvent };
 	const scripting = {
-		executeScript: vi.fn(async () => [{ result: 1 }] as unknown),
+		executeScript: vi.fn(async () => {
+			if (options.scriptingError) throw options.scriptingError;
+			return [{ result: 1 }] as unknown;
+		}),
 	};
 	const tabs = { update: vi.fn(async () => ({})) };
 	(globalThis as { chrome?: unknown }).chrome = {
