@@ -1,0 +1,20 @@
+{
+	"manifest_version": 3,
+	"name": "Pi Browser Use",
+	"version": "0.1.0",
+	"description": "Lets Pi drive tabs in your own Chrome through a local bridge at 127.0.0.1.",
+	"permissions": [
+		"debugger",
+		"scripting",
+		"tabs",
+		"tabGroups",
+		"storage",
+		"alarms",
+		"webNavigation"
+	],
+	"host_permissions": ["http://127.0.0.1/*"],
+	"background": {
+		"service_worker": "background/index.js",
+		"type": "module"
+	}
+}
