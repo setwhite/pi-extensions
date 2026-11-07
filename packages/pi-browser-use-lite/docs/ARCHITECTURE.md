@@ -17,7 +17,7 @@
 | `src/policy/` | 三个策略插点：授权、硬背景模式、自动化 target 归属 | 依赖 `config/`。不做 IO |
 | `src/tools/` | 5 个工具的定义与执行器、各自的默认 `promptGuidelines` 常量。`guidance.*` 在此覆盖文案与规则 | 组装模型可见文本的唯一处。错误文案取自 `protocol/` 的 hint |
 | `src/format/` | 结构化结果转模型文本的纯函数 | 无依赖 |
-| `src/fs/` | 截图落盘与按数量修剪 | 只依赖 `node:fs` |
+| `src/fs/` | 截图落盘与按数量修剪 | 只依赖 `node:` |
 | `src/commands/` | `/chrome` 子命令：`authorize` `status` `background` | 依赖 `bridge/`、`policy/`、`config/` |
 
 ### 1.2 Chrome 扩展侧
