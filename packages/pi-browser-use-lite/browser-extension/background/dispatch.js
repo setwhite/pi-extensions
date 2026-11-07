@@ -2,7 +2,7 @@
  * 动作路由表：动作名 → 处理函数。键与 src/protocol 的 `ACTION_NAMES` 一致。
  *
  * 用 Map 而不是对象：动作名来自命令，对象查表会命中原型链上的名字（`toString` 等）。
- * 值仍是 `undefined` 的动作还没接实现：表里留键，等对应模块落地时把值换上去。
+ * 值仍是 `undefined` 的动作还没接实现：表里留键，接线在 T22 统一做。
  */
 export const routes = new Map([
 	[
