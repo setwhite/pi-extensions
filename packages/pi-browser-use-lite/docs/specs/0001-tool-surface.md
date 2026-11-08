@@ -129,7 +129,7 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 
 | `class` | 触发条件 | `hint` |
 |---|---|---|
-| `locked` | 未授权 | `Run /chrome authorize on` |
+| `locked` | 未授权，或背景模式挡下聚焦请求 | `Run /chrome authorize on`；背景模式挡下时是 `Run /chrome background off` |
 | `bridge_unreachable` | 桥没起，或端口被别的进程占 | `Run /chrome status`，或改 `bridge.port` |
 | `extension_missing` | 桥在，但没有扩展轮询 | 打印装扩展的三步 |
 | `extension_version` | 扩展版本与宿主不匹配 | 打印两侧版本与升级步骤 |

@@ -14,7 +14,7 @@
 | `src/config/` | 定位、加载、校验、clamp 配置文件 | 只依赖 `node:`。不碰网络与浏览器 |
 | `src/protocol/` | 桥的命令与结果信封类型、动作名表、错误类别与 hint、超时常量 | 无依赖。动作名与错误 hint 是唯一来源 |
 | `src/bridge/` | 本地 HTTP 桥：`/next` 长轮询、`/result`、`/command` 转发、`/status`、在途命令表、扩展版本闸。端口上先到者当 server，其余当 client 转发，owner 消失时抢端口升为 server | 只依赖 `protocol/`。不认识工具语义 |
-| `src/policy/` | 三个策略插点：授权、硬背景模式、自动化 target 归属 | 依赖 `config/`。不做 IO |
+| `src/policy/` | 两个策略插点：授权、硬背景模式。自动化 target 归属在扩展侧 `background/target.js` | 依赖 `config/`。不做 IO |
 | `src/tools/` | 5 个工具的定义与执行器、各自的默认 `promptGuidelines` 常量。`guidance.*` 在此覆盖文案与规则 | 组装模型可见文本的唯一处。错误文案取自 `protocol/` 的 hint |
 | `src/format/` | 结构化结果转模型文本的纯函数 | 无依赖 |
 | `src/fs/` | 截图落盘与按数量修剪 | 只依赖 `node:` |
@@ -107,7 +107,7 @@
 | 配置解析 | `src/config/index.ts` 的 `loadConfig` | 给临时 agent 目录，看返回值或抛错 |
 | 桥端点 | `src/bridge/` 起的真 HTTP 服务 | 发真请求，看状态码与 JSON |
 | 桥 lifecycle | `src/bridge/` 的桥实例 | 停服后或 client 模式下看状态与发命令的结果 |
-| 策略判定 | `src/policy/` 的判定函数 | 给状态与调用参数，看是否拒绝 |
+| 策略判定 | `src/policy/` 的判定函数 | 给会话状态与动作名，看是否拒绝 |
 | 扩展启动 | `browser-extension/background/index.js` 的模块加载 | 挂 `globalThis.chrome` 桩后动态 `import()`，看注册的 listener 与是否抛错 |
 | 扩展轮询 | `browser-extension/background/transport.js` 的 `startTransport` | 起本地 HTTP 桩服务或真桥，看它发出的请求、dispatch 调用与回传的结果 |
 | 扩展动作路由 | `browser-extension/background/dispatch.js` 的 `dispatch(action, params)` | 挂 `globalThis.chrome` 桩，看返回值与调用记录 |
