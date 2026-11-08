@@ -184,7 +184,7 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 | `timing.navigateTimeoutMs` | `15000` | 网站慢，导航老超时 |
 | `output.maxElements` | `80` | 元素太多，context 吃不消 |
 | `output.textChars` | `18000` | 正文太长 |
-| `screenshot.dir` | `"~/.pi/screenshots"` | 想换盘 |
+| `screenshot.dir` | `""`，即 `<agent dir>/pi-browser-use-lite/screenshots` | 想换盘 |
 | `screenshot.format` | `"png"` | 想省磁盘，换 jpeg |
 | `screenshot.keepNewest` | `20` | 截图占满磁盘 |
 | `prompt.guidelines` | 内置全局规则 | 想改或去掉跨工具的规则 |

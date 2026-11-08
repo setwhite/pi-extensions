@@ -103,7 +103,8 @@ export const DEFAULTS: Omit<ResolvedConfig, "tools" | "guidance"> = {
 	input: { dragSteps: 10, scrollSteps: 5 },
 	timing: { navigateTimeoutMs: 15_000 },
 	output: { maxElements: 80, textChars: 18_000 },
-	screenshot: { dir: "~/.pi/screenshots", format: "png", keepNewest: 20 },
+	// dir 留空表示 <agent dir>/pi-browser-use-lite/screenshots，由 loadConfig 补。
+	screenshot: { dir: "", format: "png", keepNewest: 20 },
 	prompt: { guidelines: [...DEFAULT_PROMPT_GUIDELINES] },
 };
 

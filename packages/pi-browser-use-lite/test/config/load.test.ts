@@ -36,9 +36,17 @@ function readConfig(value: unknown): ResolvedConfig {
 }
 
 it("AC2: 文件缺失时 13 个标量取默认值，工具全开且保留原名", () => {
-	const config = withAgentDir(undefined, (agentDir) => loadConfig(agentDir));
+	let root = "";
+	const config = withAgentDir(undefined, (agentDir) => {
+		root = agentDir;
+		return loadConfig(agentDir);
+	});
 	expect(config).toStrictEqual({
 		...DEFAULTS,
+		screenshot: {
+			...DEFAULTS.screenshot,
+			dir: join(root, "pi-browser-use-lite", "screenshots"),
+		},
 		tools: {
 			chrome_act: { enabled: true, name: "chrome_act" },
 			chrome_see: { enabled: true, name: "chrome_see" },
@@ -49,7 +57,9 @@ it("AC2: 文件缺失时 13 个标量取默认值，工具全开且保留原名"
 		guidance: {},
 	});
 	expect(config.bridge.port).toBe(17_318);
-	expect(config.screenshot.dir).toBe("~/.pi/screenshots");
+	expect(config.screenshot.dir).toBe(
+		join(root, "pi-browser-use-lite", "screenshots"),
+	);
 	expect(config.screenshot.format).toBe("png");
 	for (const id of TOOL_IDS) {
 		expect(config.tools[id]).toStrictEqual({ enabled: true, name: id });
@@ -57,7 +67,11 @@ it("AC2: 文件缺失时 13 个标量取默认值，工具全开且保留原名"
 });
 
 it("AC2: 13 个标量逐项等于 schema 默认值", () => {
-	const config = readConfig({});
+	let root = "";
+	const config = withAgentDir(JSON.stringify({}), (agentDir) => {
+		root = agentDir;
+		return loadConfig(agentDir);
+	});
 	expect({
 		bridge: config.bridge.port,
 		authorizeOnStart: config.policy.authorizeOnStart,
@@ -82,7 +96,7 @@ it("AC2: 13 个标量逐项等于 schema 默认值", () => {
 		navigateTimeoutMs: DEFAULTS.timing.navigateTimeoutMs,
 		maxElements: DEFAULTS.output.maxElements,
 		textChars: DEFAULTS.output.textChars,
-		dir: DEFAULTS.screenshot.dir,
+		dir: join(root, "pi-browser-use-lite", "screenshots"),
 		format: DEFAULTS.screenshot.format,
 		keepNewest: DEFAULTS.screenshot.keepNewest,
 		guidelines: DEFAULTS.prompt.guidelines,

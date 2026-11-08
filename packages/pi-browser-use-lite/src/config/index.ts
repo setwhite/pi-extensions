@@ -43,7 +43,15 @@ export function loadConfig(agentDir: string): ResolvedConfig {
 		const lines = errors.map((item) => `- ${item}`).join("\n");
 		throw new Error(`${file}: ${errors.length} invalid field(s):\n${lines}`);
 	}
-	return config;
+	if (config.screenshot.dir !== "") return config;
+	// 截图目录跟着 agent 目录走，隔离环境（测试、e2e）不会写进真实家目录。
+	return {
+		...config,
+		screenshot: {
+			...config.screenshot,
+			dir: join(agentDir, CONFIG_SUBPATH, "screenshots"),
+		},
+	};
 }
 
 function configFile(agentDir: string): string {
