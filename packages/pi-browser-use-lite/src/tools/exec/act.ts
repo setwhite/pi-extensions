@@ -61,6 +61,8 @@ export async function runAct(
 	if (changed !== undefined) lines.push(changedLine(changed));
 	const value = resultValue(result);
 	if (value !== undefined) lines.push(valueText(value));
+	const note = noteOf(result);
+	if (note !== undefined) lines.push(note);
 	const details: Record<string, unknown> = {
 		ok: true,
 		action: params.action,
@@ -333,6 +335,13 @@ function resultValue(result: unknown): unknown {
 	if (record.value !== undefined) return record.value;
 	if (typeof record.waitedMs === "number") return `waited ${record.waitedMs}ms`;
 	return undefined;
+}
+
+/** `page.evaluate` 省掉超长字段时给的一行提示。 */
+function noteOf(result: unknown): string | undefined {
+	if (typeof result !== "object" || result === null) return undefined;
+	const record = result as { note?: unknown };
+	return typeof record.note === "string" ? record.note : undefined;
 }
 
 /** 结果里的正文，用于 `batch` 汇总。 */

@@ -27,7 +27,7 @@
 | `page.drag` | `from`、`to`、`steps` | `{ changed }` |
 | `page.scroll` | `dx`、`dy`、`steps` | `{ changed }` |
 | `page.upload` | `paths`、`timeoutMs`（等 file chooser） | `{ changed }` |
-| `page.evaluate` | `js` | `{ value }` |
+| `page.evaluate` | `js` | `{ value, note? }`，`note` 单独一行接在正文末尾 |
 | `page.waitFor` | `kind`、`value`、`timeoutMs` | `{ waitedMs }` |
 | `page.snapshot` | `mode`、`query`、`ref`、`selector`、`maxElements`、`textChars` | `{ mode, url, title, … }`，形状见 `background/page/snapshot.js` |
 | `page.inspect` | `ref` 或 `selector` | `{ url, title, element }`，`element.rect` 是视口坐标 |

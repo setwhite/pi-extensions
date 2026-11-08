@@ -182,6 +182,16 @@ it("扩展没连上时报 extension_missing，不发命令", async () => {
 	expect(sent).toStrictEqual([]);
 });
 
+it("eval 省掉超长字段时把 note 放进正文", async () => {
+	const note = "data omitted (200 chars); use chrome_vision to look at images";
+	const { run } = harness({ reply: () => ({ value: { src: "x" }, note }) });
+
+	const result = await run("chrome_act", { action: "eval", js: "img" });
+
+	expect(textOf(result).split("\n").at(-1)).toBe(note);
+	expect(result.details).toMatchObject({ value: { src: "x" } });
+});
+
 it("缺定位方式时报 bad_args", async () => {
 	const { run, sent } = harness();
 

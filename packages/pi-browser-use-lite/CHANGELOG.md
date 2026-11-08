@@ -14,3 +14,5 @@
 - 发布：`CHANGELOG.md` 与 `browser-extension/` 一起进 `files`。用户从 npm 装到扩展源码后 load unpacked。
 - 扩展版本落后于包时自己重载一次，不必再去扩展页手动刷新。
 - 轮询断了由扩展的 1 秒定时器重起；`chrome.alarms` 只作服务工作进程被回收后的兜底。
+- `chrome_act eval` 省掉超长 `data` 时，说明接在正文末尾；此前这条说明到不了模型。
+- 包内带 `README.md`：安装、配置、开发各一节，扩展目录由 `/chrome status` 打印。
