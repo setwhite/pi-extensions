@@ -8,7 +8,9 @@ import type {
 	ExtensionAPI,
 	ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
-import { agentDir, loadConfig } from "./config/index.ts";
+import { Bridge } from "./bridge/index.ts";
+import { createChromeCommand } from "./commands/index.ts";
+import { agentDir, HOST_VERSION, loadConfig } from "./config/index.ts";
 import {
 	createSessionPolicy,
 	type PolicyDenial,
@@ -19,13 +21,30 @@ import { buildSurface, type SurfaceTool } from "./tools/index.ts";
 export default function piBrowserUseLite(pi: ExtensionAPI): void {
 	const config = loadConfig(agentDir());
 	const policy = createSessionPolicy(config.policy);
+	const bridge = new Bridge({
+		port: config.bridge.port,
+		hostVersion: HOST_VERSION,
+	});
+	const chrome = createChromeCommand({
+		policy,
+		bridge,
+		hostVersion: HOST_VERSION,
+	});
 
 	for (const tool of buildSurface(config.tools, config.guidance)) {
 		pi.registerTool(registerable(tool, policy));
 	}
 
-	pi.on("session_shutdown", () => {
+	pi.registerCommand("chrome", {
+		description: "authorize, background, or report the bridge state",
+		handler: async (args, ctx) => {
+			ctx.ui.notify(await chrome.run(args));
+		},
+	});
+
+	pi.on("session_shutdown", async () => {
 		policy.endSession();
+		await bridge.stop();
 	});
 
 	pi.on("before_agent_start", (event) => {

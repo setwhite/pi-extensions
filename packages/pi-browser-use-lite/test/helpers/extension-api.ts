@@ -35,21 +35,39 @@ export function cleanupConfig(): void {
 export interface FakeApi {
 	api: ExtensionAPI;
 	registered: ToolDefinition[];
+	/** 跑一条已注册的命令，返回它 `ui.notify` 打印的文本。 */
+	runCommand: (name: string, args: string) => Promise<string>;
 	/** 触发 `session_shutdown`。 */
-	shutdown: () => void;
+	shutdown: () => Promise<void>;
 	/** 触发 `before_agent_start`，返回扩展改过的 systemPromptOptions。 */
 	startRun: (promptGuidelines: string[]) => { promptGuidelines: string[] };
 }
 
-/** 只记注册项与两个事件的假 `ExtensionAPI`。 */
+/** 只记注册项、命令与两个事件的假 `ExtensionAPI`。 */
 export function fakeApi(): FakeApi {
 	const registered: ToolDefinition[] = [];
-	const shutdowns: Array<() => void> = [];
+	const commands = new Map<string, (args: string) => Promise<string>>();
+	const shutdowns: Array<(...args: unknown[]) => unknown> = [];
 	const starts: Array<(payload: unknown) => void> = [];
 	const api = {
 		registerTool: (tool: ToolDefinition) => void registered.push(tool),
+		// 签名取自 SDK：它改了这里就跟着红，不用手抄。
+		registerCommand: (
+			name: string,
+			{ handler }: Parameters<ExtensionAPI["registerCommand"]>[1],
+		) => {
+			commands.set(name, async (args) => {
+				const printed: string[] = [];
+				// 命令上下文只用到 ui.notify，其余成员测试不碰。
+				const ctx = {
+					ui: { notify: (text: string) => void printed.push(text) },
+				} as unknown as Parameters<typeof handler>[1];
+				await handler(args, ctx);
+				return printed.join("\n");
+			});
+		},
 		on: (event: string, handler: (payload: unknown) => void) => {
-			if (event === "session_shutdown") shutdowns.push(handler as () => void);
+			if (event === "session_shutdown") shutdowns.push(handler);
 			if (event === "before_agent_start") starts.push(handler);
 			return () => {};
 		},
@@ -63,8 +81,13 @@ export function fakeApi(): FakeApi {
 	return {
 		api: api as unknown as ExtensionAPI,
 		registered,
-		shutdown: () => {
-			for (const handler of shutdowns) handler();
+		runCommand: async (name, args) => {
+			const run = commands.get(name);
+			if (run === undefined) throw new Error(`no command registered: ${name}`);
+			return await run(args);
+		},
+		shutdown: async () => {
+			for (const handler of shutdowns) await handler();
 		},
 		startRun,
 	};

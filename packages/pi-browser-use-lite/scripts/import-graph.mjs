@@ -7,8 +7,8 @@ export const title = "Import graph violates docs/ARCHITECTURE.md §2:";
 
 /** 允许的跨模块边：模块 -> 它可以直接 import 的模块（同模块内部不查）。 */
 export const edges = {
-	".": ["commands", "config", "policy", "tools"],
-	commands: ["bridge", "config", "policy"],
+	".": ["bridge", "commands", "config", "policy", "tools"],
+	commands: ["bridge", "policy"],
 	bridge: ["protocol"],
 	policy: ["config"],
 	tools: ["bridge", "format", "fs", "policy", "protocol"],
