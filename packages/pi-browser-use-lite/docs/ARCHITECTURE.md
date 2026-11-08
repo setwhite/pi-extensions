@@ -71,7 +71,7 @@
 
 - 源码 `src/`，测试 `test/`，扩展在 `browser-extension/`，文档 `docs/`。
 - 参考仓库在 `_repos/`。根 `.gitignore` 已排除。`tsconfig.json` 必须 `exclude` 它。
-- 发布产物 `files` 列 `src`、`browser-extension`、`CHANGELOG.md`。相对兄弟包多一项，因为用户要加载扩展。
+- 发布产物 `files` 列 `src`、`browser-extension`、`CHANGELOG.md`。相对兄弟包多一项，因为用户要加载扩展。`README.md` 与 `LICENSE` 由 npm 自动收录，不写进 `files`。
 - 其余 `package.json` 字段照 `packages/pi-todo-lite/package.json`：`pi.extensions` 指向 `./src/index.ts`，`peerDependencies` 为 `@earendil-works/pi-ai`、`@earendil-works/pi-coding-agent`、`@earendil-works/pi-tui`、`typebox`，`devDependencies` 为 `@biomejs/biome 2.5.15`、`typescript ^7.0.2`、`vitest ^5.0.5`，`scripts` 为 `lint`、`lint:fix`、`check:imports`、`test`、`test:e2e`、`typecheck`。
 - 模块文档放 `docs/modules/<module>.md`。
 - 真浏览器冒烟放 `test/e2e/`，不进 `pnpm test`，永不进 CI。e2e 不启动浏览器：它连一个已开着、已手动 load unpacked 装好扩展的 Chromium 系浏览器。浏览器没连上时失败并打印装扩展的三步，不 skip。挑战页由 e2e 用 `node:http` 起在 `127.0.0.1` 的临时端口上；manifest 的 `host_permissions` 不带端口，所以不用改 manifest。
