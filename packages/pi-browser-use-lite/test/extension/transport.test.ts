@@ -5,6 +5,7 @@ import { HOST_VERSION } from "../../src/config/index.ts";
 import {
 	BridgeError,
 	EXTENSION_VERSION_HEADER,
+	HOST_VERSION_HEADER,
 } from "../../src/protocol/index.ts";
 import { stubChrome } from "./input/chrome-stub.ts";
 
@@ -27,11 +28,14 @@ function extensionUrl(path: string): string {
 		.href;
 }
 
-const { startTransport, VERSION_HEADER } = (await import(
-	extensionUrl("transport.js")
-)) as {
+const {
+	startTransport,
+	VERSION_HEADER,
+	HOST_VERSION_HEADER: EXTENSION_HOST_VERSION_HEADER,
+} = (await import(extensionUrl("transport.js"))) as {
 	startTransport: (options: TransportOptions) => Transport;
 	VERSION_HEADER: string;
+	HOST_VERSION_HEADER: string;
 };
 const { dispatch } = (await import(extensionUrl("dispatch.js"))) as {
 	dispatch: (action: string, params?: Record<string, unknown>) => unknown;
@@ -53,8 +57,11 @@ const servers: Server[] = [];
 const transports: Transport[] = [];
 const bridges: Bridge[] = [];
 
-/** 起一个假桥：/next 按队列应答，/result 只记录。 */
-async function startStubBridge(replies: unknown[]): Promise<StubBridge> {
+/** 起一个假桥：/next 按队列应答，/result 只记录；给了 hostVersion 就写进每个应答头。 */
+async function startStubBridge(
+	replies: unknown[],
+	hostVersion?: string,
+): Promise<StubBridge> {
 	const requests: Recorded[] = [];
 	const server = createServer((request, response) => {
 		const chunks: Buffer[] = [];
@@ -67,7 +74,12 @@ async function startStubBridge(replies: unknown[]): Promise<StubBridge> {
 				at: Date.now(),
 				body: text === "" ? undefined : JSON.parse(text),
 			});
-			response.writeHead(200, { "content-type": "application/json" });
+			response.writeHead(200, {
+				"content-type": "application/json",
+				...(hostVersion === undefined
+					? {}
+					: { [EXTENSION_HOST_VERSION_HEADER]: hostVersion }),
+			});
 			if (request.url === "/next")
 				response.end(JSON.stringify(replies.shift() ?? { type: "none" }));
 			else response.end(JSON.stringify({ ok: true }));
@@ -234,14 +246,18 @@ it("请求超过时限就结束循环，等下一次唤醒重起", async () => {
 	).resolves.toBe("done");
 });
 
-it("AC5: 加载入口就把 alarm 设成每 0.5 分钟一次", async () => {
+it("AC5: 加载入口就把 alarm 设成每 0.5 分钟一次，并用每秒一次的定时器叫轮询", async () => {
 	const chrome = stubChrome({ version: "0.1.0" });
+	const keepalive = vi
+		.spyOn(globalThis, "setInterval")
+		.mockReturnValue(0 as unknown as ReturnType<typeof setInterval>);
 
 	await import(extensionUrl("index.js"));
 
 	expect(chrome.alarms.create).toHaveBeenCalledWith("pi-browser-use:poll", {
 		periodInMinutes: 0.5,
 	});
+	expect(keepalive).toHaveBeenCalledWith(expect.any(Function), 1_000);
 });
 
 it("AC6: 握手报的版本与宿主不同，后续 send 以 extension_version 拒绝且不发命令", async () => {
@@ -261,6 +277,53 @@ it("AC6: 握手报的版本与宿主不同，后续 send 以 extension_version �
 
 it("扩展与桥用同一个版本头名", () => {
 	expect(VERSION_HEADER).toBe(EXTENSION_VERSION_HEADER);
+	expect(EXTENSION_HOST_VERSION_HEADER).toBe(HOST_VERSION_HEADER);
+});
+
+it("桥期望的版本更新时重载自己，并且不取命令", async () => {
+	const stub = await startStubBridge(
+		[{ type: "command", command: { id: "c3", action: "tab.list" } }],
+		"0.2.0",
+	);
+	const chrome = stubChrome({ version: "0.1.0" });
+	const dispatch = vi.fn(() => []);
+	transports.push(
+		startTransport({
+			url: stub.url,
+			pollIntervalMs: 20,
+			version: "0.1.0",
+			dispatch,
+		}),
+	);
+
+	await waitFor(() => chrome.runtime.reload.mock.calls.length === 1);
+
+	expect(dispatch).not.toHaveBeenCalled();
+	expect(chrome.storage.local.set).toHaveBeenCalledWith({
+		"transport.reloadedFor": "0.2.0",
+	});
+});
+
+it("磁盘上仍是旧代码时不再重载，只报错停下", async () => {
+	const stub = await startStubBridge([], "0.2.0");
+	const chrome = stubChrome({ version: "0.1.0" });
+	const start = () =>
+		startTransport({
+			url: stub.url,
+			pollIntervalMs: 20,
+			version: "0.1.0",
+			dispatch: () => undefined,
+		});
+
+	const first = start();
+	transports.push(first);
+	await waitFor(() => chrome.runtime.reload.mock.calls.length === 1);
+	await first.done;
+
+	// 同一份 storage：第二次已经知道重载过一次，不再重载。
+	await start().done;
+
+	expect(chrome.runtime.reload).toHaveBeenCalledTimes(1);
 });
 
 it("版本对不上时 /next 不发命令，先入队的也留着", async () => {

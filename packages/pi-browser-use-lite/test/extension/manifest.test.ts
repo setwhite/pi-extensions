@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { stubChrome, uninstallChrome } from "./input/chrome-stub.ts";
 
 const transportMock = vi.hoisted(() => ({
@@ -29,6 +29,13 @@ function readManifest(): Manifest {
 		readFileSync(join(EXTENSION_DIR, "manifest.json"), "utf8"),
 	) as Manifest;
 }
+
+beforeEach(() => {
+	// 入口里的 1 秒保活定时器不必在测试里真跑。
+	vi.spyOn(globalThis, "setInterval").mockReturnValue(
+		0 as unknown as ReturnType<typeof setInterval>,
+	);
+});
 
 afterEach(() => {
 	uninstallChrome();

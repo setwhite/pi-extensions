@@ -97,7 +97,8 @@ export type BridgeErrorClass =
  */
 export const ERROR_HINTS: Record<BridgeErrorClass, string> = {
 	bridge_unreachable: "Run /chrome status, or change bridge.port",
-	extension_version: "reload the unpacked extension, then run /chrome status",
+	extension_version:
+		"wait a second: the extension reloads itself when the versions differ; if it keeps failing, the copy on disk is old",
 	timeout: "Run /chrome status",
 	page_error:
 		"read the first line of the error, then retry or fix the arguments",
@@ -121,6 +122,9 @@ export class BridgeError extends Error {
 
 /** 扩展在每次请求上报自身版本的请求头。扩展侧的同名常量在 transport.js。 */
 export const EXTENSION_VERSION_HEADER = "x-pi-browser-use-version";
+
+/** 桥在 `/next` 应答里报期望版本的响应头，扩展据此决定要不要重载自己。扩展侧的同名常量在 transport.js。 */
+export const HOST_VERSION_HEADER = "x-pi-browser-use-host-version";
 
 /** `/next` 的默认挂起时长。 */
 export const DEFAULT_HOLD_MS = 25_000;

@@ -62,3 +62,5 @@ chrome.runtime.onInstalled.addListener(onWake);
 chrome.runtime.onStartup.addListener(onBrowserStart);
 chrome.alarms.onAlarm.addListener(onPollAlarm);
 armPollAlarm();
+// 每秒叫一次轮询：alarm 的周期最短 0.5 分钟，轮询循环退过一次不该等这么久。
+setInterval(startPolling, 1000);

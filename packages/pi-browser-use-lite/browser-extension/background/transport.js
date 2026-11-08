@@ -16,10 +16,16 @@ const REQUEST_TIMEOUT_MS = 45_000;
 /** 报自身版本用的请求头。名字与 src/protocol 的 `EXTENSION_VERSION_HEADER` 一致，测试比对两处。 */
 export const VERSION_HEADER = "x-pi-browser-use-version";
 
+/** 桥在 `/next` 应答里报的期望版本。名字与 src/protocol 的 `HOST_VERSION_HEADER` 一致，测试比对两处。 */
+export const HOST_VERSION_HEADER = "x-pi-browser-use-host-version";
+
+/** 上次为哪个期望版本重载过自己。磁盘上仍是旧代码时，靠它避免每秒重载一次。 */
+const RELOADED_KEY = "transport.reloadedFor";
+
 /**
  * 起轮询：反复问桥要命令，取到就交给 dispatch，再把结果回传。
  * 有命令时立刻再问；拿到 `none` 就等 pollIntervalMs 再问。
- * 请求失败或超时后循环结束，由调用方（alarm 唤醒）重新起一次。
+ * 请求失败或超时后循环结束，由入口的 1 秒定时器或 alarm 重起。
  * 版本随每次请求报给桥，重载扩展后下一次请求就换成新版本。
  * @param {object} options
  * @param {string} [options.url] 桥的地址
@@ -64,8 +70,30 @@ export function startTransport({
 		const response = await request("/next");
 		if (!response.ok)
 			throw new Error(`the bridge answered HTTP ${response.status}`);
+		if (await outdated(response)) {
+			// 重载会带走这个循环；先停掉它，别再向后来的自己发请求。
+			controller.abort();
+			return undefined;
+		}
 		const body = await response.json();
 		return body.type === "command" ? body.command : undefined;
+	}
+
+	/**
+	 * 桥期望的版本与自身不同就重载自己。只重载一次：磁盘上仍是旧代码时，重载换不来新版本。
+	 * @returns {Promise<boolean>} 是否已触发重载
+	 */
+	async function outdated(response) {
+		const expected = response.headers.get(HOST_VERSION_HEADER);
+		if (!expected || expected === version) return false;
+		const remembered = await chrome.storage.local.get(RELOADED_KEY);
+		if (remembered?.[RELOADED_KEY] === expected)
+			throw new Error(
+				`the extension is on version ${version} but the bridge expects ${expected}; reload the unpacked extension by hand`,
+			);
+		await chrome.storage.local.set({ [RELOADED_KEY]: expected });
+		chrome.runtime.reload();
+		return true;
 	}
 
 	async function answer(command) {

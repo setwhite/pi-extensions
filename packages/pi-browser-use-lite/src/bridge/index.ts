@@ -24,6 +24,7 @@ import {
 	EXTENSION_VERSION_HEADER,
 	type ForwardRequest,
 	type ForwardResponse,
+	HOST_VERSION_HEADER,
 	type NextResponse,
 } from "../protocol/index.ts";
 
@@ -485,6 +486,8 @@ export class Bridge {
 	): Promise<void> {
 		this.lastSeenAt = Date.now();
 		this.recordExtensionVersion(request);
+		// 每次应答都报期望版本：扩展比自己旧就重载自己，用户不必去扩展页手动刷新。
+		response.setHeader(HOST_VERSION_HEADER, this.hostVersion);
 		if (this.versionMismatch) {
 			// 版本对不上就不发命令：先入队的也留着，等扩展换成同一版本再来取。
 			sendJson(response, 200, { type: "none" } satisfies NextResponse);

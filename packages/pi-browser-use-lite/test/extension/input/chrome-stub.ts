@@ -33,6 +33,8 @@ export interface ChromeStub {
 		getManifest: Mock;
 		onInstalled: { addListener: Mock };
 		onStartup: { addListener: Mock };
+		/** 扩展重载自己，版本落后自愈用。 */
+		reload: Mock;
 	};
 	alarms: { create: Mock; onAlarm: { addListener: Mock } };
 	webNavigation: { onCommitted: { addListener: Mock } };
@@ -153,6 +155,7 @@ export function stubChrome(options: StubOptions = {}): ChromeStub {
 		getManifest: vi.fn(() => ({ version: options.version ?? "0.0.0" })),
 		onInstalled: { addListener: vi.fn() },
 		onStartup: { addListener: vi.fn() },
+		reload: vi.fn(),
 	};
 	const alarms = { create: vi.fn(), onAlarm: { addListener: vi.fn() } };
 	const webNavigation = { onCommitted: { addListener: vi.fn() } };
