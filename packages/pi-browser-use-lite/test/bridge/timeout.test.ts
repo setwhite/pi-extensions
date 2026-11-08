@@ -2,7 +2,7 @@ import { afterEach, expect, it } from "vitest";
 import { Bridge } from "../../src/bridge/index.ts";
 import { HOST_VERSION } from "../../src/config/index.ts";
 import {
-	type BridgeError,
+	BridgeError,
 	DEFAULT_COMMAND_TIMEOUT_MS,
 } from "../../src/protocol/index.ts";
 
@@ -126,16 +126,22 @@ it("AC6: aborted 的 class 为 aborted，hint 指出可以重试", async () => {
 	expect(error.details.error.hint).toBe("retry if you still need the result");
 });
 
-it("AC6: 扩展回传 ok 为 false 时以 page_error 拒绝并保留原始消息", async () => {
+it("AC6: 扩展回传 ok 为 false 时原样抛出扩展的消息，类别留给 classify 认", async () => {
 	const bridge = await startBridge(1_000);
 	const rejection = catchError(bridge.send("page.evaluate", { js: "boom" }));
 	const { command } = await next(bridge);
 
-	await postResult(bridge, { id: command?.id, ok: false, error: "boom" });
+	await postResult(bridge, {
+		id: command?.id,
+		ok: false,
+		error: "bad_args: js is required",
+	});
+
 	const error = await rejection;
 
-	expect(error.details.error.class).toBe("page_error");
-	expect(error.message).toContain("boom");
+	// 桥不加类别，只有原样消息：否则 tools/ 的 classify 会把 bad_args 认成 page_error，还出现双层前缀。
+	expect(error.message).toBe("bad_args: js is required");
+	expect(error instanceof BridgeError).toBe(false);
 });
 
 it("超时从入队时刻算，不从扩展取走时刻算", async () => {

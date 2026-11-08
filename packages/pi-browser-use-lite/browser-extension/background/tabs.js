@@ -164,9 +164,10 @@ export async function groupTab({
 } = {}) {
 	requireSessionKey(sessionKey);
 	requireGroupSettings(groupName, groupColor);
+	const tab = await chrome.tabs.get(tabId);
 	const groupId = await groupIntoSession(
 		sessionKey,
-		tabId,
+		tab,
 		groupName,
 		groupColor,
 	);
@@ -185,7 +186,7 @@ async function createAndTrack(
 	try {
 		const groupId = await groupIntoSession(
 			sessionKey,
-			tab.id,
+			tab,
 			groupName,
 			groupColor,
 		);
@@ -197,18 +198,28 @@ async function createAndTrack(
 	}
 }
 
-/** 把标签加进会话组。组不在时新建，并写入标题与颜色。 */
-async function groupIntoSession(sessionKey, tabId, groupName, groupColor) {
+/** 把标签加进会话组。组不在时在标签自己的窗口里新建，并写入标题与颜色。 */
+async function groupIntoSession(sessionKey, tab, groupName, groupColor) {
 	const existing = await readGroupId(sessionKey);
 	const groupId =
 		existing !== undefined && (await groupExists(existing))
-			? await chrome.tabs.group({ groupId: existing, tabIds: [tabId] })
-			: await chrome.tabs.group({ tabIds: [tabId] });
+			? await chrome.tabs.group({ groupId: existing, tabIds: [tab.id] })
+			: await chrome.tabs.group({
+					tabIds: [tab.id],
+					createProperties: { windowId: await windowIdOf(tab) },
+				});
 	await chrome.tabGroups.update(groupId, {
 		title: groupName,
 		color: groupColor,
 	});
 	return groupId;
+}
+
+/** 新标签的对象不一定带 windowId：不带时读回来，组才不会建到别的窗口里。 */
+async function windowIdOf(tab) {
+	if (typeof tab.windowId === "number") return tab.windowId;
+	const stored = await chrome.tabs.get(tab.id);
+	return stored.windowId;
 }
 
 /** 组随最后一个标签关闭而消失。查现有组而不是 get，避开「组不存在」的错误文案。 */

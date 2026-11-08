@@ -4,6 +4,15 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { stubChrome, uninstallChrome } from "./input/chrome-stub.ts";
 
+const transportMock = vi.hoisted(() => ({
+	startTransport: vi.fn(() => ({
+		stop: () => undefined,
+		done: Promise.resolve(),
+	})),
+}));
+
+vi.mock("../../browser-extension/background/transport.js", () => transportMock);
+
 const EXTENSION_DIR = fileURLToPath(
 	new URL("../../browser-extension/", import.meta.url),
 );
@@ -87,6 +96,26 @@ describe("background 入口", () => {
 		chrome.alarms.create.mockClear();
 		listener({ name: "pi-browser-use:poll" });
 		expect(chrome.alarms.create).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe("background 入口报版本", () => {
+	it("入口把 manifest 的版本交给轮询，桥才比得出版本不匹配", async () => {
+		const chrome = stubChrome({ version: "9.9.9" });
+
+		vi.resetModules();
+		await import(
+			new URL("../../browser-extension/background/index.js", import.meta.url)
+				.href
+		);
+		const onInstalled = chrome.runtime.onInstalled.addListener.mock
+			.calls[0]?.[0] as (() => void) | undefined;
+		if (onInstalled === undefined) throw new Error("no onInstalled listener");
+		onInstalled();
+
+		expect(transportMock.startTransport).toHaveBeenCalledWith(
+			expect.objectContaining({ version: "9.9.9" }),
+		);
 	});
 });
 

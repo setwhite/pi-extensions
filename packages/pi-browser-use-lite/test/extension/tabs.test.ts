@@ -92,6 +92,7 @@ it("AC2/AC8: tab.new 建标签、入组并把标题与颜色交给 tabGroups.upd
 		id: 21,
 		active: false,
 		groupId: -1,
+		windowId: 9,
 		title: "",
 		url: "",
 	} as Tab);
@@ -116,7 +117,10 @@ it("AC2/AC8: tab.new 建标签、入组并把标题与颜色交给 tabGroups.upd
 		url: "https://a/",
 		active: false,
 	});
-	expect(stub.tabs.group).toHaveBeenCalledWith({ tabIds: [21] });
+	expect(stub.tabs.group).toHaveBeenCalledWith({
+		tabIds: [21],
+		createProperties: { windowId: 9 },
+	});
 	expect(stub.tabGroups.update).toHaveBeenCalledWith(7, {
 		title: "Pi",
 		color: "blue",
@@ -173,8 +177,8 @@ it("AC2: 分组失败时关闭新标签并抛错", async () => {
 it("质量: 两个 sessionKey 各用各的组", async () => {
 	const stub = stubTabsChrome();
 	stub.tabs.create
-		.mockResolvedValueOnce({ id: 41, active: true } as Tab)
-		.mockResolvedValueOnce({ id: 42, active: true } as Tab);
+		.mockResolvedValueOnce({ id: 41, active: true, windowId: 9 } as Tab)
+		.mockResolvedValueOnce({ id: 42, active: true, windowId: 9 } as Tab);
 	stub.tabs.group.mockResolvedValueOnce(7).mockResolvedValueOnce(8);
 	stub.tabs.get
 		.mockResolvedValueOnce({ id: 41, groupId: 7 } as Tab)
@@ -193,8 +197,14 @@ it("质量: 两个 sessionKey 各用各的组", async () => {
 		groupColor: "blue",
 	});
 
-	expect(stub.tabs.group).toHaveBeenNthCalledWith(1, { tabIds: [41] });
-	expect(stub.tabs.group).toHaveBeenNthCalledWith(2, { tabIds: [42] });
+	expect(stub.tabs.group).toHaveBeenNthCalledWith(1, {
+		tabIds: [41],
+		createProperties: { windowId: 9 },
+	});
+	expect(stub.tabs.group).toHaveBeenNthCalledWith(2, {
+		tabIds: [42],
+		createProperties: { windowId: 9 },
+	});
 	expect(stub.store["tabs.groupId.s1"]).toBe(7);
 	expect(stub.store["tabs.groupId.s2"]).toBe(8);
 });
@@ -399,10 +409,11 @@ it("交付物: tab.close 关闭标签", async () => {
 it("交付物: tab.group 把已有标签加进会话组", async () => {
 	const stub = stubTabsChrome({ groupId: 7 });
 	stub.tabs.group.mockResolvedValueOnce(7);
-	stub.tabs.get.mockResolvedValueOnce({
+	stub.tabs.get.mockResolvedValue({
 		id: 32,
 		active: false,
 		groupId: 7,
+		windowId: 9,
 		title: "c",
 		url: "https://c/",
 	} as Tab);

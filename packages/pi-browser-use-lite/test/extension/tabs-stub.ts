@@ -4,6 +4,7 @@ export interface Tab {
 	id: number;
 	active?: boolean;
 	groupId?: number;
+	windowId?: number;
 	title?: string;
 	url?: string;
 }

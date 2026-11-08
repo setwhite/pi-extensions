@@ -215,7 +215,7 @@ export async function assertVisible(tabId) {
 	if (state === "visible") return;
 	if (state === "hidden")
 		throw new Error(
-			`page_error: tab ${tabId} is hidden; Chrome drops input to hidden pages`,
+			`page_error: tab ${tabId} is hidden; Chrome drops input to hidden pages, so bring it to the front with chrome_tab switch (turn background mode off first)`,
 		);
 	throw new Error(
 		`page_error: could not read document.visibilityState for tab ${tabId}`,

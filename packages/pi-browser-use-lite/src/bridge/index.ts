@@ -559,11 +559,11 @@ export class Bridge {
 			sendJson(response, 404, { ok: false, error: "unknown command id" });
 			return;
 		}
+		// 扩展的消息自带 "<class>: " 前缀，别在这里再套一层类别；认类别只在 tools/errors.ts。
 		if (result.ok) entry.resolve(result.result);
 		else
 			entry.reject(
-				new BridgeError(
-					"page_error",
+				new Error(
 					result.error ?? "the extension reported a failure without a message",
 				),
 			);

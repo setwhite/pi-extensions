@@ -25,7 +25,7 @@ export interface ChromeCommand {
 }
 
 /** 装扩展的三步。`extension_missing` 与 status 未连上时都打印它。 */
-const INSTALL_STEPS = [
+export const INSTALL_STEPS = [
 	"hint: load the unpacked extension, then run /chrome status again",
 	"1. open chrome://extensions and turn on Developer mode",
 	`2. click Load unpacked and pick ${fileURLToPath(new URL("../../browser-extension/", import.meta.url))}`,

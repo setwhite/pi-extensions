@@ -17,10 +17,11 @@ let polling = false;
 /** 起轮询。重复调用是安全的：一次只跑一个循环。 */
 function startPolling() {
 	if (polling) return;
-	// 握手：问本地的 tab.version 路由要扩展版本，之后每次请求都把它报给桥。
-	const version = dispatch("tab.version").extensionVersion;
 	polling = true;
-	const transport = startTransport({ version, dispatch });
+	const transport = startTransport({
+		version: chrome.runtime.getManifest().version,
+		dispatch,
+	});
 	void transport.done.then(() => {
 		polling = false;
 	});

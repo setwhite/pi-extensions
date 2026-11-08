@@ -154,6 +154,8 @@ async function planOf(
 					...tab,
 					url: params.url,
 					initScript: params.init_script,
+					// 扩展等加载用配置的导航超时；宿主的 send 超时比它多 2 秒当保险。
+					timeoutMs: config.timing.navigateTimeoutMs,
 					// 建 target 要用的组配置：navigate 是唯一会顺手建 target 的动作。
 					groupName: config.chrome.groupName,
 					groupColor: config.chrome.groupColor,
