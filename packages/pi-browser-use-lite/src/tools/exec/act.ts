@@ -154,6 +154,9 @@ async function planOf(
 					...tab,
 					url: params.url,
 					initScript: params.init_script,
+					// 建 target 要用的组配置：navigate 是唯一会顺手建 target 的动作。
+					groupName: config.chrome.groupName,
+					groupColor: config.chrome.groupColor,
 				},
 				line: `ok: navigate ${String(params.url)}`,
 				timeoutMs: navigateTimeoutMs(config),
@@ -223,7 +226,7 @@ async function planOf(
 		case "upload":
 			return {
 				command: "page.upload",
-				params: { ...tab, paths: params.paths },
+				params: { ...tab, paths: params.paths, timeoutMs: limit },
 				line: `ok: upload ${(params.paths as unknown[] | undefined)?.length ?? 0} files`,
 				timeoutMs: limit,
 			};

@@ -58,6 +58,41 @@ export async function snapshotPage({
 	return format(payload, { mode, query, maxElements, textChars, changes });
 }
 
+/**
+ * 深查一个元素。指针类动作先用它把 `ref` 换成坐标。
+ * @param {number} tabId 标签 id
+ * @param {object} target 定位，二选一
+ * @param {string} [target.ref] 元素 ref
+ * @param {string} [target.selector] CSS 选择器
+ * @returns {Promise<{ url: string, title: string, element: object }>} 元素与其所在页面
+ */
+export async function elementAt(tabId, { ref, selector } = {}) {
+	requireOptionalString(ref, "ref");
+	requireOptionalString(selector, "selector");
+	return await runPage(tabId, "inspect", { ref, selector });
+}
+
+/**
+ * 拍一次基线。改元素的动作前调它，`changesSince` 从这里开始比。
+ * @param {number} tabId 标签 id
+ * @returns {Promise<void>}
+ */
+export async function markBaseline(tabId) {
+	const payload = await runPage(tabId, "collect", {});
+	await writeBaseline(tabId, payload.elements.map(tripleOf));
+}
+
+/**
+ * 与上一次基线比出增删改，并把当前页写成新基线。
+ * @param {number} tabId 标签 id
+ * @returns {Promise<{ added: number, removed: number, updated: number }>} 变更量
+ */
+export async function changesSince(tabId) {
+	const payload = await runPage(tabId, "collect", {});
+	const { added, removed, updated } = await takeChanges(tabId, payload);
+	return { added, removed, updated };
+}
+
 /** 按模式裁剪采集结果。 */
 function format(payload, { mode, query, maxElements, textChars, changes }) {
 	const head = { mode, url: payload.url, title: payload.title };
@@ -189,9 +224,8 @@ function runPageScript({ op, args }) {
 async function takeChanges(tabId, payload) {
 	const key = `${BASELINE_PREFIX}${tabId}`;
 	const current = payload.elements.map(tripleOf);
-	const stored = await chrome.storage.session.get(key);
-	await chrome.storage.session.set({ [key]: current });
-	const previous = stored?.[key];
+	const previous = (await chrome.storage.session.get(key))?.[key];
+	await writeBaseline(tabId, current);
 	if (!Array.isArray(previous))
 		return {
 			added: 0,
@@ -201,6 +235,12 @@ async function takeChanges(tabId, payload) {
 			note: "no previous snapshot",
 		};
 	return summarizeChanges(previous, current);
+}
+
+async function writeBaseline(tabId, rows) {
+	await chrome.storage.session.set({
+		[`${BASELINE_PREFIX}${tabId}`]: rows,
+	});
 }
 
 /** 元素三元组：标签、角色、可见文本。位置不参与比较。 */
