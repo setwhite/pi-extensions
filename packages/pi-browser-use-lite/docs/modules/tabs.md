@@ -6,7 +6,7 @@
 
 - 配置值与 sessionKey 全部随命令传进来，扩展侧不留副本。缺了就抛错，不用兜底默认值。
 - 一个 sessionKey 一个组。
-- 参数用 camelCase；SPEC 里的 `init_script`、`timeout_ms` 由 dispatch（T22）转换。
+- 参数用 camelCase：宿主执行器已把 SPEC 的 `init_script`、`timeout_ms` 转好，dispatch（T25）原样转发。
 
 ## 取舍
 

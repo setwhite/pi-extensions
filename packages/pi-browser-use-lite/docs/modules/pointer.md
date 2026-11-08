@@ -5,7 +5,7 @@
 ## 取舍
 
 - 不做 DOM 假事件回退（DEC-0007）。
-- `ref` 的解析归快照（T17），接线归 dispatch（T22）。pointer 只收 `selector` 或坐标：快照还没生成时没有 ref 可解，收到就抛 `bad_args`。
+- `ref` 的解析归快照（T17），接线归 dispatch（T25）。pointer 只收 `selector` 或坐标：快照还没生成时没有 ref 可解，收到就抛 `bad_args`。
 - 配置值（`input.dragSteps`、`input.scrollSteps`）随命令传入，扩展侧不留默认值：默认值只在 `src/config/schema.ts` 一份。
 - 不可见标签直接抛错（`page_error`），不调 `chrome.tabs.update` 激活：背景模式禁止抢前台，切不切由调用方决定。可见性读不到也算错误，不当作可见。
 - 点击坐标取元素矩形中心，不加随机偏移：断言与回放要可复现。
