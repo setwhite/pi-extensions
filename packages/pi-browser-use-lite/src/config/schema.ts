@@ -92,8 +92,16 @@ export const DEFAULT_PROMPT_GUIDELINES = [
 	"chrome_act: passing see adds a snapshot to the reply and costs extra tokens; ask for it only when the page just changed.",
 ] as const;
 
-/** 13 个标量字段的默认值。工具记录与文案覆盖不在其中。 */
-export const DEFAULTS: Omit<ResolvedConfig, "tools" | "guidance"> = {
+/**
+ * 13 个标量字段的默认值。工具记录与文案覆盖不在其中。
+ * `screenshot.dir` 跟着 agent 目录走，由 buildConfig 补，不在这里。
+ */
+export const DEFAULTS: Omit<
+	ResolvedConfig,
+	"tools" | "guidance" | "screenshot"
+> & {
+	screenshot: Omit<ResolvedConfig["screenshot"], "dir">;
+} = {
 	bridge: { port: 17_318 },
 	policy: {
 		authorizeOnStart: false,
@@ -103,8 +111,7 @@ export const DEFAULTS: Omit<ResolvedConfig, "tools" | "guidance"> = {
 	input: { dragSteps: 10, scrollSteps: 5 },
 	timing: { navigateTimeoutMs: 15_000 },
 	output: { maxElements: 80, textChars: 18_000 },
-	// dir 留空表示 <agent dir>/pi-browser-use-lite/screenshots，由 loadConfig 补。
-	screenshot: { dir: "", format: "png", keepNewest: 20 },
+	screenshot: { format: "png", keepNewest: 20 },
 	prompt: { guidelines: [...DEFAULT_PROMPT_GUIDELINES] },
 };
 

@@ -3,7 +3,9 @@
  * 每个字段非法时记一条 `<field path>: <reason>` 并回退默认值，收集完由 index.ts 统一抛出。
  */
 
+import { join } from "node:path";
 import {
+	CONFIG_SUBPATH,
 	DEFAULTS,
 	type Errors,
 	GUIDANCE_KEYS,
@@ -32,7 +34,11 @@ const TOP_KEYS = [
 	"guidance",
 ];
 
-export function buildConfig(raw: Raw, errors: Errors): ResolvedConfig {
+export function buildConfig(
+	raw: Raw,
+	agentDirPath: string,
+	errors: Errors,
+): ResolvedConfig {
 	checkUnknownKeys(raw, TOP_KEYS, "", errors);
 	const bridge = asObject(raw.bridge, "bridge", errors);
 	checkUnknownKeys(bridge, ["port"], "bridge", errors);
@@ -130,7 +136,7 @@ export function buildConfig(raw: Raw, errors: Errors): ResolvedConfig {
 		screenshot: {
 			dir: readString(
 				screenshot.dir,
-				DEFAULTS.screenshot.dir,
+				join(agentDirPath, CONFIG_SUBPATH, "screenshots"),
 				"screenshot.dir",
 				errors,
 			),

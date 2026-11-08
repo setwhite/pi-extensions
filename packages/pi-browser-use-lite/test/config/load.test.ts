@@ -3,6 +3,7 @@ import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { expect, it } from "vitest";
 import {
+	agentDir,
 	configPath,
 	DEFAULTS,
 	loadConfig,
@@ -64,6 +65,33 @@ it("AC2: 文件缺失时 13 个标量取默认值，工具全开且保留原名"
 	for (const id of TOOL_IDS) {
 		expect(config.tools[id]).toStrictEqual({ enabled: true, name: id });
 	}
+});
+
+it("AC2: 截图目录跟着 PI_CODING_AGENT_DIR 走", () => {
+	const saved = process.env.PI_CODING_AGENT_DIR;
+	let root = "";
+	const config = withAgentDir(undefined, (dir) => {
+		root = dir;
+		process.env.PI_CODING_AGENT_DIR = dir;
+		try {
+			return loadConfig(agentDir());
+		} finally {
+			if (saved === undefined) {
+				delete process.env.PI_CODING_AGENT_DIR;
+			} else {
+				process.env.PI_CODING_AGENT_DIR = saved;
+			}
+		}
+	});
+	expect(config.screenshot.dir).toBe(
+		join(root, "pi-browser-use-lite", "screenshots"),
+	);
+});
+
+it("AC3: screenshot.dir 写空串报错，不当成默认目录", () => {
+	expect(() => readConfig({ screenshot: { dir: "" } })).toThrowError(
+		"screenshot.dir",
+	);
 });
 
 it("AC2: 13 个标量逐项等于 schema 默认值", () => {

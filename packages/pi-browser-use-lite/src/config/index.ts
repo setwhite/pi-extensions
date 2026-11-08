@@ -38,20 +38,12 @@ export function configPath(env: NodeJS.ProcessEnv = process.env): string {
 export function loadConfig(agentDir: string): ResolvedConfig {
 	const file = configFile(agentDir);
 	const errors: string[] = [];
-	const config = buildConfig(readRaw(file), errors);
+	const config = buildConfig(readRaw(file), agentDir, errors);
 	if (errors.length > 0) {
 		const lines = errors.map((item) => `- ${item}`).join("\n");
 		throw new Error(`${file}: ${errors.length} invalid field(s):\n${lines}`);
 	}
-	if (config.screenshot.dir !== "") return config;
-	// 截图目录跟着 agent 目录走，隔离环境（测试、e2e）不会写进真实家目录。
-	return {
-		...config,
-		screenshot: {
-			...config.screenshot,
-			dir: join(agentDir, CONFIG_SUBPATH, "screenshots"),
-		},
-	};
+	return config;
 }
 
 function configFile(agentDir: string): string {
