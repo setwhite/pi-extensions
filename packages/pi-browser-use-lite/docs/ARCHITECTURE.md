@@ -33,7 +33,7 @@
 | `background/dispatch.js` | 动作路由表 |
 | `background/tabs.js` | 标签页查询、格式、分组、置前、导航与等加载、会话标签台账 |
 | `background/target.js` | 自动化 target 归属 |
-| `background/capture.js` | console 与 network 的早期捕获。在 `webNavigation.onCommitted` 时注入包装，确保从导航起就抓。契约见 SPEC-0001 的 `chrome_see` 段 |
+| `background/capture.js` | console 与 network 的早期捕获。`webNavigation.onCommitted` 时挂调试器并开 `Runtime`/`Network` 两个域，从导航起抓。契约见 SPEC-0001 的 `chrome_see` 段 |
 | `background/input/debugger.js` | debugger 挂载、自愈重连、原始 CDP 调用、scripting 回退 |
 | `background/input/pointer.js` | 移动、点击、悬停、拖动、滚轮 |
 | `background/input/keyboard.js` | 键位表、键事件、输入、填充、按键 |
@@ -119,7 +119,7 @@
 | 页面求值 | `browser-extension/background/page/evaluate.js` | 挂 `chrome.scripting` 与调试器桩，看求值结果与回退路径 |
 | 页面快照 | `browser-extension/background/page/snapshot.js` | 固定页面脚本的返回值，看 4 个模式的输出 |
 | 截屏 | `browser-extension/background/page/screenshot.js` 与 `src/fs/` | 给视口尺寸与假图，看落盘文件、文件名与修剪结果 |
-| 日志捕获 | `browser-extension/background/capture.js` | 挂 `chrome.webNavigation` 与页面桩，看日志条目 |
+| 日志捕获 | `browser-extension/background/capture.js` | 挂 `chrome.debugger` 与 `chrome.storage` 桩，往桩里发 CDP 事件，看日志条目 |
 | 目标隔离 | `browser-extension/background/target.js` | 挂 `chrome.storage.session` 与 `chrome.storage.local` 桩，看每个 sessionKey 的 target |
 | `/chrome` 命令 | `src/commands/` 的子命令处理函数 | 给桥桩，看打印文本与会话状态 |
 | 页面脚本自包含 | `browser-extension/page/*.js` | 静态扫描源码，断无 `import`、`export`、`require`、动态 `import()` |

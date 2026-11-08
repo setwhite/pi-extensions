@@ -89,7 +89,9 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 | `request_id` | 取单条请求详情 |
 | `clear` | 读完清空该日志 |
 
-日志按标签页各存一份，从该标签页本次导航的 `webNavigation.onCommitted` 起抓，跨后续同标签页的导航保留，直到 `clear`。`console` 记级别、文本、时间，上限 500 条，满了丢最旧的。`network` 记方法、URL、状态、耗时，保留跨导航的请求。请求体与响应体各截到 200,000 字符。`request_id` 取单条详情。抓不到就往 `logs` 的头部写一行说明，不阻塞导航。
+日志按标签页各存一份，从该标签页本次导航的 `webNavigation.onCommitted` 起抓，跨后续同标签页的导航保留，直到 `clear`。`console` 记级别、文本、时间，上限 500 条，满了丢最旧的。`network` 记方法、URL、状态、耗时，上限 1,000 条，满了丢最旧的。请求体与响应体各截到 200,000 字符。`request_id` 取单条详情。抓不到就往 `logs` 的头部写一行说明，不阻塞导航。
+
+抓取从本扩展接管标签起生效：`tab.new` 带 `url` 时页面已在加载，页头最早执行的脚本可能赶不上。
 
 **`chrome_tab`** — `action` 取 `list`、`new`、`switch`、`close`、`group`。`switch` / `close` / `group` 需要 `tab`。`tab` 命中多个标签时报错，列最多 5 个候选。
 
