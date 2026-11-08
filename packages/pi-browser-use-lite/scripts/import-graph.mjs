@@ -11,7 +11,7 @@ export const edges = {
 	commands: ["bridge", "policy"],
 	bridge: ["protocol"],
 	policy: ["config"],
-	tools: ["bridge", "format", "fs", "policy", "protocol"],
+	tools: ["bridge", "config", "format", "fs", "policy", "protocol"],
 	config: [],
 	protocol: [],
 	format: [],
@@ -25,7 +25,6 @@ export const singleImport = [
 		only: ["src/index.ts", "src/tools/result.ts"],
 		typeOnlyIn: ["src/index.ts"],
 	},
-	{ specifier: /^@earendil-works\/pi-tui$/, only: ["src/tools/render.ts"] },
 	{ specifier: /^node:(http|net)$/, only: ["src/bridge/"] },
 	{ specifier: /^node:fs(\/|$)/, only: ["src/config/", "src/fs/"] },
 ];

@@ -140,7 +140,7 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 | `timeout` | 三种失败原因，见 T06 | `Run /chrome status` |
 | `cdp_unavailable` | debugger 挂不上，被别的调试器或其它扩展 target 占用 | 关掉该页的开发者工具或密码管理器扩展 |
 | `page_error` | 页面内求值或注入抛错 | 给原始消息的首行 |
-| `aborted` | 调用方取消 | 无 |
+| `aborted` | 调用方取消 | `retry if you still need the result` |
 
 每条消息要能单独读懂，不依赖上文。模型拿到 `hint` 就能自己恢复。
 

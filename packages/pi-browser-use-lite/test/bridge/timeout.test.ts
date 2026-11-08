@@ -112,7 +112,7 @@ it("AC6: timeout 与 bridge_unreachable 的 details.error 带 class 与非空 hi
 	expect(unreachable.details.error.hint).not.toBe("");
 });
 
-it("AC6: aborted 的 class 为 aborted，hint 为空（SPEC 错误表写「无」）", async () => {
+it("AC6: aborted 的 class 为 aborted，hint 指出可以重试", async () => {
 	const bridge = await startBridge(100);
 	const controller = new AbortController();
 	const pending = bridge.send("tab.list", undefined, {
@@ -123,7 +123,7 @@ it("AC6: aborted 的 class 为 aborted，hint 为空（SPEC 错误表写「无�
 	const error = await catchError(pending);
 
 	expect(error.details.error.class).toBe("aborted");
-	expect(error.details.error.hint).toBe("");
+	expect(error.details.error.hint).toBe("retry if you still need the result");
 });
 
 it("AC6: 扩展回传 ok 为 false 时以 page_error 拒绝并保留原始消息", async () => {

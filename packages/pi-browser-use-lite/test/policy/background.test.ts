@@ -1,5 +1,5 @@
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { DEFAULTS } from "../../src/config/index.ts";
 import piBrowserUseLite from "../../src/index.ts";
 import {
@@ -10,10 +10,14 @@ import {
 	callTool,
 	cleanupConfig,
 	fakeApi,
+	stubBridge,
 	useConfig,
 } from "../helpers/extension-api.ts";
 
-afterEach(cleanupConfig);
+afterEach(() => {
+	vi.restoreAllMocks();
+	cleanupConfig();
+});
 
 const FOCUS_BLOCKED: PolicyDenial = {
 	class: "locked",
@@ -24,6 +28,7 @@ const FOCUS_BLOCKED: PolicyDenial = {
 it("AC4: 背景模式开着时 chrome_tab 的 switch 被拒，参数无从覆盖", async () => {
 	useConfig({ policy: { authorizeOnStart: true } });
 	const { api, registered } = fakeApi();
+	stubBridge();
 	piBrowserUseLite(api);
 	const tab = registered.find((tool) => tool.name === "chrome_tab");
 	expect(tab).toBeDefined();
@@ -46,10 +51,9 @@ it("AC4: 背景模式开着时 chrome_tab 的 switch 被拒，参数无从覆盖
 	});
 	expect(withExtra.details).toStrictEqual({ error: FOCUS_BLOCKED });
 
-	// 别的标签页动作照旧放行到执行器。
-	await expect(callTool(tabTool, { action: "list" })).rejects.toThrow(
-		/not wired yet/,
-	);
+	// 别的标签页动作照旧放行到执行器：桥的桩报未连上，说明没被策略挡。
+	const allowed = await callTool(tabTool, { action: "list" });
+	expect(JSON.stringify(allowed.content)).toContain("extension_missing:");
 });
 
 it("判定只看动作名：背景关时 switch 放行，其它动作不受管", () => {

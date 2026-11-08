@@ -7,6 +7,8 @@ import type {
 	ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import { vi } from "vitest";
+import { Bridge } from "../../src/bridge/index.ts";
+import { BridgeError } from "../../src/protocol/index.ts";
 
 const dirs: string[] = [];
 
@@ -87,13 +89,44 @@ export function fakeApi(): FakeApi {
 			return await run(args);
 		},
 		shutdown: async () => {
-			for (const handler of shutdowns) await handler();
+			for (const handler of shutdowns)
+				await handler({ type: "session_shutdown" }, FAKE_CTX);
 		},
 		startRun,
 	};
 }
 
 /** 调一次工具的执行器。参数与上下文都不参与策略判定。 */
+/**
+ * 让桥不真的绑端口：起桥即成功、报扩展没连上、发命令即以 `bridge_unreachable` 拒绝。
+ * 入口层测试只想看策略是否放行，不该占 17318。
+ */
+export function stubBridge(): void {
+	vi.spyOn(Bridge.prototype, "start").mockResolvedValue(undefined);
+	vi.spyOn(Bridge.prototype, "describe").mockResolvedValue({
+		mode: "server",
+		url: "http://127.0.0.1:17318",
+		connected: false,
+		queuedCommands: 0,
+		pendingCommands: 0,
+	});
+	vi.spyOn(Bridge.prototype, "send").mockRejectedValue(
+		new BridgeError(
+			"bridge_unreachable",
+			"the bridge is not running (stopped)",
+		),
+	);
+}
+
+/** 会话结束等路径会往 ui.notify 说话，测试靠它断言。 */
+export const notifyMock = vi.fn();
+
+/** 工具上下文里执行器只用到会话 id，其余成员测试不碰。 */
+const FAKE_CTX = {
+	sessionManager: { getSessionId: () => "s1" },
+	ui: { notify: notifyMock },
+} as never;
+
 export function callTool(
 	tool: ToolDefinition,
 	params: unknown = {},
@@ -103,6 +136,6 @@ export function callTool(
 		params as never,
 		undefined,
 		undefined,
-		{} as never,
+		FAKE_CTX,
 	);
 }

@@ -92,14 +92,17 @@ export type BridgeErrorClass =
 	| "page_error"
 	| "aborted";
 
-/** 每类错误的下一步动作，取自 SPEC-0001 错误表。`aborted` 没有下一步，所以是空串。 */
-const HINTS: Record<BridgeErrorClass, string> = {
+/**
+ * 桥会发出的 5 类错误的下一步动作，取自 SPEC-0001 错误表。
+ * 工具层补齐其余 7 类时从这里展开，别抄第二份。
+ */
+export const ERROR_HINTS: Record<BridgeErrorClass, string> = {
 	bridge_unreachable: "Run /chrome status, or change bridge.port",
 	extension_version: "reload the unpacked extension, then run /chrome status",
 	timeout: "Run /chrome status",
 	page_error:
 		"read the first line of the error, then retry or fix the arguments",
-	aborted: "",
+	aborted: "retry if you still need the result",
 };
 
 /** 一条命令的失败。`details.error` 与工具结果信封里的同名字段形状一致。 */
@@ -112,7 +115,7 @@ export class BridgeError extends Error {
 		super(message);
 		this.name = "BridgeError";
 		this.details = {
-			error: { class: errorClass, message, hint: HINTS[errorClass] },
+			error: { class: errorClass, message, hint: ERROR_HINTS[errorClass] },
 		};
 	}
 }

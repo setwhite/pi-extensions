@@ -1,7 +1,7 @@
 /**
  * 工具面：5 个分派器式工具的默认定义，以及按配置裁剪出的最终工具面。
  * 工具名不在此处复制自 config：名字与开关由调用方传入，见 buildSurface。
- * 执行器由 T23 接入；本模块只拥有对模型可见的文本与参数 schema。
+ * 执行器在 exec/ 里按 id 分派；本模块只拥有对模型可见的文本与参数 schema。
  */
 
 import { type TSchema, Type } from "typebox";
@@ -405,8 +405,9 @@ export interface GuidanceOverride {
 	promptGuidelines?: string[];
 }
 
-/** 一个注册用的工具定义，不含执行器。 */
+/** 一个注册用的工具定义，不含执行器。`id` 用来找执行器，不受改名影响。 */
 export interface SurfaceTool {
+	id: string;
 	name: string;
 	label: string;
 	description: string;
@@ -434,6 +435,7 @@ export function buildSurface(
 		if (!setting.enabled) continue;
 		const override = guidance[id] ?? {};
 		const tool: SurfaceTool = {
+			id,
 			name: setting.name,
 			label: spec.label,
 			description: override.description ?? spec.description,
