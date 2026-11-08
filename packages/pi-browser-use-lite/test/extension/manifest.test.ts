@@ -156,7 +156,7 @@ describe("台账随浏览器会话作废", () => {
 	});
 });
 
-describe("T24 日志捕获", () => {
+describe("日志捕获", () => {
 	it("AC9: 入口注册了 webNavigation.onCommitted，权限来自 manifest", async () => {
 		const chrome = stubChrome();
 

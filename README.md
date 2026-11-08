@@ -11,7 +11,7 @@
 
 ## 安装
 
-三个包都用 `pi install npm:<包名>` 安装。包名见上表。
+四个包都用 `pi install npm:<包名>` 安装。包名见上表。
 
 只能从 npm 安装。pi 的 git 安装只认仓库根，指不到子目录。
 
@@ -22,7 +22,7 @@
 需要 Node `>= 22.19` 与 pnpm。根 `package.json` 的 `packageManager` 固定 pnpm 版本。
 
 ```sh
-pnpm install # 在仓库根装一次，三个包共用 pnpm-lock.yaml
+pnpm install # 在仓库根装一次，四个包共用 pnpm-lock.yaml
 ```
 
 ### 全仓检查
@@ -52,7 +52,7 @@ pnpm -C packages/pi-herdr-subagents-lite test:e2e # 真 herdr + 真 pi 子进程
 pnpm -C packages/pi-browser-use-lite test:e2e     # 已开着的浏览器 + 已装好的扩展
 ```
 
-E2E 不进 `pnpm check`，也不进 CI。web-search 的 e2e 需要 provider key 与外网。herdr 的 e2e 自己起隔离的 herdr session 与 agent 目录。缺 herdr、pi 或 `auth.json` 时，整组跳过并打印原因。browser-use 的 e2e 不启动浏览器：它连一个已开着、已手动 load unpacked 装好扩展的浏览器，并且要求把浏览器窗口切到前台。
+E2E 不进 `pnpm check`，也不进 CI。web-search 的 e2e 需要 provider key 与外网。herdr 的 e2e 自己起隔离的 herdr session 与 agent 目录。缺 herdr、pi 或 `auth.json` 时，整组跳过并打印原因。browser-use 的 e2e 不启动浏览器：它连一个已开着、已手动 load unpacked 装好扩展的浏览器。
 
 ```sh
 export PI_E2E_MODEL=<model> # herdr e2e 换模型

@@ -139,7 +139,7 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 | `tab_not_found` | `tab` 参数匹配 0 个标签 | 列出最多 5 个候选 |
 | `tab_ambiguous` | `tab` 参数匹配多个标签 | 列出最多 5 个候选 |
 | `bad_args` | 参数不合法，例如缺定位方式、`batch` 超过 50 步 | 指出该补哪个参数 |
-| `timeout` | 三种失败原因，见 T06 | `Run /chrome status` |
+| `timeout` | 三种失败原因：扩展没在轮询、轮询了没取走、取走后没回结果 | `Run /chrome status` |
 | `cdp_unavailable` | debugger 挂不上，被别的调试器或其它扩展 target 占用 | 关掉该页的开发者工具或密码管理器扩展 |
 | `page_error` | 页面内求值或注入抛错 | 给原始消息的首行 |
 | `aborted` | 调用方取消 | `retry if you still need the result` |
