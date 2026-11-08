@@ -27,6 +27,7 @@ const modules = [
 	"page/snapshot.js",
 	"page/screenshot.js",
 	"page/evaluate.js",
+	"page/waitFor.js",
 	"input/debugger.js",
 	"input/pointer.js",
 	"input/keyboard.js",
@@ -52,6 +53,10 @@ vi.mock(extensionUrl("target.js"), () => ({
 	createTarget: vi.fn(async () => 21),
 	targetFor: vi.fn(async () => 7),
 	cleanupAutomation: vi.fn(async () => ({ closed: [7] })),
+}));
+
+vi.mock(extensionUrl("page/waitFor.js"), () => ({
+	waitFor: vi.fn(async () => ({ waitedMs: 250 })),
 }));
 
 vi.mock(extensionUrl("page/snapshot.js"), () => ({
@@ -105,9 +110,6 @@ async function moduleOf(path: (typeof modules)[number]) {
 	>;
 }
 
-/** 还没接的 1 条：page.waitFor 归 T26。 */
-const UNWIRED = ["page.waitFor"];
-
 afterEach(() => {
 	uninstallChrome();
 	vi.clearAllMocks();
@@ -129,22 +131,13 @@ it("AC2: 原型链上的名字也当未知动作", async () => {
 		await expect(dispatch(action)).rejects.toThrow(`Unknown action: ${action}`);
 });
 
-it("AC2: 除 waitFor 外的动作都接上了", () => {
+it("AC2: 25 条动作都接上了", () => {
 	const missing = [...routes]
-		.filter(
-			([action, route]) => route === undefined && !UNWIRED.includes(action),
-		)
+		.filter(([, route]) => route === undefined)
 		.map(([action]) => action);
 
 	expect(missing).toStrictEqual([]);
 	expect([...routes.keys()].sort()).toStrictEqual([...ACTION_NAMES].sort());
-});
-
-it("AC2: 没接的动作仍报未接，不报 Unknown action", async () => {
-	for (const action of UNWIRED)
-		await expect(dispatch(action, {})).rejects.toThrow(
-			`${action} is not wired yet`,
-		);
 });
 
 it("tab.version 报出清单版本", async () => {
@@ -519,4 +512,23 @@ it("AC11: 带标签的动作先开日志抓取，tab.list 不碰调试器", asyn
 
 	expect(capture.startCapture).toHaveBeenCalledTimes(1);
 	expect(capture.startCapture).toHaveBeenCalledWith(7);
+});
+
+it("AC6: page.waitFor 走 waitFor，参数原样转发", async () => {
+	const waitModule = await moduleOf("page/waitFor.js");
+
+	const result = await dispatch("page.waitFor", {
+		sessionKey: "s1",
+		kind: "selector",
+		value: "#go",
+		timeoutMs: 1_000,
+	});
+
+	expect(waitModule.waitFor).toHaveBeenCalledWith({
+		tabId: 7,
+		kind: "selector",
+		value: "#go",
+		timeoutMs: 1_000,
+	});
+	expect(result).toEqual({ waitedMs: 250 });
 });

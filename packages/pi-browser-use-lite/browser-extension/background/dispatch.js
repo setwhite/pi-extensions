@@ -23,6 +23,7 @@ import {
 	markBaseline,
 	snapshotPage,
 } from "./page/snapshot.js";
+import { waitFor } from "./page/waitFor.js";
 import {
 	activateTab,
 	closeTab,
@@ -47,6 +48,7 @@ const TAB_ACTIONS = new Set([
 	"page.key",
 	"page.scroll",
 	"page.screenshot",
+	"page.waitFor",
 	"page.console.list",
 	"page.network.list",
 	"page.network.get",
@@ -166,7 +168,11 @@ export const routes = new Map([
 		"page.network.get",
 		({ tabId, requestId } = {}) => networkRequest(tabId, requestId),
 	],
-	["page.waitFor", undefined],
+	[
+		"page.waitFor",
+		({ tabId, kind, value, timeoutMs } = {}) =>
+			waitFor({ tabId, kind, value, timeoutMs }),
+	],
 	[
 		"cdp.call",
 		async ({ tabId, method, params } = {}) => ({

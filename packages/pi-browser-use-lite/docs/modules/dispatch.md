@@ -9,4 +9,3 @@
 - 哪些动作算「改了页面」由代码里的 `CHANGED_ACTIONS` 定，这一层只负责在动作前后各拍一次快照；两边各写一遍名单只会漂。
 - `ref` 换成坐标也在这一层：指针层只认 `selector` 或 `x`+`y`，rect 只有快照拿得到。
 - 报错原样上抛，不包 `{ ok: false }`：信封归 `transport.js`，分类归宿主的 `classify()`。这一层只保留 `<class>: ` 前缀。
-- `page.waitFor` 留 `undefined`：表里留键，调用报 `… is not wired yet`，等 T26 的模块。

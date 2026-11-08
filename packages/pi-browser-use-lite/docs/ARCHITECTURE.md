@@ -118,6 +118,7 @@
 | 文件上传 | `browser-extension/background/input/upload.js` | 挂 `chrome.debugger` 桩，看 `DOM.setFileInputFiles` 的参数 |
 | 页面求值 | `browser-extension/background/page/evaluate.js` | 挂 `chrome.scripting` 与调试器桩，看求值结果与回退路径 |
 | 页面快照 | `browser-extension/background/page/snapshot.js` | 固定页面脚本的返回值，看 4 个模式的输出 |
+| 等待轮询 | `browser-extension/background/page/waitFor.js` | 挂调试器桩，看探测表达式、每 250 毫秒一次的节奏与超时文案 |
 | 截屏 | `browser-extension/background/page/screenshot.js` 与 `src/fs/` | 给视口尺寸与假图，看落盘文件、文件名与修剪结果 |
 | 日志捕获 | `browser-extension/background/capture.js` | 挂 `chrome.debugger` 与 `chrome.storage` 桩，往桩里发 CDP 事件，看日志条目 |
 | 目标隔离 | `browser-extension/background/target.js` | 挂 `chrome.storage.session` 与 `chrome.storage.local` 桩，看每个 sessionKey 的 target |
