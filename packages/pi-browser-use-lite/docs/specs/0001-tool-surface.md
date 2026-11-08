@@ -134,7 +134,7 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 | `locked` | 未授权，或背景模式挡下聚焦请求 | `Run /chrome authorize on`；背景模式挡下时是 `Run /chrome background off` |
 | `bridge_unreachable` | 桥没起，或端口被别的进程占 | `Run /chrome status`，或改 `bridge.port` |
 | `extension_missing` | 桥在，但没有扩展轮询 | 打印装扩展的三步 |
-| `extension_version` | 扩展版本与宿主不匹配 | 打印两侧版本与升级步骤 |
+| `extension_version` | 扩展版本与宿主不匹配 | 等一秒：扩展会自己重载；仍失败说明磁盘上是旧代码 |
 | `no_target` | 本会话还没有自动化 target | 先 `chrome_act navigate` 或 `chrome_tab new` |
 | `tab_not_found` | `tab` 参数匹配 0 个标签 | 列出最多 5 个候选 |
 | `tab_ambiguous` | `tab` 参数匹配多个标签 | 列出最多 5 个候选 |
@@ -262,7 +262,8 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 - 写死且不可配置：`wait` 轮询间隔 250 毫秒、`eval` 等 Promise、网络默认保留跨导航请求。
 - `wait` 默认超时 15 秒。`batch` 最多 50 步。
 - `bridge.port` 被非本进程占用时启动抛错，错误类别 `bridge_unreachable`，hint 指向改端口。不静默换端口。
-- Node ≥ 22.19.0。Chrome ≥ 91（模块 service worker）。Chrome 91–119 把 0.5 分钟的 `chrome.alarms` 周期夹到 1 分钟，所以这两个版本上轮询断了最多等 1 分钟重起。
+- Node ≥ 22.19.0。Chrome ≥ 91（模块 service worker）。轮询断了由扩展的 1 秒定时器重起；`chrome.alarms` 的 0.5 分钟周期是服务工作进程被回收后的兜底，Chrome 91–119 会把它夹到 1 分钟。
+- 扩展版本与宿主不一致时，扩展从 `/next` 应答头 `x-pi-browser-use-host-version` 读到期望版本，自己重载一次。重载后仍不一致就报 `extension_version`，不反复重载。
 - 浏览器要实现 `chrome.windows.create`：每个会话的自动化标签放在自己的窗口里。不依赖标签组，所以对 `chrome.tabs.group` 的实现不作要求（Vivaldi 8.2 的那一个是空操作）。
 - 可信输入要求页面可见：标签页被别的标签盖住、或窗口被别的窗口盖住时，Chrome 丢弃 CDP 输入。标签要先切到前台，窗口要露出来。
 - 安全：桥只绑 `127.0.0.1`。`/command` 只接受本机进程。`/next` 与 `/result` 校验浏览器来源。扩展的 `host_permissions` 用不带端口的 `http://127.0.0.1/*`，所以改 `bridge.port` 不必改 manifest、不必重装扩展。扩展侧的轮询地址在 `background/transport.js` 的 `BRIDGE_URL`，改端口时要一起改。

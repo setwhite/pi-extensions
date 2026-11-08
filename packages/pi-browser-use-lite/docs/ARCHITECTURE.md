@@ -28,8 +28,8 @@
 
 | 文件 | 职责 |
 |---|---|
-| `background/index.js` | 只注册 listener，启动轮询 |
-| `background/transport.js` | 轮询循环、结果回传、请求超时、报版本头 |
+| `background/index.js` | 只注册 listener，武装 alarm，每秒叫一次轮询 |
+| `background/transport.js` | 轮询循环、结果回传、请求超时、报版本头、版本落后重载自己 |
 | `background/dispatch.js` | 动作路由表 |
 | `background/tabs.js` | 标签页查询、格式、置前、导航与等加载、会话窗口台账 |
 | `background/ledger.js` | 台账的读写：一个键同时写 `storage.session` 与 `storage.local`，读先 session 再 local |
@@ -77,6 +77,7 @@
 - 真浏览器冒烟放 `test/e2e/`，不进 `pnpm test`，永不进 CI。e2e 不启动浏览器：它连一个已开着、已手动 load unpacked 装好扩展的 Chromium 系浏览器。浏览器没连上时失败并打印装扩展的三步，不 skip。挑战页由 e2e 用 `node:http` 起在 `127.0.0.1` 的临时端口上；manifest 的 `host_permissions` 不带端口，所以不用改 manifest。
 - e2e 认扩展身份靠桥状态里的 `extensionVersion`：只有本扩展会报版本，别的包（例如 pi-chrome）的桥占着 17318 时也会说 `connected`，只看这个布尔值会把命令发给别人的扩展。
 - 同一时间只能有一份本扩展在轮询。两个浏览器都装了同一版本时，桥分不出它们，命令会被先到的那一份取走，另一份只看到超时。跑 e2e 前关掉另一个浏览器。
+- 版本自愈只在版本号不一致时触发。改了扩展代码但没改版本号时桥不会叫扩展重载，跑 `pnpm test:e2e` 前仍要在扩展页手动刷新一次。
 - 收工 QA 四条：`pnpm lint`、`pnpm check:imports`、`pnpm test`、`pnpm typecheck`。
 - e2e 实测环境：Edge（Chromium）与 Vivaldi。用例里 `chrome_tab switch` 会把 Pi 的窗口带到前台，点击才过得了：窗口留在后台时页面是 `hidden`，Chrome 丢弃可信输入。
 

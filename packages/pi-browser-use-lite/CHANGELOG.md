@@ -12,3 +12,5 @@
 - 每个会话一个独立的浏览器窗口：动作在本次会话的 target 里执行，别的窗口不动，退出时按配置关掉标签。
 - 截图默认落在 `<agent dir>/pi-browser-use-lite/screenshots`，跟着 `PI_CODING_AGENT_DIR` 走，不写进家目录的 `~/.pi/screenshots`。
 - 发布：`CHANGELOG.md` 与 `browser-extension/` 一起进 `files`。用户从 npm 装到扩展源码后 load unpacked。
+- 扩展版本落后于包时自己重载一次，不必再去扩展页手动刷新。
+- 轮询断了由扩展的 1 秒定时器重起；`chrome.alarms` 只作服务工作进程被回收后的兜底。
