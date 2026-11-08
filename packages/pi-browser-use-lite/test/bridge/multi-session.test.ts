@@ -270,7 +270,7 @@ it("抢占失败不卡死：端口腾出来后下一次 send 能升为 server", 
 });
 
 it("AC5: 带非扩展 Origin 的 GET /next 返回 403", async () => {
-	const bridge = await startBridge(50);
+	const bridge = await startBridge(0);
 
 	const response = await fetch(`${bridge.url}/next`, {
 		headers: { origin: "https://evil.example" },
@@ -299,7 +299,7 @@ it("AC6: 端口被非本包进程占用时启动即报 bridge_unreachable，不�
 });
 
 it("AC7: 带非扩展 Origin 的 POST /result 返回 403", async () => {
-	const bridge = await startBridge(50);
+	const bridge = await startBridge(0);
 	const sending = bridge.send("tab.list", undefined, { timeoutMs: 2_000 });
 	sending.catch(() => undefined);
 	const body = await next(bridge.url);
