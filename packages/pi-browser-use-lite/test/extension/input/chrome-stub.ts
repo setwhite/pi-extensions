@@ -24,10 +24,20 @@ export interface ChromeStub {
 		detach: Mock;
 		sendCommand: Mock;
 		onEvent: { addListener: Mock; removeListener: Mock };
+		onDetach: { addListener: Mock; removeListener: Mock };
 	};
 	tabs: { update: Mock };
 	scripting: { executeScript: Mock };
-	runtime: { getURL: Mock };
+	runtime: {
+		getURL: Mock;
+		getManifest: Mock;
+		onInstalled: { addListener: Mock };
+		onStartup: { addListener: Mock };
+	};
+	alarms: { create: Mock; onAlarm: { addListener: Mock } };
+	webNavigation: { onCommitted: { addListener: Mock } };
+	/** 向已注册的 onDetach 监听器报一次摘除。 */
+	emitDetach: (source: { tabId?: number }, reason: string) => void;
 	/** 向已注册的 onEvent 监听器发一条调试器事件。 */
 	emit: (
 		source: { tabId?: number; targetId?: string },
@@ -49,6 +59,10 @@ export interface StubOptions {
 	detachResults?: unknown[];
 	/** 给了就让它成为 chrome.debugger.attach 抛出的错误。 */
 	attachError?: Error;
+	/** 预先塞进 chrome.storage.session 的键值。 */
+	storage?: Record<string, unknown>;
+	/** `chrome.runtime.getManifest().version` 报的版本，默认 `0.0.0`。 */
+	version?: string;
 	/** 给了就让它成为 chrome.scripting.executeScript 抛出的错误。 */
 	scriptingError?: Error;
 	/** executeScript 的应答。不给就返回 `[{ result: 1 }]`。 */
@@ -103,7 +117,25 @@ export function stubChrome(options: StubOptions = {}): ChromeStub {
 	const emit: ChromeStub["emit"] = (source, method, params = {}) => {
 		for (const listener of [...listeners]) listener(source, method, params);
 	};
-	const debuggerStub = { attach, detach, sendCommand, onEvent };
+	const detachListeners = new Set<
+		(source: { tabId?: number }, reason: string) => void
+	>();
+	const onDetach = {
+		addListener: vi.fn(
+			(listener: (source: { tabId?: number }, reason: string) => void) => {
+				detachListeners.add(listener);
+			},
+		),
+		removeListener: vi.fn(
+			(listener: (source: { tabId?: number }, reason: string) => void) => {
+				detachListeners.delete(listener);
+			},
+		),
+	};
+	const emitDetach: ChromeStub["emitDetach"] = (source, reason) => {
+		for (const listener of [...detachListeners]) listener(source, reason);
+	};
+	const debuggerStub = { attach, detach, sendCommand, onEvent, onDetach };
 	const scripting = {
 		executeScript: vi.fn(async (spec: Record<string, unknown>) => {
 			if (options.scriptingError) throw options.scriptingError;
@@ -114,26 +146,42 @@ export function stubChrome(options: StubOptions = {}): ChromeStub {
 	const tabs = { update: vi.fn(async () => ({})) };
 	const runtime = {
 		getURL: vi.fn((path: string) => `chrome-extension://test/${path}`),
+		getManifest: vi.fn(() => ({ version: options.version ?? "0.0.0" })),
+		onInstalled: { addListener: vi.fn() },
+		onStartup: { addListener: vi.fn() },
 	};
-	const session = new Map<string, unknown>();
-	const storage = {
-		session: {
-			get: vi.fn(async (key: string) => {
-				const value = session.get(key);
-				return value === undefined ? {} : { [key]: value };
-			}),
-			set: vi.fn(async (values: Record<string, unknown>) => {
-				for (const [key, value] of Object.entries(values))
-					session.set(key, value);
-			}),
-		},
-	};
+	const alarms = { create: vi.fn(), onAlarm: { addListener: vi.fn() } };
+	const webNavigation = { onCommitted: { addListener: vi.fn() } };
+	const session = new Map<string, unknown>(
+		Object.entries(options.storage ?? {}),
+	);
+	const local = new Map<string, unknown>();
+	const area = (store: Map<string, unknown>) => ({
+		get: vi.fn(async (key: string | string[] | null) => {
+			if (key === null) return Object.fromEntries(store);
+			const keys = Array.isArray(key) ? key : [key];
+			const found: Record<string, unknown> = {};
+			for (const name of keys)
+				if (store.has(name)) found[name] = store.get(name);
+			return found;
+		}),
+		set: vi.fn(async (values: Record<string, unknown>) => {
+			for (const [name, value] of Object.entries(values))
+				store.set(name, value);
+		}),
+		remove: vi.fn(async (key: string | string[]) => {
+			for (const name of Array.isArray(key) ? key : [key]) store.delete(name);
+		}),
+	});
+	const storage = { session: area(session), local: area(local) };
 	(globalThis as { chrome?: unknown }).chrome = {
 		debugger: options.withDebugger === false ? undefined : debuggerStub,
 		scripting,
 		storage,
 		tabs,
 		runtime,
+		alarms,
+		webNavigation,
 	};
 	return {
 		calls,
@@ -142,7 +190,10 @@ export function stubChrome(options: StubOptions = {}): ChromeStub {
 		tabs,
 		scripting,
 		runtime,
+		alarms,
+		webNavigation,
 		emit,
+		emitDetach,
 	};
 }
 

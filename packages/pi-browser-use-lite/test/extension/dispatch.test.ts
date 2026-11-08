@@ -1,5 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { ACTION_NAMES } from "../../src/protocol/index.ts";
+import { stubChrome, uninstallChrome } from "./input/chrome-stub.ts";
 
 interface DispatchModule {
 	routes: Map<
@@ -20,6 +21,7 @@ function extensionUrl(path: string): string {
 
 /** 接线测试只关心「谁被调用、收到什么」，所以被接的模块全部换成桩。 */
 const modules = [
+	"capture.js",
 	"tabs.js",
 	"target.js",
 	"page/snapshot.js",
@@ -37,6 +39,13 @@ vi.mock(extensionUrl("tabs.js"), () => ({
 	navigateTab: vi.fn(async () => ({ id: 7, url: "https://a" })),
 	closeTab: vi.fn(async () => ({ closed: 7 })),
 	groupTab: vi.fn(async () => ({ id: 7 })),
+}));
+
+vi.mock(extensionUrl("capture.js"), () => ({
+	startCapture: vi.fn(async () => {}),
+	listConsole: vi.fn(async () => ({ records: [{ level: "log" }] })),
+	listNetwork: vi.fn(async () => ({ records: [{ id: "r1" }] })),
+	networkRequest: vi.fn(async () => ({ id: "r1", responseBody: "body" })),
 }));
 
 vi.mock(extensionUrl("target.js"), () => ({
@@ -96,23 +105,11 @@ async function moduleOf(path: (typeof modules)[number]) {
 	>;
 }
 
-/** 还没接的 4 条：三条日志归 T24，page.waitFor 归 T26。 */
-const UNWIRED = [
-	"page.console.list",
-	"page.network.list",
-	"page.network.get",
-	"page.waitFor",
-];
-
-/** 挂一个只记账的 chrome 桩，供 tab.version 用。 */
-function stubChrome(version: string): void {
-	(globalThis as { chrome?: unknown }).chrome = {
-		runtime: { getManifest: () => ({ version }) },
-	};
-}
+/** 还没接的 1 条：page.waitFor 归 T26。 */
+const UNWIRED = ["page.waitFor"];
 
 afterEach(() => {
-	delete (globalThis as { chrome?: unknown }).chrome;
+	uninstallChrome();
 	vi.clearAllMocks();
 });
 
@@ -132,7 +129,7 @@ it("AC2: 原型链上的名字也当未知动作", async () => {
 		await expect(dispatch(action)).rejects.toThrow(`Unknown action: ${action}`);
 });
 
-it("AC2: 除日志三条与 waitFor 外的动作都接上了", () => {
+it("AC2: 除 waitFor 外的动作都接上了", () => {
 	const missing = [...routes]
 		.filter(
 			([action, route]) => route === undefined && !UNWIRED.includes(action),
@@ -151,7 +148,7 @@ it("AC2: 没接的动作仍报未接，不报 Unknown action", async () => {
 });
 
 it("tab.version 报出清单版本", async () => {
-	stubChrome("0.1.0");
+	stubChrome({ version: "0.1.0" });
 
 	expect(await dispatch("tab.version")).toEqual({ extensionVersion: "0.1.0" });
 });
@@ -494,4 +491,32 @@ it("AC8: tab.new 之后同一会话的 page.snapshot 只问 target，不再建�
 	expect(target.targetFor).toHaveBeenCalledWith(
 		expect.objectContaining({ sessionKey: "s1", action: "page.snapshot" }),
 	);
+});
+
+it("AC10: 三条日志动作各走 capture.js 的一个函数", async () => {
+	const capture = await moduleOf("capture.js");
+
+	expect(
+		await dispatch("page.console.list", { sessionKey: "s1", clear: true }),
+	).toEqual({ records: [{ level: "log" }] });
+	expect(await dispatch("page.network.list", { sessionKey: "s1" })).toEqual({
+		records: [{ id: "r1" }],
+	});
+	expect(
+		await dispatch("page.network.get", { sessionKey: "s1", requestId: "r1" }),
+	).toEqual({ id: "r1", responseBody: "body" });
+
+	expect(capture.listConsole).toHaveBeenCalledWith(7, { clear: true });
+	expect(capture.listNetwork).toHaveBeenCalledWith(7, { clear: false });
+	expect(capture.networkRequest).toHaveBeenCalledWith(7, "r1");
+});
+
+it("AC11: 带标签的动作先开日志抓取，tab.list 不碰调试器", async () => {
+	const capture = await moduleOf("capture.js");
+
+	await dispatch("page.click", { sessionKey: "s1", ref: "e1" });
+	await dispatch("tab.list", { sessionKey: "s1" });
+
+	expect(capture.startCapture).toHaveBeenCalledTimes(1);
+	expect(capture.startCapture).toHaveBeenCalledWith(7);
 });

@@ -1,3 +1,4 @@
+import { onCommitted } from "./capture.js";
 import { dispatch } from "./dispatch.js";
 import { startTransport } from "./transport.js";
 
@@ -37,6 +38,7 @@ function onPollAlarm(alarm) {
 	onWake();
 }
 
+chrome.webNavigation.onCommitted.addListener(onCommitted);
 chrome.runtime.onInstalled.addListener(onWake);
 chrome.runtime.onStartup.addListener(onWake);
 chrome.alarms.onAlarm.addListener(onPollAlarm);

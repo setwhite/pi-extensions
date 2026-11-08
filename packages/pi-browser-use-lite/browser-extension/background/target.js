@@ -118,6 +118,21 @@ async function isTarget(tabId, groupId) {
 	return tabs.some((tab) => tab.id === tabId && isInGroup(tab, groupId));
 }
 
+/**
+ * 台账里所有会话的 target 标签 id。日志抓取只挂这些标签，不动用户自己的标签。
+ * @returns {Promise<Set<number>>} 标签 id
+ */
+export async function trackedTabIds() {
+	const ids = new Set();
+	for (const area of [chrome.storage.session, chrome.storage.local]) {
+		const stored = await area.get(null);
+		for (const [key, value] of Object.entries(stored ?? {}))
+			if (key.startsWith(TARGET_KEY_PREFIX) && Number.isInteger(value))
+				ids.add(value);
+	}
+	return ids;
+}
+
 async function readOwned(sessionKey) {
 	const stored = await readRecord(OWNED_KEY_PREFIX + sessionKey);
 	return Array.isArray(stored) ? stored : [];

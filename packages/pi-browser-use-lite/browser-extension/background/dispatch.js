@@ -5,6 +5,12 @@
  * target 解析在 dispatch 里统一做一步，不散进每个处理函数。
  */
 
+import {
+	listConsole,
+	listNetwork,
+	networkRequest,
+	startCapture,
+} from "./capture.js";
 import { sendCommand } from "./input/debugger.js";
 import { fill, press, type as typeText } from "./input/keyboard.js";
 import { click, drag, hover, scroll } from "./input/pointer.js";
@@ -41,6 +47,9 @@ const TAB_ACTIONS = new Set([
 	"page.key",
 	"page.scroll",
 	"page.screenshot",
+	"page.console.list",
+	"page.network.list",
+	"page.network.get",
 	"cdp.call",
 ]);
 
@@ -145,9 +154,18 @@ export const routes = new Map([
 		({ tabId, format, fullPage } = {}) =>
 			screenshotPage({ tabId, format, fullPage }),
 	],
-	["page.console.list", undefined],
-	["page.network.list", undefined],
-	["page.network.get", undefined],
+	[
+		"page.console.list",
+		({ tabId, clear } = {}) => listConsole(tabId, { clear: clear === true }),
+	],
+	[
+		"page.network.list",
+		({ tabId, clear } = {}) => listNetwork(tabId, { clear: clear === true }),
+	],
+	[
+		"page.network.get",
+		({ tabId, requestId } = {}) => networkRequest(tabId, requestId),
+	],
 	["page.waitFor", undefined],
 	[
 		"cdp.call",
@@ -165,7 +183,7 @@ export const routes = new Map([
 /**
  * 路由一条命令。
  * 动作名不在表里抛 `Unknown action: …`；在表里但实现没接抛 `… is not wired yet`。
- * 需要标签 id 的动作先取 target，改元素的动作前后各拍一次快照比出变更量。
+ * 需要标签 id 的动作先取 target 并开日志抓取，改元素的动作前后各拍一次快照比出变更量。
  * @param {string} action 动作名
  * @param {Record<string, unknown>} [params] 动作参数
  * @returns {Promise<unknown>} 动作的结果
@@ -177,6 +195,7 @@ export async function dispatch(action, params = {}) {
 	if (!TAB_ACTIONS.has(action)) return await route(params);
 
 	const tabId = await tabIdOf(action, params);
+	await startCapture(tabId);
 	const withTab = { ...params, tabId };
 	if (!CHANGED_ACTIONS.has(action)) return await route(withTab);
 	await markBaseline(tabId);

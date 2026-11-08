@@ -6,6 +6,7 @@ import {
 	BridgeError,
 	EXTENSION_VERSION_HEADER,
 } from "../../src/protocol/index.ts";
+import { stubChrome } from "./input/chrome-stub.ts";
 
 interface Transport {
 	stop: () => void;
@@ -80,21 +81,6 @@ async function startStubBridge(replies: unknown[]): Promise<StubBridge> {
 	return { url: `http://127.0.0.1:${port}`, requests };
 }
 
-function stubChrome(version: string): {
-	alarms: { create: ReturnType<typeof vi.fn> };
-} {
-	const stub = {
-		runtime: {
-			getManifest: () => ({ version }),
-			onInstalled: { addListener: vi.fn() },
-			onStartup: { addListener: vi.fn() },
-		},
-		alarms: { create: vi.fn(), onAlarm: { addListener: vi.fn() } },
-	};
-	(globalThis as { chrome?: unknown }).chrome = stub;
-	return stub;
-}
-
 function sleep(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -138,7 +124,7 @@ async function reportedVersion(url: string): Promise<string | undefined> {
 
 /** 用真桥跑一段真传输，等握手完成。 */
 async function startPaired(version: string): Promise<Bridge> {
-	stubChrome(version);
+	stubChrome({ version });
 	const bridge = new Bridge({ port: 0, holdMs: 50, hostVersion: HOST_VERSION });
 	bridges.push(bridge);
 	await bridge.start();
@@ -249,7 +235,7 @@ it("请求超过时限就结束循环，等下一次唤醒重起", async () => {
 });
 
 it("AC5: 加载入口就把 alarm 设成每 0.5 分钟一次", async () => {
-	const chrome = stubChrome("0.1.0");
+	const chrome = stubChrome({ version: "0.1.0" });
 
 	await import(extensionUrl("index.js"));
 

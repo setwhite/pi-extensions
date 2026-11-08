@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { stubChrome, uninstallChrome } from "./input/chrome-stub.ts";
 
 const EXTENSION_DIR = fileURLToPath(
 	new URL("../../browser-extension/", import.meta.url),
@@ -20,34 +21,8 @@ function readManifest(): Manifest {
 	) as Manifest;
 }
 
-interface ChromeStub {
-	runtime: {
-		getManifest: () => { version: string };
-		onInstalled: { addListener: ReturnType<typeof vi.fn> };
-		onStartup: { addListener: ReturnType<typeof vi.fn> };
-	};
-	alarms: {
-		create: ReturnType<typeof vi.fn>;
-		onAlarm: { addListener: ReturnType<typeof vi.fn> };
-	};
-}
-
-/** 挂一个只记账的 chrome 桩，供 background 模块加载时用。 */
-function stubChrome(): ChromeStub {
-	const stub: ChromeStub = {
-		runtime: {
-			getManifest: () => ({ version: "0.0.0" }),
-			onInstalled: { addListener: vi.fn() },
-			onStartup: { addListener: vi.fn() },
-		},
-		alarms: { create: vi.fn(), onAlarm: { addListener: vi.fn() } },
-	};
-	(globalThis as { chrome?: unknown }).chrome = stub;
-	return stub;
-}
-
 afterEach(() => {
-	delete (globalThis as { chrome?: unknown }).chrome;
+	uninstallChrome();
 	vi.restoreAllMocks();
 });
 
@@ -112,5 +87,22 @@ describe("background 入口", () => {
 		chrome.alarms.create.mockClear();
 		listener({ name: "pi-browser-use:poll" });
 		expect(chrome.alarms.create).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe("T24 日志捕获", () => {
+	it("AC9: 入口注册了 webNavigation.onCommitted，权限来自 manifest", async () => {
+		const chrome = stubChrome();
+
+		vi.resetModules();
+		await import(
+			new URL("../../browser-extension/background/index.js", import.meta.url)
+				.href
+		);
+
+		expect(chrome.webNavigation.onCommitted.addListener).toHaveBeenCalledTimes(
+			1,
+		);
+		expect(readManifest().permissions).toContain("webNavigation");
 	});
 });
