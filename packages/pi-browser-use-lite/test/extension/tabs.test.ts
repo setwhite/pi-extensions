@@ -1,12 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-
-interface Tab {
-	id: number;
-	active?: boolean;
-	groupId?: number;
-	title?: string;
-	url?: string;
-}
+import { stubTabsChrome, type Tab } from "./tabs-stub.ts";
 
 interface TabsModule {
 	listTabs: (params: { sessionKey: string }) => Promise<Tab[]>;
@@ -37,24 +30,6 @@ interface TabsModule {
 	}) => Promise<Tab>;
 }
 
-type Mock = ReturnType<typeof vi.fn>;
-
-interface ChromeStub {
-	store: Record<string, unknown>;
-	tabs: {
-		query: Mock;
-		create: Mock;
-		get: Mock;
-		group: Mock;
-		remove: Mock;
-		update: Mock;
-		onUpdated: { addListener: Mock; removeListener: Mock };
-	};
-	tabGroups: { query: Mock; update: Mock };
-	debugger: { attach: Mock; detach: Mock; sendCommand: Mock };
-	listeners: Set<(tabId: number, changeInfo: { status?: string }) => void>;
-}
-
 /** 扩展侧的 JS 没有类型声明，用文件 URL 动态载入。 */
 function extensionUrl(path: string): string {
 	return new URL(`../../browser-extension/background/${path}`, import.meta.url)
@@ -71,78 +46,12 @@ const {
 	groupTab,
 } = (await import(extensionUrl("tabs.js"))) as TabsModule;
 
-/** 挂 chrome 桩。storage.session 用对象模拟，跨调用保留。 */
-function stubChrome(options: { groupId?: number } = {}): ChromeStub {
-	const store: Record<string, unknown> = {};
-	if (options.groupId !== undefined) store["tabs.groupId.s1"] = options.groupId;
-	const listeners = new Set<
-		(tabId: number, changeInfo: { status?: string }) => void
-	>();
-	const tabs = {
-		query: vi.fn(async () => [] as Tab[]),
-		create: vi.fn(async () => ({}) as Tab),
-		get: vi.fn(async () => ({}) as Tab),
-		group: vi.fn(async () => -1),
-		remove: vi.fn(async () => undefined),
-		update: vi.fn(async () => ({}) as Tab),
-		onUpdated: {
-			addListener: vi.fn(
-				(
-					listener: (tabId: number, changeInfo: { status?: string }) => void,
-				) => {
-					listeners.add(listener);
-				},
-			),
-			removeListener: vi.fn(
-				(
-					listener: (tabId: number, changeInfo: { status?: string }) => void,
-				) => {
-					listeners.delete(listener);
-				},
-			),
-		},
-	};
-	const debuggerStub = {
-		attach: vi.fn(async () => undefined),
-		detach: vi.fn(async () => undefined),
-		sendCommand: vi.fn(async () => ({}) as Record<string, unknown>),
-	};
-	const tabGroups = {
-		query: vi.fn(async () => [{ id: 7 }]),
-		update: vi.fn(async () => undefined),
-	};
-	const storage = {
-		session: {
-			get: vi.fn(
-				async (key: string) =>
-					({ [key]: store[key] }) as Record<string, unknown>,
-			),
-			set: vi.fn(async (entries: Record<string, unknown>) => {
-				Object.assign(store, entries);
-			}),
-		},
-	};
-	(globalThis as { chrome?: unknown }).chrome = {
-		tabs,
-		tabGroups,
-		storage,
-		debugger: debuggerStub,
-	};
-	return {
-		store,
-		tabs,
-		tabGroups,
-		debugger: debuggerStub,
-		listeners,
-	};
-}
-
 afterEach(() => {
 	delete (globalThis as { chrome?: unknown }).chrome;
 });
 
 it("AC3: tab.list 只返回本会话组里的标签", async () => {
-	const stub = stubChrome({ groupId: 7 });
+	const stub = stubTabsChrome({ groupId: 7 });
 	stub.tabs.query.mockResolvedValueOnce([
 		{ id: 3, active: true, groupId: 7, title: "a", url: "https://a/" },
 		{ id: 4, active: false, groupId: 7, title: "b", url: "https://b/" },
@@ -158,7 +67,7 @@ it("AC3: tab.list 只返回本会话组里的标签", async () => {
 });
 
 it("AC3: 还没有会话组时 tab.list 返回空", async () => {
-	const stub = stubChrome();
+	const stub = stubTabsChrome();
 
 	const tabs = await listTabs({ sessionKey: "s1" });
 
@@ -167,7 +76,7 @@ it("AC3: 还没有会话组时 tab.list 返回空", async () => {
 });
 
 it("AC6: 被拖出本会话组的标签不再列出", async () => {
-	const stub = stubChrome({ groupId: 7 });
+	const stub = stubTabsChrome({ groupId: 7 });
 	stub.tabs.query.mockResolvedValueOnce([
 		{ id: 4, active: false, groupId: 7, title: "b", url: "https://b/" },
 	]);
@@ -178,7 +87,7 @@ it("AC6: 被拖出本会话组的标签不再列出", async () => {
 });
 
 it("AC2/AC8: tab.new 建标签、入组并把标题与颜色交给 tabGroups.update", async () => {
-	const stub = stubChrome();
+	const stub = stubTabsChrome();
 	stub.tabs.create.mockResolvedValueOnce({
 		id: 21,
 		active: false,
@@ -223,7 +132,7 @@ it("AC2/AC8: tab.new 建标签、入组并把标题与颜色交给 tabGroups.upd
 });
 
 it("AC2: 已有会话组时新标签加入同一个组", async () => {
-	const stub = stubChrome({ groupId: 7 });
+	const stub = stubTabsChrome({ groupId: 7 });
 	stub.tabs.create.mockResolvedValueOnce({ id: 22, active: true } as Tab);
 	stub.tabs.group.mockResolvedValueOnce(7);
 	stub.tabs.get.mockResolvedValueOnce({
@@ -245,7 +154,7 @@ it("AC2: 已有会话组时新标签加入同一个组", async () => {
 });
 
 it("AC2: 分组失败时关闭新标签并抛错", async () => {
-	const stub = stubChrome();
+	const stub = stubTabsChrome();
 	stub.tabs.create.mockResolvedValueOnce({ id: 23, active: true } as Tab);
 	stub.tabs.group.mockRejectedValueOnce(new Error("group failed"));
 
@@ -262,7 +171,7 @@ it("AC2: 分组失败时关闭新标签并抛错", async () => {
 });
 
 it("质量: 两个 sessionKey 各用各的组", async () => {
-	const stub = stubChrome();
+	const stub = stubTabsChrome();
 	stub.tabs.create
 		.mockResolvedValueOnce({ id: 41, active: true } as Tab)
 		.mockResolvedValueOnce({ id: 42, active: true } as Tab);
@@ -291,7 +200,7 @@ it("质量: 两个 sessionKey 各用各的组", async () => {
 });
 
 it("AC4: 后台模式 tab.activate 抛错且不调用 tabs.update", async () => {
-	const stub = stubChrome();
+	const stub = stubTabsChrome();
 
 	await expect(activateTab({ tabId: 5, background: true })).rejects.toThrow(
 		"background mode",
@@ -301,7 +210,7 @@ it("AC4: 后台模式 tab.activate 抛错且不调用 tabs.update", async () => 
 });
 
 it("AC4: 前台模式激活标签", async () => {
-	const stub = stubChrome();
+	const stub = stubTabsChrome();
 	stub.tabs.update.mockResolvedValueOnce({
 		id: 5,
 		active: true,
@@ -317,7 +226,7 @@ it("AC4: 前台模式激活标签", async () => {
 });
 
 it("AC5: 早期捕获在 pendingTabCreations 上等，不报 tab not found", async () => {
-	const stub = stubChrome();
+	const stub = stubTabsChrome();
 	let release!: (tab: Tab) => void;
 	stub.tabs.create.mockReturnValueOnce(
 		new Promise<Tab>((resolve) => {
@@ -357,7 +266,7 @@ it("AC5: 早期捕获在 pendingTabCreations 上等，不报 tab not found", asy
 });
 
 it("AC7: navigate 带 initScript 时在导航前注册、完成后移除", async () => {
-	const stub = stubChrome();
+	const stub = stubTabsChrome();
 	const order: string[] = [];
 	stub.debugger.sendCommand.mockImplementation(
 		async (_target: unknown, method: string) => {
@@ -424,7 +333,7 @@ it("AC7: navigate 带 initScript 时在导航前注册、完成后移除", async
 it("AC9: 页面在超时后仍加载不完时报 timeout", async () => {
 	vi.useFakeTimers();
 	try {
-		const stub = stubChrome();
+		const stub = stubTabsChrome();
 		stub.tabs.update.mockResolvedValue({ id: 9 } as Tab);
 
 		const navigating = navigateTab({
@@ -445,7 +354,7 @@ it("AC9: 页面在超时后仍加载不完时报 timeout", async () => {
 it("质量: tabs.update 抛错后不留下未处理的超时 rejection", async () => {
 	vi.useFakeTimers();
 	try {
-		const stub = stubChrome();
+		const stub = stubTabsChrome();
 		stub.tabs.update.mockRejectedValueOnce(new Error("Invalid URL"));
 
 		await expect(
@@ -461,7 +370,7 @@ it("质量: tabs.update 抛错后不留下未处理的超时 rejection", async (
 });
 
 it("质量: 缺 sessionKey 或配置参数时抛明确错误", async () => {
-	const stub = stubChrome();
+	const stub = stubTabsChrome();
 
 	await expect(listTabs({} as { sessionKey: string })).rejects.toThrow(
 		"sessionKey is required",
@@ -479,7 +388,7 @@ it("质量: 缺 sessionKey 或配置参数时抛明确错误", async () => {
 });
 
 it("交付物: tab.close 关闭标签", async () => {
-	const stub = stubChrome();
+	const stub = stubTabsChrome();
 
 	const result = await closeTab({ tabId: 31 });
 
@@ -488,7 +397,7 @@ it("交付物: tab.close 关闭标签", async () => {
 });
 
 it("交付物: tab.group 把已有标签加进会话组", async () => {
-	const stub = stubChrome({ groupId: 7 });
+	const stub = stubTabsChrome({ groupId: 7 });
 	stub.tabs.group.mockResolvedValueOnce(7);
 	stub.tabs.get.mockResolvedValueOnce({
 		id: 32,
