@@ -18,7 +18,12 @@ const SCRIPTING_DENIED =
 export async function attach(tabId) {
 	requireDebugger();
 	if (attachedTabs.has(tabId)) return;
-	await chrome.debugger.attach({ tabId }, "1.3");
+	try {
+		await chrome.debugger.attach({ tabId }, "1.3");
+	} catch (error) {
+		// 挂不上的原因（开发者工具占着、别的扩展占着）只有这一处能说清。
+		throw new Error(`cdp_unavailable: ${errorMessage(error)}`);
+	}
 	attachedTabs.add(tabId);
 }
 

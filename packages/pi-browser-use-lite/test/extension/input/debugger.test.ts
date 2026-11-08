@@ -190,3 +190,17 @@ it("AC5: args 不能 JSON 序列化时抛明确错误", async () => {
 		}),
 	).rejects.toThrow("args must be JSON-serializable");
 });
+
+it("AC4: 挂不上调试器时抛 cdp_unavailable，不归成 page_error", async () => {
+	stubChrome({
+		attachError: new Error(
+			"Another debugger is already attached to the tab with id: 99.",
+		),
+	});
+
+	await expect(
+		sendCommand(99, "Runtime.evaluate", { expression: "1" }),
+	).rejects.toThrow(
+		"cdp_unavailable: Another debugger is already attached to the tab with id: 99.",
+	);
+});

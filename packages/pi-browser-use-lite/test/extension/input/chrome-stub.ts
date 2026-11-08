@@ -47,6 +47,8 @@ export interface StubOptions {
 	sendResults?: unknown[];
 	/** detach 按队列应答，队列里的 Error 会被抛出。 */
 	detachResults?: unknown[];
+	/** 给了就让它成为 chrome.debugger.attach 抛出的错误。 */
+	attachError?: Error;
 	/** 给了就让它成为 chrome.scripting.executeScript 抛出的错误。 */
 	scriptingError?: Error;
 	/** executeScript 的应答。不给就返回 `[{ result: 1 }]`。 */
@@ -82,6 +84,7 @@ export function stubChrome(options: StubOptions = {}): ChromeStub {
 		},
 	);
 	const attach = vi.fn(async () => {
+		if (options.attachError) throw options.attachError;
 		methods.push("attach");
 	});
 	const detach = vi.fn(async () => {
