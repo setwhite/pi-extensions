@@ -130,6 +130,38 @@ afterEach(async () => {
 	for (const close of closers.splice(0)) await close();
 });
 
+/** 模拟扩展报到一次：owner 由此记下连接与版本。 */
+async function helloOwner(owner: Bridge): Promise<void> {
+	await fetch(`${owner.url}/next`, {
+		headers: { "x-pi-browser-use-version": HOST_VERSION },
+	});
+}
+
+it("client 的 describe 报 owner 看到的连接与版本", async () => {
+	const { owner, client } = await startPair();
+	await helloOwner(owner);
+	expect(owner.status().connected).toBe(true);
+	expect(client.status().connected).toBe(false);
+
+	const described = await client.describe();
+
+	expect(described.mode).toBe("client");
+	expect(described.url).toBe(client.url);
+	expect(described.connected).toBe(true);
+	expect(described.extensionVersion).toBe(HOST_VERSION);
+});
+
+it("owner 停了以后 describe 退回本地视图", async () => {
+	const { owner, client } = await startPair();
+	await helloOwner(owner);
+	await owner.stop();
+
+	const described = await client.describe();
+
+	expect(described.mode).toBe("client");
+	expect(described.connected).toBe(false);
+});
+
 it("AC2: 端口已被同包桥占用时，第二个实例的 mode 是 client", async () => {
 	const owner = await startBridge(0);
 	const port = portOf(owner.url);

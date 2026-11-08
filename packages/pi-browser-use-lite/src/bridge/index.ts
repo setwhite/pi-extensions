@@ -30,7 +30,7 @@ import {
 /** 桥只绑回环地址，host 不开放配置。 */
 const HOST = "127.0.0.1";
 
-/** 判断端口上的进程是不是同包的桥时，等它答 `/status` 的时限。 */
+/** 探端口或问 owner 时，等它答 `/status` 的时限。 */
 const STATUS_PROBE_MS = 1_000;
 
 export interface BridgeOptions {
@@ -199,6 +199,19 @@ export class Bridge {
 			pendingCommands: this.pending.size,
 			extensionVersion: this.extensionVersion,
 		};
+	}
+
+	/**
+	 * 给 `/chrome status` 看的真实状态。client 模式本地看不见扩展，问 owner 要；
+	 * owner 答不上话就退回本地视图——它没在服务，谁也算不上连着。
+	 */
+	async describe(): Promise<BridgeStatus> {
+		const local = this.status();
+		if (local.mode !== "client") return local;
+		const seen = await this.askOwnerStatus();
+		return seen === undefined
+			? local
+			: { ...seen, mode: "client", url: this.url };
 	}
 
 	/**
@@ -378,6 +391,20 @@ export class Bridge {
 			"bridge_unreachable",
 			`the session that owned the bridge at ${this.url} is gone and another process took the port first`,
 		);
+	}
+
+	/** 读 owner 的 `/status`。读不到（拒绝、超时、形状不对）返回 undefined。 */
+	private async askOwnerStatus(): Promise<BridgeStatus | undefined> {
+		try {
+			const response = await fetch(`${this.url}/status`, {
+				signal: AbortSignal.timeout(STATUS_PROBE_MS),
+			});
+			if (!response.ok) return undefined;
+			const body: unknown = await response.json();
+			return isBridgeStatus(body) ? body : undefined;
+		} catch {
+			return undefined;
+		}
 	}
 
 	private async handle(
@@ -595,6 +622,19 @@ function isBrowserOriginAllowed(request: IncomingMessage): boolean {
 /** 本机的 Pi 进程用 fetch，不发 Origin 与 Sec-Fetch-Site。 */
 function isLocalProcessRequest(request: IncomingMessage): boolean {
 	return !request.headers.origin && !request.headers["sec-fetch-site"];
+}
+
+/** owner 回的状态是不是桥的形状。字段缺了就当没答。 */
+function isBridgeStatus(value: unknown): value is BridgeStatus {
+	if (typeof value !== "object" || value === null) return false;
+	const status = value as Partial<BridgeStatus>;
+	return (
+		typeof status.mode === "string" &&
+		typeof status.url === "string" &&
+		typeof status.connected === "boolean" &&
+		typeof status.queuedCommands === "number" &&
+		typeof status.pendingCommands === "number"
+	);
 }
 
 /** fetch 打到已关的端口时的几种报法，命中就说明 owner 没了。 */
