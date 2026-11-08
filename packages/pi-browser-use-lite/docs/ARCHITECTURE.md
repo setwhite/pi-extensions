@@ -71,11 +71,12 @@
 - 源码 `src/`，测试 `test/`，扩展在 `browser-extension/`，文档 `docs/`。
 - 参考仓库在 `_repos/`。根 `.gitignore` 已排除。`tsconfig.json` 必须 `exclude` 它。
 - 发布产物 `files` 列 `src`、`browser-extension`、`CHANGELOG.md`。相对兄弟包多一项，因为用户要加载扩展。
-- 其余 `package.json` 字段照 `packages/pi-todo-lite/package.json`：`pi.extensions` 指向 `./src/index.ts`，`peerDependencies` 为 `@earendil-works/pi-ai`、`@earendil-works/pi-coding-agent`、`@earendil-works/pi-tui`、`typebox`，`devDependencies` 为 `@biomejs/biome 2.5.15`、`typescript ^7.0.2`、`vitest ^5.0.5`，`scripts` 为 `lint`、`lint:fix`、`check:imports`、`test`、`typecheck`。
+- 其余 `package.json` 字段照 `packages/pi-todo-lite/package.json`：`pi.extensions` 指向 `./src/index.ts`，`peerDependencies` 为 `@earendil-works/pi-ai`、`@earendil-works/pi-coding-agent`、`@earendil-works/pi-tui`、`typebox`，`devDependencies` 为 `@biomejs/biome 2.5.15`、`typescript ^7.0.2`、`vitest ^5.0.5`，`scripts` 为 `lint`、`lint:fix`、`check:imports`、`test`、`test:e2e`、`typecheck`。
 - 模块文档放 `docs/modules/<module>.md`。
 - 真浏览器冒烟放 `test/e2e/`，不进 `pnpm test`，永不进 CI。e2e 不启动浏览器：它连一个已开着、已手动 load unpacked 装好扩展的 Chromium 系浏览器。浏览器没连上时失败并打印装扩展的三步，不 skip。挑战页由 e2e 用 `node:http` 起在 `127.0.0.1` 的临时端口上；manifest 的 `host_permissions` 不带端口，所以不用改 manifest。
+- e2e 认扩展身份靠桥状态里的 `extensionVersion`：只有本扩展会报版本，别的包（例如 pi-chrome）的桥占着 17318 时也会说 `connected`，只看这个布尔值会把命令发给别人的扩展。
 - 收工 QA 四条：`pnpm lint`、`pnpm check:imports`、`pnpm test`、`pnpm typecheck`。
-- e2e 实测环境：本机用 Vivaldi 8.2.4133.96（Chromium 152），路径 `D:\Vivaldi浏览器\Application\vivaldi.exe`。本机没有 Google Chrome。
+- e2e 实测环境：Edge（Chromium）。本机没有 Google Chrome；Vivaldi 8.2.4133.96 的 `chrome.tabs.group` 返回组 id 但不真分组，target 建不出来，所以不在 Vivaldi 上跑。跑之前要把浏览器窗口切到前台：窗口被别的窗口挡住时页面一直是 `hidden`，Chrome 丢弃可信输入，点击会报错。
 
 ## 4. 文档职责（防止重复）
 

@@ -265,6 +265,8 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 - `wait` 默认超时 15 秒。`batch` 最多 50 步。
 - `bridge.port` 被非本进程占用时启动抛错，错误类别 `bridge_unreachable`，hint 指向改端口。不静默换端口。
 - Node ≥ 22.19.0。Chrome ≥ 91（模块 service worker）。Chrome 91–119 把 0.5 分钟的 `chrome.alarms` 周期夹到 1 分钟，所以这两个版本上轮询断了最多等 1 分钟重起。
+- 浏览器要实现 `chrome.tabs.group`：target 归属与会话隔离都靠这一个组。Vivaldi 8.2 的 `tabs.group` 返回新组 id 但组没建成，并入已有组也不生效，所以现在只支持 Chrome 与 Edge。
+- 可信输入要求页面可见：标签页被别的标签盖住、或窗口被别的窗口盖住时，Chrome 丢弃 CDP 输入。标签要先切到前台，窗口要露出来。
 - 安全：桥只绑 `127.0.0.1`。`/command` 只接受本机进程。`/next` 与 `/result` 校验浏览器来源。扩展的 `host_permissions` 用不带端口的 `http://127.0.0.1/*`，所以改 `bridge.port` 不必改 manifest、不必重装扩展。扩展侧的轮询地址在 `background/transport.js` 的 `BRIDGE_URL`，改端口时要一起改。
 
 ## 测试决定
