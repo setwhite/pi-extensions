@@ -1,67 +1,15 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import type {
-	ExtensionAPI,
-	ToolDefinition,
-} from "@earendil-works/pi-coding-agent";
-import { afterEach, expect, it, vi } from "vitest";
+import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
+import { afterEach, expect, it } from "vitest";
 import { DEFAULTS } from "../../src/config/index.ts";
 import piBrowserUseLite from "../../src/index.ts";
 import { TOOL_SPECS } from "../../src/tools/index.ts";
-
-const dirs: string[] = [];
-
-/** 每个用例独立的 agent 目录；config 为 undefined 时不写文件（全默认值）。 */
-function useConfig(config?: unknown): void {
-	const dir = mkdtempSync(join(tmpdir(), "pi-browser-lite-index-"));
-	dirs.push(dir);
-	if (config !== undefined) {
-		mkdirSync(join(dir, "pi-browser-use-lite"), { recursive: true });
-		writeFileSync(
-			join(dir, "pi-browser-use-lite", "config.json"),
-			JSON.stringify(config),
-			"utf-8",
-		);
-	}
-	vi.stubEnv("PI_CODING_AGENT_DIR", dir);
-}
-
-interface FakeApi {
-	api: ExtensionAPI;
-	registered: ToolDefinition[];
-	/** 触发 `before_agent_start`，返回扩展改过的 systemPromptOptions。 */
-	startRun: (guidelines: string[]) => { promptGuidelines: string[] };
-}
-
-function fakeApi(): FakeApi {
-	const registered: ToolDefinition[] = [];
-	const handlers: Array<(event: unknown) => void> = [];
-	const api = {
-		registerTool: (tool: ToolDefinition) => void registered.push(tool),
-		on: (event: string, handler: (payload: unknown) => void) => {
-			if (event === "before_agent_start") handlers.push(handler);
-			return () => {};
-		},
-	};
-	const startRun = (promptGuidelines: string[]) => {
-		const systemPromptOptions = { promptGuidelines };
-		for (const handler of handlers)
-			handler({ type: "before_agent_start", systemPromptOptions });
-		return systemPromptOptions;
-	};
-	return { api: api as unknown as ExtensionAPI, registered, startRun };
-}
+import { cleanupConfig, fakeApi, useConfig } from "../helpers/extension-api.ts";
 
 function toolNames(registered: ToolDefinition[]): string[] {
 	return registered.map((tool) => tool.name);
 }
 
-afterEach(() => {
-	vi.unstubAllEnvs();
-	for (const dir of dirs.splice(0))
-		rmSync(dir, { recursive: true, force: true });
-});
+afterEach(cleanupConfig);
 
 it("AC11: before_agent_start 后 promptGuidelines 等于默认全局规则", () => {
 	useConfig();
