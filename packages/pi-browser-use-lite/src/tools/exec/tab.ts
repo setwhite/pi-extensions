@@ -1,5 +1,5 @@
 /**
- * `chrome_tab`：列标签、开新标签、切、关、并组。
+ * `chrome_tab`：列本会话窗口的标签、开新标签、切、关。
  * `tab` 参数在这里解析成标签 id，命中 0 个或多个都在这里报错。
  */
 
@@ -17,7 +17,7 @@ import {
 
 /** `chrome_tab` 的参数。 */
 export interface TabParams {
-	action: "list" | "new" | "switch" | "close" | "group";
+	action: "list" | "new" | "switch" | "close";
 	tab?: string;
 	url?: string;
 }
@@ -26,11 +26,6 @@ export async function runTab(
 	ctx: RunContext,
 	params: TabParams,
 ): Promise<ToolResult> {
-	const { config } = ctx.deps;
-	const group = {
-		groupName: config.chrome.groupName,
-		groupColor: config.chrome.groupColor,
-	};
 	switch (params.action) {
 		case "list": {
 			const tabs = await listTabs(ctx);
@@ -39,7 +34,6 @@ export async function runTab(
 		case "new": {
 			const result = (await call(ctx, "tab.new", {
 				url: params.url,
-				...group,
 				background: true,
 			})) as TabInfo;
 			const id = targetIdOf(result);
@@ -62,11 +56,6 @@ export async function runTab(
 			const result = await call(ctx, "tab.close", { tabId });
 			return okResult(`ok: close ${tabId}`, { result });
 		}
-		case "group": {
-			const tabId = await requireTab(ctx, "group", params.tab);
-			const result = await call(ctx, "tab.group", { tabId, ...group });
-			return okResult(`ok: group ${tabId}`, { result });
-		}
 		default:
 			throw new ExecError(
 				errorInfo("bad_args", `unknown tab action: ${params.action}`),
@@ -74,7 +63,7 @@ export async function runTab(
 	}
 }
 
-/** `switch`、`close`、`group` 必须有 `tab`。 */
+/** `switch` 与 `close` 必须有 `tab`。 */
 async function requireTab(
 	ctx: RunContext,
 	action: string,

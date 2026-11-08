@@ -7,7 +7,6 @@
 		"debugger",
 		"scripting",
 		"tabs",
-		"tabGroups",
 		"storage",
 		"alarms",
 		"webNavigation"

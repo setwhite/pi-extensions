@@ -5,7 +5,6 @@ const TABS = [
 	{
 		id: 12,
 		active: true,
-		group: "Pi",
 		title: "Issues",
 		url: "https://github.com/pi/issues",
 	},
@@ -19,7 +18,7 @@ it("list 每行一个标签", async () => {
 	const result = await run("chrome_tab", { action: "list" });
 
 	expect(textOf(result).split("\n")).toStrictEqual([
-		"12 * Pi Issues https://github.com/pi/issues",
+		"12 * Issues https://github.com/pi/issues",
 		"13 Issue 7 https://github.com/pi/issues/7",
 		"14 Docs https://pi.dev/docs",
 	]);
@@ -34,7 +33,7 @@ it("AC7: tab 命中两个时返回 tab_ambiguous 并列出两个候选", async (
 	const lines = textOf(result).split("\n");
 	expect(lines[0]).toBe('tab_ambiguous: tab "issues" matches 2 tabs');
 	expect(lines[1]).toMatch(/^hint: /);
-	expect(textOf(result)).toContain("12 * Pi Issues");
+	expect(textOf(result)).toContain("12 * Issues");
 	expect(textOf(result)).toContain("13 Issue 7");
 	expect(textOf(result)).not.toContain("14 Docs");
 	expect(result.details?.error).toMatchObject({ class: "tab_ambiguous" });

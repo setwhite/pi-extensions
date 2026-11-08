@@ -39,7 +39,6 @@ vi.mock(extensionUrl("tabs.js"), () => ({
 	activateTab: vi.fn(async () => ({ id: 7 })),
 	navigateTab: vi.fn(async () => ({ id: 7, url: "https://a" })),
 	closeTab: vi.fn(async () => ({ closed: 7 })),
-	groupTab: vi.fn(async () => ({ id: 7 })),
 }));
 
 vi.mock(extensionUrl("capture.js"), () => ({
@@ -167,16 +166,12 @@ it("AC8: tab.new 走 createTarget，回标签 id", async () => {
 	const result = await dispatch("tab.new", {
 		sessionKey: "s1",
 		url: "https://a",
-		groupName: "Pi",
-		groupColor: "blue",
 		background: true,
 	});
 
 	expect(target.createTarget).toHaveBeenCalledWith({
 		sessionKey: "s1",
 		url: "https://a",
-		groupName: "Pi",
-		groupColor: "blue",
 		background: true,
 	});
 	expect(result).toEqual({ id: 21 });
@@ -205,9 +200,6 @@ it("AC3: 不带 tabId 时按 targetFor 取 target", async () => {
 	expect(target.targetFor).toHaveBeenCalledWith({
 		sessionKey: "s1",
 		action: "page.snapshot",
-		url: undefined,
-		groupName: undefined,
-		groupColor: undefined,
 		background: true,
 	});
 	expect(snapshot.snapshotPage).toHaveBeenCalledWith({
@@ -254,8 +246,6 @@ it("AC4: navigate 把 initScript 与超时原样转给 tabs", async () => {
 		url: "https://a",
 		initScript: "void 0",
 		timeoutMs: 17_000,
-		groupName: "Pi",
-		groupColor: "blue",
 	});
 
 	expect(tabs.navigateTab).toHaveBeenCalledWith(
@@ -426,12 +416,6 @@ it("AC4: 其余动作的参数按 wire 表转发", async () => {
 		to: { selector: "#drop" },
 		steps: 10,
 	});
-	await dispatch("tab.group", {
-		sessionKey: "s1",
-		tabId: 9,
-		groupName: "Pi",
-		groupColor: "blue",
-	});
 	await dispatch("tab.activate", { tabId: 9, background: false });
 	await dispatch("tab.close", { tabId: 9 });
 	await dispatch("page.inspect", { sessionKey: "s1", ref: "e12" });
@@ -446,12 +430,6 @@ it("AC4: 其余动作的参数按 wire 表转发", async () => {
 		from: { selector: undefined, x: 1, y: 2 },
 		to: { selector: "#drop", x: undefined, y: undefined },
 		steps: 10,
-	});
-	expect(tabs.groupTab).toHaveBeenCalledWith({
-		sessionKey: "s1",
-		tabId: 9,
-		groupName: "Pi",
-		groupColor: "blue",
 	});
 	expect(tabs.activateTab).toHaveBeenCalledWith({
 		tabId: 9,
@@ -470,8 +448,6 @@ it("AC8: tab.new 之后同一会话的 page.snapshot 只问 target，不再建�
 	await dispatch("tab.new", {
 		sessionKey: "s1",
 		url: "https://a",
-		groupName: "Pi",
-		groupColor: "blue",
 		background: true,
 	});
 	await dispatch("page.snapshot", {

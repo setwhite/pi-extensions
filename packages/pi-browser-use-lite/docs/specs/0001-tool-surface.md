@@ -24,7 +24,7 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 - 作为 Pi 用户，我要一条命令看到当前状态，以便不用猜为什么工具不可用。
 - 作为维护者，我要配置只覆盖真会改的旋钮，以便文档与测试不膨胀。
 - 作为 Pi 用户，我要后台模式，以便 Pi 干活时不抢我的前台窗口。
-- 作为 Pi 用户，我要每个会话独占自己的会话组，以便分清哪些标签是 Pi 开的。
+- 作为 Pi 用户，我要每个会话独占自己的浏览器窗口，以便分清哪些标签是 Pi 开的。
 - 作为 Pi 用户，我要多个会话或子代理共用一条 Chrome 连接，以便并发任务都能用浏览器。
 - 作为 Pi 用户，我要输入事件受信任，以便能操作有反自动化检测的站点。
 - 作为 Pi 用户，我要在严格 CSP 站点上也能求值和快照，以便不被 `script-src` 挡住。
@@ -93,7 +93,7 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 
 抓取从本扩展接管标签起生效：`tab.new` 带 `url` 时页面已在加载，页头最早执行的脚本可能赶不上。
 
-**`chrome_tab`** — `action` 取 `list`、`new`、`switch`、`close`、`group`。`switch` / `close` / `group` 需要 `tab`。`tab` 命中多个标签时报错，列最多 5 个候选。
+**`chrome_tab`** — `action` 取 `list`、`new`、`switch`、`close`。`switch` / `close` 需要 `tab`。`tab` 命中多个标签时报错，列最多 5 个候选。
 
 **`chrome_vision`** — 截屏。参数 `full_page`，加公共的 `tab`。格式取 `screenshot.format`，路径自动生成在 `screenshot.dir` 下。
 
@@ -116,7 +116,7 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 | `chrome_act` 的交互类 | 判定行（`ok: click ref=e12`）、变更行（`changed: +1 -0 ~2`）、可选快照 | `{ ok, action, changed: { added, removed, updated }, snapshot?, ref? }` |
 | `chrome_act` 的 `eval`、`wait` | 判定行，接返回值（`eval` 给 JSON 或文本，`wait` 给耗时） | `{ ok, action, value? }` |
 | `chrome_see` | 该 `mode` 的正文 | `{ mode, url, title, elements?, text?, changes?, truncated }` |
-| `chrome_tab` 的 `list` | 每行一个标签：id、`*` 表示活动页、组名、标题、URL | `{ tabs }` |
+| `chrome_tab` 的 `list` | 每行一个标签：id、`*` 表示活动页、标题、URL | `{ tabs }` |
 | `chrome_tab` 其余动作 | 一行结果 | `{ result }` |
 | `chrome_vision` | `Saved <path>`。分块时每个文件一行 | `{ path, tiles? }` |
 | `chrome_cdp` | 返回值的 JSON | `{ result }` |
@@ -167,7 +167,7 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 |---|---|
 | 授权 | `/chrome authorize on` 与 `off`。生效到会话结束，会话结束时自动关。状态只在内存，不落盘。`policy.authorizeOnStart` 为 `true` 时启动即授权。锁覆盖全部 5 个工具，只读的 `chrome_see`、`chrome_vision` 也要解锁——读页面等于读用户的隐私 |
 | 背景模式 | 默认开。开启时所有显式聚焦与标签页激活被统一拒绝，单次调用不可覆盖 |
-| 目标隔离 | 每个 Pi 会话独立自动化 target。所有权存扩展的 `storage.session` 与 `storage.local`。会话结束只关本会话创建的标签；`policy.closeOwnTabsOnExit` 为 `false` 时保留 |
+| 目标隔离 | 每个 Pi 会话一个浏览器窗口，窗口里放本会话的自动化 target。认「这是本会话的标签」要两条同时成立：它是台账里的 target，且它在本会话的窗口里。台账存扩展的 `storage.session` 与 `storage.local`，浏览器启动时整份作废——标签 id 与窗口 id 都会被重新分配。会话结束只关本会话创建的标签；`policy.closeOwnTabsOnExit` 为 `false` 时保留 |
 
 ### 配置
 
@@ -176,8 +176,6 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 | 字段 | 默认值 | 何时会改 |
 |---|---|---|
 | `bridge.port` | `17318` | 端口被占 |
-| `chrome.groupName` | `"Pi"` | 想在标签栏认出来 |
-| `chrome.groupColor` | `"blue"` | 同上 |
 | `policy.authorizeOnStart` | `false` | 不想每会话敲授权 |
 | `policy.background` | `true` | 要让浏览器真的切前台 |
 | `policy.closeOwnTabsOnExit` | `true` | 想在会话结束后继续用那些标签 |
@@ -194,7 +192,7 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 | `tools.<id>.name` | 工具原名 | 与别的扩展撞名 |
 | `guidance.<id>.description`、`.promptSnippet`、`.promptGuidelines` | 内置文案 | 想改工具自己的说法与规则 |
 
-15 个标量字段，加 `tools`（5 个工具 × 2 项）与 `guidance`（5 个工具 × 3 项）两个记录。
+13 个标量字段，加 `tools`（5 个工具 × 2 项）与 `guidance`（5 个工具 × 3 项）两个记录。
 
 文件缺失取全默认值。JSON 损坏或字段非法抛 `Error`，消息带文件路径与字段路径。数值越界只 clamp，枚举越界取默认值。
 
@@ -265,7 +263,7 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 - `wait` 默认超时 15 秒。`batch` 最多 50 步。
 - `bridge.port` 被非本进程占用时启动抛错，错误类别 `bridge_unreachable`，hint 指向改端口。不静默换端口。
 - Node ≥ 22.19.0。Chrome ≥ 91（模块 service worker）。Chrome 91–119 把 0.5 分钟的 `chrome.alarms` 周期夹到 1 分钟，所以这两个版本上轮询断了最多等 1 分钟重起。
-- 浏览器要实现 `chrome.tabs.group`：target 归属与会话隔离都靠这一个组。Vivaldi 8.2 的 `tabs.group` 返回新组 id 但组没建成，并入已有组也不生效，所以现在只支持 Chrome 与 Edge。
+- 浏览器要实现 `chrome.windows.create`：每个会话的自动化标签放在自己的窗口里。不依赖标签组，所以对 `chrome.tabs.group` 的实现不作要求（Vivaldi 8.2 的那一个是空操作）。
 - 可信输入要求页面可见：标签页被别的标签盖住、或窗口被别的窗口盖住时，Chrome 丢弃 CDP 输入。标签要先切到前台，窗口要露出来。
 - 安全：桥只绑 `127.0.0.1`。`/command` 只接受本机进程。`/next` 与 `/result` 校验浏览器来源。扩展的 `host_permissions` 用不带端口的 `http://127.0.0.1/*`，所以改 `bridge.port` 不必改 manifest、不必重装扩展。扩展侧的轮询地址在 `background/transport.js` 的 `BRIDGE_URL`，改端口时要一起改。
 
@@ -296,7 +294,6 @@ pi-chrome 有、本版不做的参数。逐个判过，不是遗漏。
 
 | 参数 | 原属工具 | 不做的理由 |
 |---|---|---|
-| `groupTitle`、`groupColor` | `chrome_tab` | 不做参数。进配置：`chrome.groupName`、`chrome.groupColor` |
 | `containingText`、`roleFilter` | `chrome_snapshot` | 不做参数。`query` 是 token 打分匹配，命中整串时额外加分，已覆盖 |
 | `maxTextChars` | `chrome_snapshot` | 不做参数。配置 `output.textChars` 覆盖 `text` 的上限 |
 | `scrollIntoView` | `chrome_inspect` | 用 `chrome_act` 的 `scroll` 加 `selector` 表达 |

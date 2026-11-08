@@ -26,7 +26,7 @@ export const ACT_ACTIONS = [
 export const SEE_MODES = ["refs", "text", "changes", "full"] as const;
 
 /** `chrome_tab` 的 action 取值。 */
-export const TAB_ACTIONS = ["list", "new", "switch", "close", "group"] as const;
+export const TAB_ACTIONS = ["list", "new", "switch", "close"] as const;
 
 /** `chrome_act` 的 `wait` 的等待对象。 */
 export const WAIT_KINDS = ["selector", "expression", "text"] as const;
@@ -329,15 +329,15 @@ export const TOOL_SPECS = {
 	chrome_tab: {
 		label: "Chrome tab",
 		description:
-			"Manage tabs. action list prints every tab with its id, the active marker, its group, title and URL. new opens a tab, switch focuses one, close closes one, group moves one into this session's group. switch, close and group need tab, which matches a tab id, a URL substring or a title substring. A match that hits several tabs lists up to five candidates instead of guessing, so a vague name costs one extra call rather than the wrong tab.",
+			"Manage the tabs in this session's own browser window. action list prints every tab there with its id, the active marker, title and URL. new opens a tab there, switch brings that window to the front on a tab, close closes a tab. switch and close need tab, which matches a tab id, a URL substring or a title substring. A match that hits several tabs lists up to five candidates instead of guessing, so a vague name costs one extra call rather than the wrong tab.",
 		parameters: Type.Object({
 			action: Type.Enum(TAB_ACTIONS, {
-				description: "Tab operation: list, new, switch, close or group.",
+				description: "Tab operation: list, new, switch or close.",
 			}),
 			tab: Type.Optional(
 				Type.String({
 					description:
-						"Tab id, URL substring or title substring. switch, close and group need it; list and new do not.",
+						"Tab id, URL substring or title substring. switch and close need it; list and new do not.",
 				}),
 			),
 			url: Type.Optional(

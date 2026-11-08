@@ -18,7 +18,7 @@
 
 | 动作 | 宿主带的参数 | 扩展回的形状 |
 |---|---|---|
-| `page.navigate` | `url`、`initScript`、`groupName`、`groupColor`（建 target 用）、`timeoutMs` | 一个标签对象，含 `id`，成功后宿主记成 target |
+| `page.navigate` | `url`、`initScript`、`timeoutMs` | 一个标签对象，含 `id`，成功后宿主记成 target |
 | `page.click` | `ref` 或 `selector` 或 `x`+`y` | `{ changed }` |
 | `page.hover` | `ref` 或 `selector` 或 `x`+`y` | `{ x, y }`，悬停不改页面，不算变更量 |
 | `page.type` | `text`、`replace`、`press` | `{ changed }` |
@@ -32,10 +32,10 @@
 | `page.snapshot` | `mode`、`query`、`ref`、`selector`、`maxElements`、`textChars` | `{ mode, url, title, … }`，形状见 `background/page/snapshot.js` |
 | `page.inspect` | `ref` 或 `selector` | `{ url, title, element }`，`element.rect` 是视口坐标 |
 | `page.screenshot` | `format`、`fullPage` | `{ format, images: [{ data }] }` |
-| `tab.list` | — | `{ tabs }`，每项 `{ id, active, groupId, title, url }` |
-| `tab.new` | `url`、`groupName`、`groupColor`、`background: true` | `{ id }` |
+| `tab.list` | — | `{ tabs }`，每项 `{ id, active, title, url }` |
+| `tab.new` | `url`、`background: true` | `{ id }` |
 | `tab.activate` | `tabId`、`background: false` | `{}` |
-| `tab.close`、`tab.group` | `tabId`（并组另带 `groupName`、`groupColor`） | `{}` |
+| `tab.close` | `tabId` | `{}` |
 | `cdp.call` | `method`、`params` | `{ result }` |
 | `automation.cleanup` | `closeOwnTabs` | `{ closed }` |
 

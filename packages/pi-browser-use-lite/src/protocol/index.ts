@@ -10,7 +10,6 @@ export const ACTION_NAMES = [
 	"tab.new",
 	"tab.activate",
 	"tab.close",
-	"tab.group",
 	"page.navigate",
 	"page.snapshot",
 	"page.inspect",

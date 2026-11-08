@@ -31,7 +31,8 @@
 | `background/index.js` | 只注册 listener，启动轮询 |
 | `background/transport.js` | 轮询循环、结果回传、请求超时、报版本头 |
 | `background/dispatch.js` | 动作路由表 |
-| `background/tabs.js` | 标签页查询、格式、分组、置前、导航与等加载、会话标签台账 |
+| `background/tabs.js` | 标签页查询、格式、置前、导航与等加载、会话窗口台账 |
+| `background/ledger.js` | 台账的读写：一个键同时写 `storage.session` 与 `storage.local`，读先 session 再 local |
 | `background/target.js` | 自动化 target 归属 |
 | `background/capture.js` | console 与 network 的早期捕获。`webNavigation.onCommitted` 时挂调试器并开 `Runtime`/`Network` 两个域，从导航起抓。契约见 SPEC-0001 的 `chrome_see` 段 |
 | `background/input/debugger.js` | debugger 挂载、自愈重连、原始 CDP 调用、scripting 回退 |
@@ -75,8 +76,9 @@
 - 模块文档放 `docs/modules/<module>.md`。
 - 真浏览器冒烟放 `test/e2e/`，不进 `pnpm test`，永不进 CI。e2e 不启动浏览器：它连一个已开着、已手动 load unpacked 装好扩展的 Chromium 系浏览器。浏览器没连上时失败并打印装扩展的三步，不 skip。挑战页由 e2e 用 `node:http` 起在 `127.0.0.1` 的临时端口上；manifest 的 `host_permissions` 不带端口，所以不用改 manifest。
 - e2e 认扩展身份靠桥状态里的 `extensionVersion`：只有本扩展会报版本，别的包（例如 pi-chrome）的桥占着 17318 时也会说 `connected`，只看这个布尔值会把命令发给别人的扩展。
+- 同一时间只能有一份本扩展在轮询。两个浏览器都装了同一版本时，桥分不出它们，命令会被先到的那一份取走，另一份只看到超时。跑 e2e 前关掉另一个浏览器。
 - 收工 QA 四条：`pnpm lint`、`pnpm check:imports`、`pnpm test`、`pnpm typecheck`。
-- e2e 实测环境：Edge（Chromium）。本机没有 Google Chrome；Vivaldi 8.2.4133.96 的 `chrome.tabs.group` 返回组 id 但不真分组，target 建不出来，所以不在 Vivaldi 上跑。跑之前要把浏览器窗口切到前台：窗口被别的窗口挡住时页面一直是 `hidden`，Chrome 丢弃可信输入，点击会报错。
+- e2e 实测环境：Edge（Chromium）与 Vivaldi。用例里 `chrome_tab switch` 会把 Pi 的窗口带到前台，点击才过得了：窗口留在后台时页面是 `hidden`，Chrome 丢弃可信输入。
 
 ## 4. 文档职责（防止重复）
 
@@ -113,7 +115,7 @@
 | 扩展轮询 | `browser-extension/background/transport.js` 的 `startTransport` | 起本地 HTTP 桩服务或真桥，看它发出的请求、dispatch 调用与回传的结果 |
 | 扩展动作路由 | `browser-extension/background/dispatch.js` 的 `dispatch(action, params)` | 挂 `globalThis.chrome` 桩，看返回值与调用记录 |
 | 调试器通道 | `browser-extension/background/input/debugger.js` 的调试器接口 | 挂 `chrome.debugger` 桩，看 attach 次数、发出的 CDP 消息与抛错 |
-| 标签页管理 | `browser-extension/background/tabs.js` 的导出函数 | 挂 `chrome.tabs`、`chrome.tabGroups`、`chrome.storage` 桩，看返回值与调用记录 |
+| 标签页管理 | `browser-extension/background/tabs.js` 的导出函数 | 挂 `chrome.tabs`、`chrome.windows`、`chrome.storage` 桩，看返回值与调用记录 |
 | 指针事件 | `browser-extension/background/input/pointer.js` | 挂调试器桩，看 CDP 事件序列与坐标 |
 | 键盘输入 | `browser-extension/background/input/keyboard.js` | 挂调试器桩，看按键事件与 `Input.insertText` |
 | 文件上传 | `browser-extension/background/input/upload.js` | 挂 `chrome.debugger` 桩，看 `DOM.setFileInputFiles` 的参数 |

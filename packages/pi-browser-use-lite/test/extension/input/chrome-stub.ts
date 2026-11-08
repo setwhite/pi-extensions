@@ -36,6 +36,10 @@ export interface ChromeStub {
 	};
 	alarms: { create: Mock; onAlarm: { addListener: Mock } };
 	webNavigation: { onCommitted: { addListener: Mock } };
+	storage: {
+		session: { get: Mock; set: Mock; remove: Mock };
+		local: { get: Mock; set: Mock; remove: Mock };
+	};
 	/** 向已注册的 onDetach 监听器报一次摘除。 */
 	emitDetach: (source: { tabId?: number }, reason: string) => void;
 	/** 向已注册的 onEvent 监听器发一条调试器事件。 */
@@ -192,6 +196,7 @@ export function stubChrome(options: StubOptions = {}): ChromeStub {
 		runtime,
 		alarms,
 		webNavigation,
+		storage,
 		emit,
 		emitDetach,
 	};

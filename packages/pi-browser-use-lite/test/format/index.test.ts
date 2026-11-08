@@ -39,14 +39,14 @@ it("值转文本：字符串原样，其余 JSON", () => {
 	expect(valueText(42)).toBe("42");
 });
 
-it("标签页清单每行一个标签，活动页带星号与组名", () => {
+it("标签页清单每行一个标签，活动页带星号", () => {
 	const text = tabsText([
-		{ id: 12, active: true, group: "Pi", title: "Issues", url: "https://a" },
+		{ id: 12, active: true, title: "Issues", url: "https://a" },
 		{ id: 7, title: "Docs", url: "https://b" },
 	]);
 
 	expect(text.split("\n")).toStrictEqual([
-		"12 * Pi Issues https://a",
+		"12 * Issues https://a",
 		"7 Docs https://b",
 	]);
 });

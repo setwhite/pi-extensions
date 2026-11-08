@@ -63,7 +63,7 @@ it("判定只看动作名：背景关时 switch 放行，其它动作不受管",
 
 	policy.setBackground(true);
 	expect(policy.check("switch")).toStrictEqual(FOCUS_BLOCKED);
-	for (const action of ["list", "new", "close", "group", "navigate"])
+	for (const action of ["list", "new", "navigate", "close"])
 		expect(policy.check(action)).toBeUndefined();
 });
 

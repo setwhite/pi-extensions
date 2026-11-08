@@ -107,7 +107,6 @@ it("AC4: 各工具的参数与枚举按 SPEC-0001 冻结", () => {
 		"new",
 		"switch",
 		"close",
-		"group",
 	]);
 	expect(Object.keys(propertiesOf("chrome_vision"))).toStrictEqual([
 		"full_page",

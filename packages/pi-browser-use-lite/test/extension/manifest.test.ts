@@ -43,13 +43,12 @@ describe("扩展清单", () => {
 		expect(manifest.background.service_worker).toBe("background/index.js");
 	});
 
-	it("AC3: permissions 含七个必需权限", () => {
+	it("AC3: permissions 含六个必需权限", () => {
 		expect(readManifest().permissions).toEqual(
 			expect.arrayContaining([
 				"debugger",
 				"scripting",
 				"tabs",
-				"tabGroups",
 				"storage",
 				"alarms",
 				"webNavigation",
@@ -116,6 +115,37 @@ describe("background 入口报版本", () => {
 		expect(transportMock.startTransport).toHaveBeenCalledWith(
 			expect.objectContaining({ version: "9.9.9" }),
 		);
+	});
+});
+
+describe("台账随浏览器会话作废", () => {
+	it("AC5: 浏览器启动时作废旧 target 与窗口台账，别的键留着", async () => {
+		const chrome = stubChrome({
+			storage: {
+				"target.tabId.s1": 5,
+				"target.owned.s1": [5],
+				"tabs.windowId.s1": 9,
+				"capture.logs.5": { console: [] },
+			},
+		});
+
+		vi.resetModules();
+		await import(
+			new URL("../../browser-extension/background/index.js", import.meta.url)
+				.href
+		);
+		const onStartup = chrome.runtime.onStartup.addListener.mock.calls[0]?.[0] as
+			| (() => Promise<void>)
+			| undefined;
+		if (onStartup === undefined) throw new Error("no onStartup listener");
+		await onStartup();
+
+		const stored = chrome.storage.session.get as unknown as (
+			key: null,
+		) => Promise<Record<string, unknown>>;
+		expect(await stored(null)).toStrictEqual({
+			"capture.logs.5": { console: [] },
+		});
 	});
 });
 

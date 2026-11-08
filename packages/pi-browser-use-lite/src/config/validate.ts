@@ -6,8 +6,6 @@
 import {
 	DEFAULTS,
 	type Errors,
-	GROUP_COLORS,
-	type GroupColor,
 	GUIDANCE_KEYS,
 	type GuidanceFields,
 	RANGES,
@@ -24,7 +22,6 @@ import {
 
 const TOP_KEYS = [
 	"bridge",
-	"chrome",
 	"policy",
 	"input",
 	"timing",
@@ -39,8 +36,6 @@ export function buildConfig(raw: Raw, errors: Errors): ResolvedConfig {
 	checkUnknownKeys(raw, TOP_KEYS, "", errors);
 	const bridge = asObject(raw.bridge, "bridge", errors);
 	checkUnknownKeys(bridge, ["port"], "bridge", errors);
-	const chrome = asObject(raw.chrome, "chrome", errors);
-	checkUnknownKeys(chrome, ["groupName", "groupColor"], "chrome", errors);
 	const policy = asObject(raw.policy, "policy", errors);
 	checkUnknownKeys(
 		policy,
@@ -69,21 +64,6 @@ export function buildConfig(raw: Raw, errors: Errors): ResolvedConfig {
 				"bridge.port",
 				errors,
 				RANGES.port,
-			),
-		},
-		chrome: {
-			groupName: readString(
-				chrome.groupName,
-				DEFAULTS.chrome.groupName,
-				"chrome.groupName",
-				errors,
-			),
-			groupColor: readEnum<GroupColor>(
-				chrome.groupColor,
-				GROUP_COLORS,
-				DEFAULTS.chrome.groupColor,
-				"chrome.groupColor",
-				errors,
 			),
 		},
 		policy: {

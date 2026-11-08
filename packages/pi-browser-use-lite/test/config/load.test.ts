@@ -35,7 +35,7 @@ function readConfig(value: unknown): ResolvedConfig {
 	);
 }
 
-it("AC2: 文件缺失时 15 个标量取默认值，工具全开且保留原名", () => {
+it("AC2: 文件缺失时 13 个标量取默认值，工具全开且保留原名", () => {
 	const config = withAgentDir(undefined, (agentDir) => loadConfig(agentDir));
 	expect(config).toStrictEqual({
 		...DEFAULTS,
@@ -49,7 +49,6 @@ it("AC2: 文件缺失时 15 个标量取默认值，工具全开且保留原名"
 		guidance: {},
 	});
 	expect(config.bridge.port).toBe(17_318);
-	expect(config.chrome.groupName).toBe("Pi");
 	expect(config.screenshot.dir).toBe("~/.pi/screenshots");
 	expect(config.screenshot.format).toBe("png");
 	for (const id of TOOL_IDS) {
@@ -57,12 +56,10 @@ it("AC2: 文件缺失时 15 个标量取默认值，工具全开且保留原名"
 	}
 });
 
-it("AC2: 15 个标量逐项等于 schema 默认值", () => {
+it("AC2: 13 个标量逐项等于 schema 默认值", () => {
 	const config = readConfig({});
 	expect({
 		bridge: config.bridge.port,
-		groupName: config.chrome.groupName,
-		groupColor: config.chrome.groupColor,
 		authorizeOnStart: config.policy.authorizeOnStart,
 		background: config.policy.background,
 		closeOwnTabsOnExit: config.policy.closeOwnTabsOnExit,
@@ -77,8 +74,6 @@ it("AC2: 15 个标量逐项等于 schema 默认值", () => {
 		guidelines: config.prompt.guidelines,
 	}).toStrictEqual({
 		bridge: DEFAULTS.bridge.port,
-		groupName: DEFAULTS.chrome.groupName,
-		groupColor: DEFAULTS.chrome.groupColor,
 		authorizeOnStart: DEFAULTS.policy.authorizeOnStart,
 		background: DEFAULTS.policy.background,
 		closeOwnTabsOnExit: DEFAULTS.policy.closeOwnTabsOnExit,
@@ -100,18 +95,18 @@ it("AC4: port 越界 clamp 到 65535，合法值保留", () => {
 	expect(readConfig({ bridge: { port: 0 } }).bridge.port).toBe(1);
 });
 
-it("AC5: 非法 groupColor 回退默认值，合法值保留", () => {
-	expect(
-		readConfig({ chrome: { groupColor: "rainbow" } }).chrome.groupColor,
-	).toBe("blue");
-	expect(
-		readConfig({ chrome: { groupColor: "green" } }).chrome.groupColor,
-	).toBe("green");
+it("AC5: 非法 screenshot.format 回退默认值，合法值保留", () => {
+	expect(readConfig({ screenshot: { format: "webp" } }).screenshot.format).toBe(
+		"png",
+	);
+	expect(readConfig({ screenshot: { format: "jpeg" } }).screenshot.format).toBe(
+		"jpeg",
+	);
 });
 
-it("非字符串的 groupColor 是类型错误，抛错并带字段路径", () => {
-	expect(() => readConfig({ chrome: { groupColor: 5 } })).toThrowError(
-		"chrome.groupColor",
+it("非字符串的 screenshot.format 是类型错误，抛错并带字段路径", () => {
+	expect(() => readConfig({ screenshot: { format: 5 } })).toThrowError(
+		"screenshot.format",
 	);
 });
 

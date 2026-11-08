@@ -1,75 +1,63 @@
-/**
- * 标签页管理：查询、新建、置前、关闭、分组、导航与等加载、会话标签台账。
- * 组 id 按 sessionKey 分开存：service worker 被回收后还能找回同一个组。
- */
-
 import { sendCommand } from "./input/debugger.js";
+import { readRecord, removeRecord, writeRecord } from "./ledger.js";
 
-/** storage.session 里存组 id 的键前缀，后面接 sessionKey。 */
-const GROUP_KEY_PREFIX = "tabs.groupId.";
-
-/** 正在创建、还没入组的标签。 */
-export const pendingTabCreations = new Set();
+/** 台账里存会话窗口 id 的键前缀，后面接 sessionKey。 */
+export const WINDOW_KEY_PREFIX = "tabs.windowId.";
 
 /**
- * 列出本会话组里的标签。用户拖出组的标签不在结果里。
+ * 列出本会话窗口里的标签。
  * @param {object} params
  * @param {string} params.sessionKey 会话标识
- * @returns {Promise<Array<{ id: number, active: boolean, groupId: number, title: string, url: string }>>}
+ * @returns {Promise<Array<{ id: number, active: boolean, title: string, url: string }>>}
  */
 export async function listTabs({ sessionKey } = {}) {
 	requireSessionKey(sessionKey);
-	const groupId = await readGroupId(sessionKey);
-	if (groupId === undefined) return [];
-	const tabs = await chrome.tabs.query({ groupId });
+	const windowId = await sessionWindowId(sessionKey);
+	if (windowId === undefined) return [];
+	const tabs = await chrome.tabs.query({ windowId });
 	return tabs.map(formatTab);
 }
 
 /**
- * 建一个标签并加入本会话组。
- * 入组、写台账或读回失败时关闭该标签，再把错误上抛。
+ * 在本会话窗口里建一个标签。窗口不在时先建窗口，顺手用它带的那个标签，不留空标签。
  * @param {object} params
  * @param {string} params.sessionKey 会话标识
  * @param {string} [params.url] 要打开的地址，缺省 about:blank
- * @param {string} params.groupName 组标题，来自配置 chrome.groupName
- * @param {string} params.groupColor 组颜色，来自配置 chrome.groupColor
- * @param {boolean} [params.background] 为 true 时建后台标签，不抢前台
- * @returns {Promise<{ id: number, active: boolean, groupId: number, title: string, url: string }>}
+ * @param {boolean} [params.background] 为 true 时新标签不在本会话窗口里激活
+ * @returns {Promise<{ id: number, active: boolean, title: string, url: string }>}
  */
-export async function newTab({
-	sessionKey,
-	url,
-	groupName,
-	groupColor,
-	background = false,
-} = {}) {
+export async function newTab({ sessionKey, url, background = false } = {}) {
 	requireSessionKey(sessionKey);
-	requireGroupSettings(groupName, groupColor);
-	const creation = createAndTrack(
-		sessionKey,
-		url ?? "about:blank",
-		groupName,
-		groupColor,
-		background,
-	);
-	pendingTabCreations.add(creation);
-	try {
-		return await creation;
-	} finally {
-		pendingTabCreations.delete(creation);
+	const windowId = await liveWindowId(sessionKey);
+	if (windowId !== undefined) {
+		const tab = await chrome.tabs.create({
+			windowId,
+			url: url ?? "about:blank",
+			active: !background,
+		});
+		return formatTab(await chrome.tabs.get(tab.id));
 	}
+	// 建窗口不给 url：Vivaldi 的 chrome.windows.create({ url }) 承诺不 resolve，命令会挂到服务工作进程被回收。
+	const opened = await chrome.windows.create({ focused: false });
+	await writeRecord(WINDOW_KEY_PREFIX + sessionKey, opened.id);
+	const tab =
+		firstTabOf(opened) ?? (await chrome.tabs.query({ windowId: opened.id }))[0];
+	if (url !== undefined) await chrome.tabs.update(tab.id, { url });
+	return formatTab(await chrome.tabs.get(tab.id));
 }
 
 /**
- * 激活标签。后台模式是硬策略：直接抛错，不碰 chrome.tabs.update。
+ * 激活标签，并把它所在的窗口带到前台。后台模式是硬策略：直接抛错，不碰 chrome.tabs.update。
  * @param {object} params
  * @param {number} params.tabId 标签 id
  * @param {boolean} [params.background] 为 true 时拒绝激活
- * @returns {Promise<{ id: number, active: boolean, groupId: number, title: string, url: string }>}
+ * @returns {Promise<{ id: number, active: boolean, title: string, url: string }>}
  */
 export async function activateTab({ tabId, background = false } = {}) {
 	if (background) throw new Error("background mode blocks tab.activate");
-	return formatTab(await chrome.tabs.update(tabId, { active: true }));
+	const tab = await chrome.tabs.update(tabId, { active: true });
+	await chrome.windows.update(tab.windowId, { focused: true });
+	return formatTab(tab);
 }
 
 /**
@@ -80,7 +68,7 @@ export async function activateTab({ tabId, background = false } = {}) {
  * @param {string} params.url 要打开的地址
  * @param {string} [params.initScript] 文档开始前执行的脚本
  * @param {number} params.timeoutMs 等待上限，来自配置 timing.navigateTimeoutMs
- * @returns {Promise<{ id: number, active: boolean, groupId: number, title: string, url: string }>}
+ * @returns {Promise<{ id: number, active: boolean, title: string, url: string }>}
  */
 export async function navigateTab({ tabId, url, initScript, timeoutMs } = {}) {
 	if (timeoutMs === undefined) throw new Error("timeoutMs is required");
@@ -148,113 +136,46 @@ export async function closeTab({ tabId } = {}) {
 }
 
 /**
- * 把已有标签加进本会话组，并写入组标题与颜色。
- * @param {object} params
- * @param {string} params.sessionKey 会话标识
- * @param {number} params.tabId 标签 id
- * @param {string} params.groupName 组标题，来自配置 chrome.groupName
- * @param {string} params.groupColor 组颜色，来自配置 chrome.groupColor
- * @returns {Promise<{ id: number, active: boolean, groupId: number, title: string, url: string }>}
+ * 本会话的窗口 id。没有就返回 undefined，不建窗口。
+ * @param {string} sessionKey 会话标识
+ * @returns {Promise<number | undefined>}
  */
-export async function groupTab({
-	sessionKey,
-	tabId,
-	groupName,
-	groupColor,
-} = {}) {
+export async function sessionWindowId(sessionKey) {
 	requireSessionKey(sessionKey);
-	requireGroupSettings(groupName, groupColor);
-	const tab = await chrome.tabs.get(tabId);
-	const groupId = await groupIntoSession(
-		sessionKey,
-		tab,
-		groupName,
-		groupColor,
-	);
-	await writeGroupId(sessionKey, groupId);
-	return formatTab(await chrome.tabs.get(tabId));
+	const windowId = await readRecord(WINDOW_KEY_PREFIX + sessionKey);
+	return typeof windowId === "number" ? windowId : undefined;
 }
 
-async function createAndTrack(
-	sessionKey,
-	url,
-	groupName,
-	groupColor,
-	background,
-) {
-	const tab = await chrome.tabs.create({ url, active: !background });
-	try {
-		const groupId = await groupIntoSession(
-			sessionKey,
-			tab,
-			groupName,
-			groupColor,
-		);
-		await writeGroupId(sessionKey, groupId);
-		return formatTab(await chrome.tabs.get(tab.id));
-	} catch (error) {
-		await chrome.tabs.remove(tab.id);
-		throw error;
-	}
+/**
+ * 会话结束：清窗口台账。窗口里没标签时浏览器自己会关掉它；还有标签就留着。
+ * @param {string} sessionKey 会话标识
+ */
+export async function forgetSessionWindow(sessionKey) {
+	requireSessionKey(sessionKey);
+	await removeRecord(WINDOW_KEY_PREFIX + sessionKey);
 }
 
-/** 把标签加进会话组。组不在时在标签自己的窗口里新建，并写入标题与颜色。 */
-async function groupIntoSession(sessionKey, tab, groupName, groupColor) {
-	const existing = await readGroupId(sessionKey);
-	const groupId =
-		existing !== undefined && (await groupExists(existing))
-			? await chrome.tabs.group({ groupId: existing, tabIds: [tab.id] })
-			: await chrome.tabs.group({
-					tabIds: [tab.id],
-					createProperties: { windowId: await windowIdOf(tab) },
-				});
-	await chrome.tabGroups.update(groupId, {
-		title: groupName,
-		color: groupColor,
-	});
-	return groupId;
+/** 台账里的窗口还在不在。被用户关掉时返回 undefined，下次新建重来。 */
+async function liveWindowId(sessionKey) {
+	const windowId = await sessionWindowId(sessionKey);
+	if (windowId === undefined) return undefined;
+	const opened = await chrome.windows.get(windowId).catch(() => null);
+	return opened === null ? undefined : windowId;
 }
 
-/** 新标签的对象不一定带 windowId：不带时读回来，组才不会建到别的窗口里。 */
-async function windowIdOf(tab) {
-	if (typeof tab.windowId === "number") return tab.windowId;
-	const stored = await chrome.tabs.get(tab.id);
-	return stored.windowId;
-}
-
-/** 组随最后一个标签关闭而消失。查现有组而不是 get，避开「组不存在」的错误文案。 */
-async function groupExists(groupId) {
-	const groups = await chrome.tabGroups.query({});
-	return groups.some((group) => group.id === groupId);
+function firstTabOf(opened) {
+	const tabs = Array.isArray(opened?.tabs) ? opened.tabs : [];
+	return tabs[0];
 }
 
 function requireSessionKey(sessionKey) {
 	if (!sessionKey) throw new Error("sessionKey is required");
 }
 
-function requireGroupSettings(groupName, groupColor) {
-	if (!groupName || !groupColor)
-		throw new Error("groupName and groupColor are required");
-}
-
-async function readGroupId(sessionKey) {
-	const key = `${GROUP_KEY_PREFIX}${sessionKey}`;
-	const stored = await chrome.storage.session.get(key);
-	const groupId = stored[key];
-	return typeof groupId === "number" ? groupId : undefined;
-}
-
-async function writeGroupId(sessionKey, groupId) {
-	await chrome.storage.session.set({
-		[`${GROUP_KEY_PREFIX}${sessionKey}`]: groupId,
-	});
-}
-
 function formatTab(tab) {
 	return {
 		id: tab.id,
 		active: Boolean(tab.active),
-		groupId: tab.groupId,
 		title: tab.title ?? "",
 		url: tab.url ?? "",
 	};

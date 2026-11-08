@@ -16,18 +16,6 @@ export const TOOL_IDS = [
 ] as const;
 export type ToolId = (typeof TOOL_IDS)[number];
 
-export const GROUP_COLORS = [
-	"blue",
-	"red",
-	"yellow",
-	"green",
-	"pink",
-	"purple",
-	"cyan",
-	"orange",
-] as const;
-export type GroupColor = (typeof GROUP_COLORS)[number];
-
 export const SCREENSHOT_FORMATS = ["png", "jpeg"] as const;
 export type ScreenshotFormat = (typeof SCREENSHOT_FORMATS)[number];
 
@@ -78,7 +66,6 @@ export interface ToolSettings {
 /** 已完成校验与 clamp 的最终配置。 */
 export interface ResolvedConfig {
 	bridge: { port: number };
-	chrome: { groupName: string; groupColor: GroupColor };
 	policy: {
 		authorizeOnStart: boolean;
 		background: boolean;
@@ -105,10 +92,9 @@ export const DEFAULT_PROMPT_GUIDELINES = [
 	"chrome_act: passing see adds a snapshot to the reply and costs extra tokens; ask for it only when the page just changed.",
 ] as const;
 
-/** 15 个标量字段的默认值。工具记录与文案覆盖不在其中。 */
+/** 13 个标量字段的默认值。工具记录与文案覆盖不在其中。 */
 export const DEFAULTS: Omit<ResolvedConfig, "tools" | "guidance"> = {
 	bridge: { port: 17_318 },
-	chrome: { groupName: "Pi", groupColor: "blue" },
 	policy: {
 		authorizeOnStart: false,
 		background: true,

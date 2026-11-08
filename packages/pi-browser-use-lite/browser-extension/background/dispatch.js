@@ -24,13 +24,7 @@ import {
 	snapshotPage,
 } from "./page/snapshot.js";
 import { waitFor } from "./page/waitFor.js";
-import {
-	activateTab,
-	closeTab,
-	groupTab,
-	listTabs,
-	navigateTab,
-} from "./tabs.js";
+import { activateTab, closeTab, listTabs, navigateTab } from "./tabs.js";
 import { cleanupAutomation, createTarget, targetFor } from "./target.js";
 
 /** 需要一个标签 id 的动作。其余动作自己从 params 取会话信息。 */
@@ -77,14 +71,8 @@ export const routes = new Map([
 	],
 	[
 		"tab.new",
-		async ({ sessionKey, url, groupName, groupColor, background } = {}) => ({
-			id: await createTarget({
-				sessionKey,
-				url,
-				groupName,
-				groupColor,
-				background,
-			}),
+		async ({ sessionKey, url, background } = {}) => ({
+			id: await createTarget({ sessionKey, url, background }),
 		}),
 	],
 	[
@@ -92,11 +80,6 @@ export const routes = new Map([
 		({ tabId, background } = {}) => activateTab({ tabId, background }),
 	],
 	["tab.close", ({ tabId } = {}) => closeTab({ tabId })],
-	[
-		"tab.group",
-		({ sessionKey, tabId, groupName, groupColor } = {}) =>
-			groupTab({ sessionKey, tabId, groupName, groupColor }),
-	],
 	[
 		"page.navigate",
 		({ tabId, url, initScript, timeoutMs } = {}) =>
@@ -225,9 +208,6 @@ async function tabIdOf(action, params) {
 	return targetFor({
 		sessionKey: params.sessionKey,
 		action,
-		url: params.url,
-		groupName: params.groupName,
-		groupColor: params.groupColor,
 		background: true,
 	});
 }

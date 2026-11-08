@@ -16,7 +16,6 @@ export interface TabInfo {
 	active?: boolean;
 	title?: string;
 	url?: string;
-	group?: string;
 }
 
 /** 一条错误的固定两行：`<class>: <原因>` 与 `hint: <下一步>`。没有下一步时只留第一行。 */
@@ -169,7 +168,6 @@ function quote(text: string): string {
 
 function tabLine(tab: TabInfo): string {
 	const parts = [String(tab.id), tab.active ? "*" : ""];
-	if (tab.group !== undefined && tab.group !== "") parts.push(tab.group);
 	parts.push(tab.title ?? "", tab.url ?? "");
 	return parts.filter((part) => part !== "").join(" ");
 }

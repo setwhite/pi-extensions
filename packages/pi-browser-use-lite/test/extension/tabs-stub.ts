@@ -3,7 +3,6 @@ import { vi } from "vitest";
 export interface Tab {
 	id: number;
 	active?: boolean;
-	groupId?: number;
 	windowId?: number;
 	title?: string;
 	url?: string;
@@ -11,7 +10,7 @@ export interface Tab {
 
 export type Mock = ReturnType<typeof vi.fn>;
 
-/** 标签页模块测试用的 `chrome` 桩：tabs、tabGroups、storage、debugger 与 onUpdated 监听器。 */
+/** 标签页与 target 模块测试用的 `chrome` 桩：tabs、windows、storage、debugger 与 onUpdated 监听器。 */
 export interface TabsChromeStub {
 	/** `chrome.storage.session` 的内容。 */
 	store: Record<string, unknown>;
@@ -21,24 +20,23 @@ export interface TabsChromeStub {
 		query: Mock;
 		create: Mock;
 		get: Mock;
-		group: Mock;
 		remove: Mock;
 		update: Mock;
 		onUpdated: { addListener: Mock; removeListener: Mock };
 	};
-	tabGroups: { query: Mock; update: Mock };
+	windows: { create: Mock; get: Mock; update: Mock };
 	debugger: { attach: Mock; detach: Mock; sendCommand: Mock };
 	listeners: Set<(tabId: number, changeInfo: { status?: string }) => void>;
 }
 
 /** 挂 `chrome` 桩。两处存储各用一个对象模拟，跨调用保留。 */
 export function stubTabsChrome(
-	options: { groupId?: number; sessionKey?: string } = {},
+	options: { windowId?: number; sessionKey?: string } = {},
 ): TabsChromeStub {
 	const store: Record<string, unknown> = {};
 	const localStore: Record<string, unknown> = {};
-	if (options.groupId !== undefined)
-		store[`tabs.groupId.${options.sessionKey ?? "s1"}`] = options.groupId;
+	if (options.windowId !== undefined)
+		store[`tabs.windowId.${options.sessionKey ?? "s1"}`] = options.windowId;
 	const listeners = new Set<
 		(tabId: number, changeInfo: { status?: string }) => void
 	>();
@@ -46,7 +44,6 @@ export function stubTabsChrome(
 		query: vi.fn(async () => [] as Tab[]),
 		create: vi.fn(async () => ({}) as Tab),
 		get: vi.fn(async () => ({}) as Tab),
-		group: vi.fn(async () => -1),
 		remove: vi.fn(async () => undefined),
 		update: vi.fn(async () => ({}) as Tab),
 		onUpdated: {
@@ -66,14 +63,15 @@ export function stubTabsChrome(
 			),
 		},
 	};
+	const windows = {
+		create: vi.fn(async () => ({ id: 9, tabs: [] as Tab[] })),
+		get: vi.fn(async () => ({ id: options.windowId ?? 9 })),
+		update: vi.fn(async () => ({ id: options.windowId ?? 9 })),
+	};
 	const debuggerStub = {
 		attach: vi.fn(async () => undefined),
 		detach: vi.fn(async () => undefined),
 		sendCommand: vi.fn(async () => ({}) as Record<string, unknown>),
-	};
-	const tabGroups = {
-		query: vi.fn(async () => [{ id: 7 }]),
-		update: vi.fn(async () => undefined),
 	};
 	const storage = {
 		session: {
@@ -105,7 +103,7 @@ export function stubTabsChrome(
 	};
 	(globalThis as { chrome?: unknown }).chrome = {
 		tabs,
-		tabGroups,
+		windows,
 		storage,
 		debugger: debuggerStub,
 	};
@@ -113,7 +111,7 @@ export function stubTabsChrome(
 		store,
 		localStore,
 		tabs,
-		tabGroups,
+		windows,
 		debugger: debuggerStub,
 		listeners,
 	};

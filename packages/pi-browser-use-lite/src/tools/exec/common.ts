@@ -109,7 +109,7 @@ export async function call(
 	);
 }
 
-/** 列出所有标签页。 */
+/** 列出本会话窗口里的标签页。 */
 export async function listTabs(
 	ctx: RunContext,
 	timeoutMs?: number,

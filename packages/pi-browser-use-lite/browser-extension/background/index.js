@@ -1,5 +1,8 @@
 import { onCommitted } from "./capture.js";
 import { dispatch } from "./dispatch.js";
+import { forgetPrefixes } from "./ledger.js";
+import { WINDOW_KEY_PREFIX } from "./tabs.js";
+import { OWNED_KEY_PREFIX, TARGET_KEY_PREFIX } from "./target.js";
 import { startTransport } from "./transport.js";
 
 const POLL_ALARM_NAME = "pi-browser-use:poll";
@@ -33,6 +36,21 @@ function onWake() {
 	startPolling();
 }
 
+/** 浏览器刚启动：上一次的台账一律作废——标签 id 与窗口 id 都可能被重新分配。 */
+async function onBrowserStart() {
+	try {
+		await forgetPrefixes([
+			TARGET_KEY_PREFIX,
+			OWNED_KEY_PREFIX,
+			WINDOW_KEY_PREFIX,
+		]);
+	} catch (error) {
+		// 清不掉也要让轮询起来，把原因留在扩展的控制台里。
+		console.warn("could not forget the previous automation ledger:", error);
+	}
+	onWake();
+}
+
 /** 只认自己的 alarm：唤醒前的第一件事是续上它，然后让轮询起跑。 */
 function onPollAlarm(alarm) {
 	if (alarm.name !== POLL_ALARM_NAME) return;
@@ -41,6 +59,6 @@ function onPollAlarm(alarm) {
 
 chrome.webNavigation.onCommitted.addListener(onCommitted);
 chrome.runtime.onInstalled.addListener(onWake);
-chrome.runtime.onStartup.addListener(onWake);
+chrome.runtime.onStartup.addListener(onBrowserStart);
 chrome.alarms.onAlarm.addListener(onPollAlarm);
 armPollAlarm();
