@@ -71,7 +71,7 @@ git config core.hooksPath .githooks # 启用提交钩子，钩子跑同样四条
 
 ## 发版
 
-改 `packages/<pkg>/package.json` 的 version，然后推 main。`npm-publish.yml` 对三个包各判断一次，只发布版本号变了的包。
+改 `packages/<pkg>/package.json` 的 version，然后推 main。`npm-publish.yml` 对四个包各判断一次，只发布版本号变了的包。
 
 ## 文档
 
