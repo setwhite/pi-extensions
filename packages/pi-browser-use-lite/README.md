@@ -1,5 +1,7 @@
 # pi-browser-use-lite
 
+[简体中文](README.zh-CN.md) | **English**
+
 Five `chrome_*` tools that drive your own browser: the tabs you are already logged into, with your cookies and your sessions.
 
 The package has two halves. The pi extension registers the tools and runs a local bridge on `127.0.0.1`. The companion Chrome extension polls that bridge and runs each command through `chrome.debugger`.
