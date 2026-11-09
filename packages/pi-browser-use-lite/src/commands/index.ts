@@ -75,7 +75,10 @@ export function createChromeCommand(deps: ChromeCommandDeps): ChromeCommand {
 	};
 }
 
-/** 授权只在扩展连上以后才开：桥通了才算有可控的浏览器。 */
+/**
+ * 授权是用户的意图，与扩展此刻连没连上无关。
+ * 扩展按轮询连上来，等它连上再授权会让第一次 `authorize on` 必然失败；状态行报连接即可。
+ */
 async function toggleAuthorize(
 	deps: ChromeCommandDeps,
 	value: string | undefined,
@@ -88,10 +91,11 @@ async function toggleAuthorize(
 	}
 
 	await deps.bridge.start();
-	if (!(await deps.bridge.describe()).connected)
-		return `extension_missing: the browser extension is not connected\n${INSTALL_STEPS}`;
 	deps.policy.authorize(true);
-	return "authorized: on";
+	const { connected } = await deps.bridge.describe();
+	return connected
+		? "authorized: on"
+		: `authorized: on, but the browser extension is not connected yet\n${INSTALL_STEPS}`;
 }
 
 /** 状态行：桥的四项来自 `bridge.status()`，授权来自会话，target 来自宿主会话状态。 */

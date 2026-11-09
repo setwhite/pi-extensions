@@ -111,7 +111,7 @@ it("AC3: 桥未连上时 status 打印装扩展的三步", async () => {
 	expect(text).toContain("browser-extension");
 });
 
-it("AC3: 未连上时 authorize on 打印同样的三步且不授权", async () => {
+it("AC3: 未连上时 authorize on 照样授权，并打印装扩展的三步", async () => {
 	const bridge = fakeBridge({ connected: false });
 	const { policy, run } = commandOf(bridge);
 
@@ -119,11 +119,11 @@ it("AC3: 未连上时 authorize on 打印同样的三步且不授权", async () 
 	const status = await run("status");
 
 	expect(on).toContain(
-		"extension_missing: the browser extension is not connected",
+		"authorized: on, but the browser extension is not connected yet",
 	);
 	expect(on).toContain("Load unpacked");
 	expect(status).toContain("Load unpacked");
-	expect(policy.authorized).toBe(false);
+	expect(policy.authorized).toBe(true);
 });
 
 it("AC3: 连上以后 authorize on 打开授权，off 立刻关掉", async () => {
