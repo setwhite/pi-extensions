@@ -2,6 +2,10 @@
 
 本文件记录已发布版本的用户可见变更。更细的过程见 git log。破坏性变更标 **BREAKING**。
 
+## 0.3.0 — 2026-11-09
+
+- `/chrome authorize off` 之后五个工具真的消失：注册时按 `policy.authorizeOnStart` 决定活动状态，`authorize on` 挂上、`off` 摘掉，模型工具表与 codemode 描述一起变。此前授权只拦调用，工具定义一直在。
+
 ## 0.2.0 — 2026-11-09
 
 - **BREAKING**：删掉 `prompt.guidelines`。默认三条规则搬进 `chrome_act` 自己的 `promptGuidelines`；跨工具的规则写 AGENTS.md。写了这个键的配置会以 `prompt: unknown key` 启动失败。

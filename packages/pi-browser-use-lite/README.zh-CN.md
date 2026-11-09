@@ -42,7 +42,9 @@ pi install npm:pi-browser-use-lite
 /chrome authorize on
 ```
 
-授权随会话结束。想省这一步，把 `policy.authorizeOnStart` 设为 true。输入 `/chrome ` 再按 Tab 列出子命令。
+五个 `chrome_*` 工具只有授权后才出现。它们注册时不活动，所以授权前既不在模型的工具表里，也不在 codemode 的描述里。`/chrome authorize off` 会把它们再摘掉。
+
+授权随会话结束。想每个会话一开始就已授权，把 `policy.authorizeOnStart` 设为 true。输入 `/chrome ` 再按 Tab 列出子命令。
 
 ## 配置
 

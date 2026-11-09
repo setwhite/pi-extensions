@@ -22,3 +22,5 @@
 代价：翻旧对话看不到授权时间点。接受。
 
 `policy.authorizeOnStart` 为 `true` 时启动即授权，不必每次敲命令。
+
+开关同时决定工具可不可见：工具注册为不活动，`on` 挂进活动集，`off` 摘掉，模型工具表与 codemode 描述一起变。授权判定仍是第二道门，见 [policy](../modules/policy.md)。

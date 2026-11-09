@@ -42,7 +42,9 @@ Then authorize the tools for this session:
 /chrome authorize on
 ```
 
-Authorization ends with the session. Set `policy.authorizeOnStart` to skip this step. Type `/chrome ` and press Tab to list the subcommands.
+The five `chrome_*` tools appear only after this. They are registered inactive, so they stay out of the model's tool list and out of the codemode description until you authorize. `/chrome authorize off` removes them again.
+
+Authorization ends with the session. Set `policy.authorizeOnStart` to start each session authorized. Type `/chrome ` and press Tab to list the subcommands.
 
 ## Configuration
 

@@ -165,7 +165,7 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 
 | 策略 | 行为 |
 |---|---|
-| 授权 | `/chrome authorize on` 与 `off`。生效到会话结束，会话结束时自动关。状态只在内存，不落盘。`policy.authorizeOnStart` 为 `true` 时启动即授权。锁覆盖全部 5 个工具，只读的 `chrome_see`、`chrome_vision` 也要解锁——读页面等于读用户的隐私 |
+| 授权 | `/chrome authorize on` 与 `off`。工具注册为不活动，授权后才进模型工具表与 codemode 描述，`off` 再摘掉。生效到会话结束，会话结束时自动关。状态只在内存，不落盘。`policy.authorizeOnStart` 为 `true` 时启动即授权。锁覆盖全部 5 个工具，只读的 `chrome_see`、`chrome_vision` 也要解锁——读页面等于读用户的隐私 |
 | 目标隔离 | 每个 Pi 会话一个浏览器窗口，窗口里放本会话的自动化 target。认「这是本会话的标签」要两条同时成立：它是台账里的 target，且它在本会话的窗口里。台账存扩展的 `storage.session` 与 `storage.local`，浏览器启动时整份作废——标签 id 与窗口 id 都会被重新分配。会话结束只关本会话创建的标签；`policy.closeOwnTabsOnExit` 为 `false` 时保留 |
 
 ### 配置

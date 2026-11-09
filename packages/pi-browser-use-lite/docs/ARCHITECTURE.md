@@ -10,7 +10,7 @@
 
 | 模块 | 职责 | 契约边界 |
 |---|---|---|
-| `src/index.ts` | 读配置，按 `tools.*` 注册工具（默认 5 个），挂 `/chrome` 命令与其参数补全 | 只有扩展入口。不导出可复用 API |
+| `src/index.ts` | 读配置，按 `tools.*` 注册工具（默认 5 个，未授权时注册为不活动），挂 `/chrome` 命令与其参数补全，授权变化时同步活动工具集 | 只有扩展入口。不导出可复用 API |
 | `src/config/` | 定位、加载、校验、clamp 配置文件 | 只依赖 `node:`。不碰网络与浏览器 |
 | `src/protocol/` | 桥的命令与结果信封类型、动作名表、错误类别与 hint、超时常量 | 无依赖。动作名与错误 hint 是唯一来源 |
 | `src/bridge/` | 本地 HTTP 桥：`/next` 长轮询、`/result`、`/command` 转发、`/status`、在途命令表、扩展版本闸。端口上先到者当 server，其余当 client 转发，owner 消失时抢端口升为 server | 只依赖 `protocol/`。不认识工具语义 |
