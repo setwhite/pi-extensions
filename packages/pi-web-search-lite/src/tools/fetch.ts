@@ -169,9 +169,6 @@ export async function executeFetch(
 	});
 }
 
-/** 未配置 guidance.promptSnippet 时的默认一行短语（工具列表用）。 */
-const DEFAULT_PROMPT_SNIPPET = "Extract URL text";
-
 export function createFetchTool(
 	config: ResolvedConfig,
 	overrides: FetchOverrides = {},
@@ -192,7 +189,8 @@ export function createFetchTool(
 	const toolName = config.tools.web_fetch.name;
 	const searchToolName = config.tools.web_search.name;
 	const guidanceFields = {
-		promptSnippet: guidance.promptSnippet ?? DEFAULT_PROMPT_SNIPPET,
+		// 默认不发：这一行与 guidelines 重复，pi 把 undefined 与 "" 都归一化成不发
+		promptSnippet: guidance.promptSnippet,
 		promptGuidelines: guidance.promptGuidelines ?? [
 			`${toolName}: use to get full text of a URL, e.g. docs or URLs found by ${searchToolName}.`,
 		],

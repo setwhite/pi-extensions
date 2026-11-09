@@ -183,7 +183,7 @@ describe("index：guidance 覆盖", () => {
 		expect(search?.promptSnippet).toBe("自定义一行");
 		expect(search?.promptGuidelines).toEqual(["优先用 web_search"]);
 		expect(fetch?.description).toBe("Extract content of URL.");
-		expect(fetch?.promptSnippet).toBe("Extract URL text");
+		expect(fetch?.promptSnippet).toBeUndefined();
 		expect(fetch?.promptGuidelines).toEqual([
 			"web_fetch: use to get full text of a URL, e.g. docs or URLs found by web_search.",
 		]);

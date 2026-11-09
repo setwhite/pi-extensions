@@ -98,9 +98,6 @@ export async function executeSearch(
 	});
 }
 
-/** 未配置 guidance.promptSnippet 时的默认一行短语（工具列表用）。 */
-const DEFAULT_PROMPT_SNIPPET = "Search the web";
-
 /** schema 独立成函数：返回类型要用 `Static<typeof ...>`，函数签名引用不到函数体内的变量。 */
 function buildParameters(config: ResolvedConfig) {
 	return Type.Object({
@@ -124,7 +121,8 @@ export function createSearchTool(
 	// 默认 guidelines 前缀取配置的工具名，改名后提示词仍指向真实工具；description 保持英文（tool_search 的 BM25 只索引 a-z0-9）
 	const toolName = config.tools.web_search.name;
 	const guidanceFields = {
-		promptSnippet: guidance.promptSnippet ?? DEFAULT_PROMPT_SNIPPET,
+		// 默认不发：这一行与 guidelines 重复，pi 把 undefined 与 "" 都归一化成不发
+		promptSnippet: guidance.promptSnippet,
 		promptGuidelines: guidance.promptGuidelines ?? [
 			`${toolName}: use for info beyond training data (recent events, fact-checking, live docs).`,
 			`${toolName}: cite sources as "Sources:" with [Title](URL) links.`,
