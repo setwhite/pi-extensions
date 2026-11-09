@@ -115,6 +115,14 @@ Without the file every value is the default. A wrong type or an unknown key fail
 
 Every key is optional. `src/config/schema.ts` holds the ranges and the defaults.
 
+## Credits
+
+| Project | Borrowed |
+|---|---|
+| [tianrendong/pi-chrome](https://github.com/tianrendong/pi-chrome) | The base of this package. It is pi-chrome v0.15.57, trimmed. The local bridge, the companion Chrome extension, the `/chrome` authorize flow and the CDP input layer come from it |
+
+The project is open source under MIT. Thank you for the code.
+
 ## Docs
 
 | Document | Content |

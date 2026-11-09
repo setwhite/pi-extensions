@@ -115,6 +115,14 @@ pi install npm:pi-browser-use-lite
 
 每个键都可选。范围与默认值在 `src/config/schema.ts`。
 
+## 参考项目
+
+| 项目 | 借鉴内容 |
+|---|---|
+| [tianrendong/pi-chrome](https://github.com/tianrendong/pi-chrome) | 本包的底本。把它 v0.15.57 删减成现在这样。本地桥、配套 Chrome 扩展、`/chrome` 授权流程与 CDP 输入层都出自它 |
+
+这个项目是开源的，许可证为 MIT。感谢它的代码。
+
 ## 文档
 
 | 文档 | 内容 |
