@@ -4,6 +4,7 @@ import { afterEach, expect, it } from "vitest";
 import { Bridge } from "../../src/bridge/index.ts";
 import { HOST_VERSION } from "../../src/config/index.ts";
 import { BridgeError, type ForwardResponse } from "../../src/protocol/index.ts";
+import { startBridge as openBridge } from "./start.ts";
 
 const bridges: Bridge[] = [];
 const closers: Array<() => Promise<void>> = [];
@@ -28,9 +29,8 @@ function portOf(url: string): number {
 }
 
 async function startBridge(port: number): Promise<Bridge> {
-	const bridge = new Bridge({ port, holdMs: 50, hostVersion: HOST_VERSION });
+	const bridge = await openBridge({ port, holdMs: 50 });
 	bridges.push(bridge);
-	await bridge.start();
 	return bridge;
 }
 
