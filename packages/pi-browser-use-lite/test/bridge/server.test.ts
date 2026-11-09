@@ -13,7 +13,12 @@ async function startBridge(holdMs?: number): Promise<Bridge> {
 
 interface NextBody {
 	type: "command" | "none";
-	command?: { id: string; action: string; params?: Record<string, unknown> };
+	command?: {
+		id: string;
+		action: string;
+		params?: Record<string, unknown>;
+		remainingMs?: number;
+	};
 }
 
 interface StatusBody {
@@ -73,6 +78,9 @@ it("AC3: 先有命令时 /next 立刻返回该命令", async () => {
 	expect(body.type).toBe("command");
 	expect(body.command?.action).toBe("tab.list");
 	expect(typeof body.command?.id).toBe("string");
+	// 命令自带时限：扩展据此放弃卡住的这条，不必由桥干等。
+	expect(body.command?.remainingMs).toBeGreaterThan(29_000);
+	expect(body.command?.remainingMs).toBeLessThanOrEqual(30_000);
 	expect(Date.now() - startedAt).toBeLessThan(1_000);
 });
 

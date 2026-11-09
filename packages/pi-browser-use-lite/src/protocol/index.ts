@@ -38,6 +38,11 @@ export interface BridgeCommand {
 	id: string;
 	action: ActionName;
 	params?: Record<string, unknown>;
+	/**
+	 * 扩展还愿意在这条命令上花多久，毫秒。桥在交命令的那一刻按剩余预算算好，已扣掉回传结果的时间。
+	 * 扩展到期就放弃这条命令并回 `timeout:`，不让一条卡住的命令钉死整个轮询。
+	 */
+	remainingMs: number;
 }
 
 /** 一次应答：Chrome 扩展回传。`ok` 为 false 时看 `error`。 */

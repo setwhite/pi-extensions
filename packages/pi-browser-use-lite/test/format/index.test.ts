@@ -3,6 +3,7 @@ import {
 	candidatesText,
 	changedLine,
 	errorText,
+	openedLine,
 	savedText,
 	tabsText,
 	valueText,
@@ -24,6 +25,23 @@ it("变更量是三元组的计数", () => {
 	expect(changedLine({ added: 1, removed: 0, updated: 2 })).toBe(
 		"changed: +1 -0 ~2",
 	);
+});
+
+it("AC9: 新开的标签单独一行；只有一个时并进首行", () => {
+	expect(
+		openedLine([{ id: 8, active: true, title: "黑猫道", url: "https://s" }]),
+	).toBe("opened: +1 8 * 黑猫道 https://s");
+	expect(
+		openedLine([
+			{ id: 8, title: "A", url: "https://a" },
+			{ id: 9, title: "B", url: "https://b" },
+		]),
+	).toBe("opened: +2\n  8 A https://a\n  9 B https://b");
+});
+
+it("AC11: 空标签列表回一句明文，不回空字符串", () => {
+	// 空输出会被模型读成「工具没给结果」，接着猜「没有浏览器会话」。
+	expect(tabsText([])).toBe("no tabs in this session yet");
 });
 
 it("AC11: 同一份输入产出同一段文本", () => {

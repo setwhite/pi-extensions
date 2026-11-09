@@ -177,7 +177,10 @@ it("AC2: /next 回 none 时，下一次请求在 100 毫秒后发生", async () 
 
 it("AC3: /next 回命令时调用 dispatch，并用同一个 id 回传结果", async () => {
 	const stub = await startStubBridge([
-		{ type: "command", command: { id: "c1", action: "tab.list" } },
+		{
+			type: "command",
+			command: { id: "c1", action: "tab.list", remainingMs: 1_000 },
+		},
 	]);
 	const dispatch = vi.fn(() => [{ id: 1 }]);
 	const transport = startTransport({
@@ -197,7 +200,10 @@ it("AC3: /next 回命令时调用 dispatch，并用同一个 id 回传结果", a
 
 it("AC4: dispatch 抛错时回传 ok 为 false 与错误消息", async () => {
 	const stub = await startStubBridge([
-		{ type: "command", command: { id: "c2", action: "page.evaluate" } },
+		{
+			type: "command",
+			command: { id: "c2", action: "page.evaluate", remainingMs: 1_000 },
+		},
 	]);
 	const transport = startTransport({
 		url: stub.url,
@@ -216,6 +222,63 @@ it("AC4: dispatch 抛错时回传 ok 为 false 与错误消息", async () => {
 		id: "c2",
 		ok: false,
 		error: "injected failure",
+	});
+});
+
+it("命令到期就不再等它：回 timeout，轮询接着问桥", async () => {
+	const stub = await startStubBridge([
+		{
+			type: "command",
+			command: { id: "c3", action: "page.navigate", remainingMs: 20 },
+		},
+	]);
+	const transport = startTransport({
+		url: stub.url,
+		pollIntervalMs: 100,
+		version: HOST_VERSION,
+		// 永远不 settle：模拟卡住的 CDP 调用。
+		dispatch: () => new Promise(() => {}),
+	});
+	transports.push(transport);
+
+	await waitFor(() => stub.requests.some((item) => item.path === "/result"));
+
+	const posted = stub.requests.find((item) => item.path === "/result");
+	expect(posted?.body).toMatchObject({
+		id: "c3",
+		ok: false,
+		error:
+			"timeout: page.navigate did not finish within 20ms; the debugger was detached, so the page may be half changed",
+	});
+	// 放弃之后循环必须接着转：再问一次桥，而不是卡在放弃的那条命令上。
+	await waitFor(
+		() => stub.requests.filter((item) => item.path === "/next").length >= 3,
+	);
+});
+
+it("命令到手时预算已经用完就立刻放弃，不跑 dispatch", async () => {
+	const stub = await startStubBridge([
+		{
+			type: "command",
+			command: { id: "c4", action: "tab.list", remainingMs: 0 },
+		},
+	]);
+	const dispatch = vi.fn(() => undefined);
+	const transport = startTransport({
+		url: stub.url,
+		pollIntervalMs: 100,
+		version: HOST_VERSION,
+		dispatch,
+	});
+	transports.push(transport);
+
+	await waitFor(() => stub.requests.some((item) => item.path === "/result"));
+
+	expect(dispatch).not.toHaveBeenCalled();
+	expect(stub.requests.find((item) => item.path === "/result")?.body).toEqual({
+		id: "c4",
+		ok: false,
+		error: "timeout: the command expired before the extension started it",
 	});
 });
 

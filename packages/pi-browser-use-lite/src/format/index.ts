@@ -33,6 +33,20 @@ export function changedLine(changed: Changed): string {
 	return `changed: +${changed.added} -${changed.removed} ~${changed.updated}`;
 }
 
+/**
+ * 动作顺带开的新标签。目标标签自己的 URL 不变，模型只能靠这一行知道页面开了新页，
+ * 否则会把「URL 没变」读成「动作没生效」再按一遍。
+ */
+export function openedLine(opened: readonly TabInfo[]): string {
+	const [first] = opened;
+	if (opened.length === 1 && first !== undefined)
+		return `opened: +1 ${tabLine(first)}`;
+	return [
+		`opened: +${opened.length}`,
+		...opened.map((tab) => `  ${tabLine(tab)}`),
+	].join("\n");
+}
+
 /** 值转文本：字符串原样给，其余按 JSON。`undefined` 按 `null`，与 JSON 一致。 */
 export function valueText(value: unknown): string {
 	if (typeof value === "string") return value;
@@ -41,6 +55,8 @@ export function valueText(value: unknown): string {
 
 /** 标签页清单：每行 `<id> <*|> [组名] <标题> <url>`。 */
 export function tabsText(tabs: readonly TabInfo[]): string {
+	// 空列表不能回空字符串：模型会把「没有标签」读成「工具没输出」。
+	if (tabs.length === 0) return "no tabs in this session yet";
 	return tabs.map(tabLine).join("\n");
 }
 

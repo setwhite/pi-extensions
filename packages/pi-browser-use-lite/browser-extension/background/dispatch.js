@@ -49,6 +49,14 @@ const TAB_ACTIONS = new Set([
 	"cdp.call",
 ]);
 
+/** 可能顺带开新标签的动作：点链接、回车提交都可能走 `target=_blank`，这时目标标签的 URL 不变。 */
+const OPENING_ACTIONS = new Set([
+	"page.click",
+	"page.type",
+	"page.fill",
+	"page.key",
+]);
+
 /** 结果要带变更量的动作。悬停不在里面：鼠标经过不改 DOM，拍两次快照只会白花时间。 */
 const CHANGED_ACTIONS = new Set([
 	"page.click",
@@ -185,8 +193,34 @@ export async function dispatch(action, params = {}) {
 	const withTab = { ...params, tabId };
 	if (!CHANGED_ACTIONS.has(action)) return await route(withTab);
 	await markBaseline(tabId);
+	const before = OPENING_ACTIONS.has(action)
+		? await windowTabIds(tabId)
+		: undefined;
 	const result = await route(withTab);
-	return { ...result, changed: await changesSince(tabId) };
+	const changed = await changesSince(tabId);
+	const opened = before === undefined ? [] : await openedSince(tabId, before);
+	// 没开就不带这个字段：多一个恒为空的键，读结果的人要判断两次。
+	if (opened.length === 0) return { ...result, changed };
+	return { ...result, changed, opened };
+}
+
+/** 目标标签所在窗口里的标签 id。 */
+async function windowTabIds(tabId) {
+	const tabs = await windowTabs(tabId);
+	return new Set(tabs.flatMap((tab) => (tab.id === undefined ? [] : [tab.id])));
+}
+
+/** 动作之后新出现的标签。目标标签自己不会变，宿主只能靠这份清单知道页面开了新页。 */
+async function openedSince(tabId, before) {
+	const tabs = await windowTabs(tabId);
+	return tabs
+		.filter((tab) => tab.id !== undefined && !before.has(tab.id))
+		.map(({ id, active, title, url }) => ({ id, active, title, url }));
+}
+
+async function windowTabs(tabId) {
+	const { windowId } = await chrome.tabs.get(tabId);
+	return await chrome.tabs.query({ windowId });
 }
 
 /** 点名的标签 id 不合法就报错：退回会话 target 会作用到别的标签上。 */

@@ -168,6 +168,19 @@ export function targetIdOf(result: unknown): number | undefined {
 	return undefined;
 }
 
+/** 从命令应答里取动作顺带开的新标签。扩展没给就当没开。 */
+export function openedOf(result: unknown): TabInfo[] {
+	if (typeof result !== "object" || result === null) return [];
+	const opened = (result as { opened?: unknown }).opened;
+	if (!Array.isArray(opened)) return [];
+	return opened.filter(
+		(item): item is TabInfo =>
+			typeof item === "object" &&
+			item !== null &&
+			typeof (item as { id?: unknown }).id === "number",
+	);
+}
+
 /** 从命令应答里取变更量。扩展没给就不打变更行。 */
 export function changedOf(
 	result: unknown,

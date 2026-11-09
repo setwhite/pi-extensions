@@ -256,6 +256,7 @@ it("AC4: navigate 把 initScript 与超时原样转给 tabs", async () => {
 });
 
 it("AC4: ref 换成坐标再交给 pointer，pointer 从不见 ref", async () => {
+	stubChrome();
 	const pointer = await moduleOf("input/pointer.js");
 
 	await dispatch("page.click", { sessionKey: "s1", ref: "e12" });
@@ -277,6 +278,7 @@ it("AC4: selector 与坐标直接透传", async () => {
 });
 
 it("AC4: type 带 press 时补一次按键", async () => {
+	stubChrome();
 	const keyboard = await moduleOf("input/keyboard.js");
 
 	const result = await dispatch("page.type", {
@@ -400,6 +402,7 @@ it("upload 转发路径与超时", async () => {
 });
 
 it("AC4: 其余动作的参数按 wire 表转发", async () => {
+	stubChrome();
 	const keyboard = await moduleOf("input/keyboard.js");
 	const pointer = await moduleOf("input/pointer.js");
 	const tabs = await moduleOf("tabs.js");
@@ -473,7 +476,50 @@ it("AC10: 三条日志动作各走 capture.js 的一个函数", async () => {
 	expect(capture.networkRequest).toHaveBeenCalledWith(7, "r1");
 });
 
+it("AC9: 动作之后多出标签就一起报回来，目标标签自己没变", async () => {
+	const stub = stubChrome();
+	stub.tabs.query
+		.mockResolvedValueOnce([{ id: 7, windowId: 1 }])
+		.mockResolvedValueOnce([
+			{ id: 7, windowId: 1 },
+			{
+				id: 8,
+				windowId: 1,
+				active: true,
+				title: "黑猫道",
+				url: "https://search.bilibili.com/all?keyword=x",
+			},
+		]);
+
+	const result = (await dispatch("page.click", {
+		sessionKey: "s1",
+		ref: "e1",
+	})) as { opened?: unknown };
+
+	expect(result.opened).toEqual([
+		{
+			id: 8,
+			active: true,
+			title: "黑猫道",
+			url: "https://search.bilibili.com/all?keyword=x",
+		},
+	]);
+});
+
+it("AC9: 没有新标签时结果里不带 opened", async () => {
+	stubChrome();
+
+	const result = (await dispatch("page.click", {
+		sessionKey: "s1",
+		ref: "e1",
+	})) as Record<string, unknown>;
+
+	expect(result).not.toHaveProperty("opened");
+	expect(result).toHaveProperty("changed");
+});
+
 it("AC11: 带标签的动作先开日志抓取，tab.list 不碰调试器", async () => {
+	stubChrome();
 	const capture = await moduleOf("capture.js");
 
 	await dispatch("page.click", { sessionKey: "s1", ref: "e1" });

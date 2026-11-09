@@ -1,3 +1,5 @@
+import { releaseAll } from "./input/debugger.js";
+
 /**
  * 桥的默认地址。host_permissions 覆盖 127.0.0.1 的任意端口，但端口要扩展自己知道：
  * 改 `bridge.port` 时这里也要改，否则轮询找不到桥。
@@ -96,18 +98,41 @@ export function startTransport({
 		return true;
 	}
 
+	/**
+	 * 跑一条命令，超过桥给的时限就放弃它。
+	 * 不放弃的话，一次卡住的 CDP 调用会把整个轮询钉死，后面所有命令都取不走。
+	 * @param {{ id: string, action: string, params?: Record<string, unknown>, remainingMs: number }} command 桥交给的命令
+	 */
 	async function answer(command) {
+		const limit = command.remainingMs;
+		if (!Number.isFinite(limit) || limit <= 0)
+			return {
+				id: command.id,
+				ok: false,
+				error: "timeout: the command expired before the extension started it",
+			};
+		// 先把同步抛出的错误也变成 rejection，下面统一按一条路径收尾。
+		const work = (async () => dispatch(command.action, command.params))();
+		// 放弃之后它仍会失败，吞掉，别留一个没人处理的 rejection。
+		work.catch(() => {});
 		try {
 			return {
 				id: command.id,
 				ok: true,
-				result: await dispatch(command.action, command.params),
+				result: await withDeadline(work, limit),
 			};
 		} catch (error) {
+			if (error !== EXPIRED)
+				return {
+					id: command.id,
+					ok: false,
+					error: error instanceof Error ? error.message : String(error),
+				};
+			await releaseAll();
 			return {
 				id: command.id,
 				ok: false,
-				error: error instanceof Error ? error.message : String(error),
+				error: `timeout: ${command.action} did not finish within ${limit}ms; the debugger was detached, so the page may be half changed`,
 			};
 		}
 	}
@@ -141,4 +166,23 @@ export function startTransport({
 
 function sleep(ms) {
 	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** 到期的标记。用同一个对象比字符串可靠：命令自己也可能抛 "timeout:"。 */
+const EXPIRED = Symbol("expired");
+
+/**
+ * 给一个已经在跑的 Promise 加上限。
+ * 到期只是不再等它，它自己会由 {@link releaseAll} 取消。
+ * @template T
+ * @param {Promise<T>} promise 被等的 Promise
+ * @param {number} ms 上限
+ * @returns {Promise<T>}
+ */
+function withDeadline(promise, ms) {
+	let timer;
+	const deadline = new Promise((_resolve, reject) => {
+		timer = setTimeout(() => reject(EXPIRED), ms);
+	});
+	return Promise.race([promise, deadline]).finally(() => clearTimeout(timer));
 }

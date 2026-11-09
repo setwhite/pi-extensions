@@ -6,6 +6,29 @@
 /** 已挂上的标签。attach 每次都要走一次 API，缓存省掉往返。 */
 const attachedTabs = new Set();
 
+/**
+ * 我们主动摘过几次调试器。摘下之后残留的 CDP 调用会报 Detached，
+ * 那不是会话丢了，别自愈重挂——那会把已经放弃的命令重新跑起来。
+ */
+let released = 0;
+
+/**
+ * 摘掉所有调试器。命令被放弃时用它取消：CDP 没有别的取消手段，
+ * 摘掉之后正在等的调用会立刻以 Detached 失败。
+ */
+export async function releaseAll() {
+	released += 1;
+	const tabs = [...attachedTabs];
+	attachedTabs.clear();
+	for (const tabId of tabs) {
+		try {
+			await chrome.debugger.detach({ tabId });
+		} catch {
+			// 已经在的标签没有可摘的会话，这正是想要的状态。
+		}
+	}
+}
+
 /** chrome.scripting 因权限拒绝时的文案。Chrome 在不同页面上报的四种。 */
 const SCRIPTING_DENIED =
 	/Cannot access contents of url|Cannot access .+ at origin|Extension manifest must request permission|matchAboutBlank must be true/i;
@@ -36,10 +59,12 @@ export async function attach(tabId) {
  */
 export async function sendCommand(tabId, method, params) {
 	await attach(tabId);
+	const generation = released;
 	try {
 		return await chrome.debugger.sendCommand({ tabId }, method, params);
 	} catch (error) {
-		if (!isSessionGone(error)) throw error;
+		// 自己摘掉的不算会话丢了：重挂只会让放弃掉的命令接着跑。
+		if (!isSessionGone(error) || generation !== released) throw error;
 		await reconnect(tabId);
 		return chrome.debugger.sendCommand({ tabId }, method, params);
 	}

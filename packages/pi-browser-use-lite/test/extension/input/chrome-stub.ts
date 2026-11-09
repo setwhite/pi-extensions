@@ -26,7 +26,7 @@ export interface ChromeStub {
 		onEvent: { addListener: Mock; removeListener: Mock };
 		onDetach: { addListener: Mock; removeListener: Mock };
 	};
-	tabs: { get: Mock; update: Mock };
+	tabs: { get: Mock; update: Mock; query: Mock };
 	windows: { get: Mock; update: Mock };
 	scripting: { executeScript: Mock };
 	runtime: {
@@ -168,6 +168,7 @@ export function stubChrome(options: StubOptions = {}): ChromeStub {
 			active: options.tabActive ?? false,
 		})),
 		update: vi.fn(async (id: number) => ({ id, windowId: 1, active: true })),
+		query: vi.fn(async () => [] as Record<string, unknown>[]),
 	};
 	const runtime = {
 		getURL: vi.fn((path: string) => `chrome-extension://test/${path}`),

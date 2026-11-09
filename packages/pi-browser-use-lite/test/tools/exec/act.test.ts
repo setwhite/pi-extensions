@@ -61,6 +61,26 @@ it("判定行与变更行", async () => {
 	});
 });
 
+it("AC9: 动作顺带开的新标签在变更行之后报出来", async () => {
+	const { run } = harness({
+		reply: () => ({
+			changed: { added: 0, removed: 0, updated: 0 },
+			opened: [{ id: 8, active: true, title: "黑猫道", url: "https://s?q=x" }],
+		}),
+	});
+
+	const result = await run("chrome_act", { action: "click", ref: "e9" });
+
+	expect(textOf(result).split("\n")).toStrictEqual([
+		"ok: click ref=e9",
+		"changed: +0 -0 ~0",
+		"opened: +1 8 * 黑猫道 https://s?q=x",
+	]);
+	expect(result.details?.opened).toStrictEqual([
+		{ id: 8, active: true, title: "黑猫道", url: "https://s?q=x" },
+	]);
+});
+
 it("AC3: see 在判定行与变更行之后附快照", async () => {
 	const { run, sent } = harness({
 		reply: (action) => {

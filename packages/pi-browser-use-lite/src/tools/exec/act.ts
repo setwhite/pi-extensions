@@ -3,7 +3,12 @@
  * `batch` 在这里递归执行，用的是同一份翻法。
  */
 
-import { changedLine, snapshotText, valueText } from "../../format/index.ts";
+import {
+	changedLine,
+	openedLine,
+	snapshotText,
+	valueText,
+} from "../../format/index.ts";
 import type { ActionName } from "../../protocol/index.ts";
 import { classify, errorInfo } from "../errors.ts";
 import { okResult, type ToolResult } from "../result.ts";
@@ -13,6 +18,7 @@ import {
 	DEFAULT_TIMEOUT_MS,
 	ExecError,
 	navigateTimeoutMs,
+	openedOf,
 	type RunContext,
 	tabParams,
 	targetIdOf,
@@ -59,6 +65,8 @@ export async function runAct(
 	const lines = [plan.line];
 	const changed = changedOf(result);
 	if (changed !== undefined) lines.push(changedLine(changed));
+	const opened = openedOf(result);
+	if (opened.length > 0) lines.push(openedLine(opened));
 	const value = resultValue(result);
 	if (value !== undefined) lines.push(valueText(value));
 	const note = noteOf(result);
@@ -68,6 +76,7 @@ export async function runAct(
 		action: params.action,
 	};
 	if (changed !== undefined) details.changed = changed;
+	if (opened.length > 0) details.opened = opened;
 	if (value !== undefined) details.value = value;
 	if (plan.ref !== undefined) details.ref = plan.ref;
 	if (params.see !== undefined) {

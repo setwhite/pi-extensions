@@ -57,8 +57,16 @@ interface Waiter {
 }
 
 /** 在途命令表里的一条。超时定时器在入队时设，所以从入队时刻算。 */
+/** 排队中的命令。`remainingMs` 要到交给扩展的那一刻才成立，见 `/next`。 */
+type QueuedCommand = Omit<BridgeCommand, "remainingMs">;
+
+/** 交命令时预留给扩展回传结果的时间：命令自己的时限先到，调用方才能拿到具体原因而不是桥的超时文案。 */
+const RESULT_GRACE_MS = 500;
+
 interface PendingEntry {
-	command: BridgeCommand;
+	command: QueuedCommand;
+	/** 命令到期时刻。调用方与扩展共用这一个预算。 */
+	expiresAt: number;
 	deliveredAt?: number;
 	timer: NodeJS.Timeout;
 	detach: () => void;
@@ -257,7 +265,8 @@ export class Bridge {
 				),
 			);
 
-		const command: BridgeCommand = { id: randomUUID(), action, params };
+		const command: QueuedCommand = { id: randomUUID(), action, params };
+		const expiresAt = Date.now() + timeoutMs;
 		return new Promise<unknown>((resolveSend, rejectSend) => {
 			const onAbort = () =>
 				this.fail(
@@ -266,6 +275,7 @@ export class Bridge {
 				);
 			const entry: PendingEntry = {
 				command,
+				expiresAt,
 				timer: setTimeout(() => this.expire(entry), timeoutMs),
 				detach: () => signal?.removeEventListener("abort", onAbort),
 				resolve: resolveSend,
@@ -517,7 +527,16 @@ export class Bridge {
 		const body: NextResponse =
 			entry === undefined
 				? { type: "none" }
-				: { type: "command", command: entry.command };
+				: {
+						type: "command",
+						command: {
+							...entry.command,
+							remainingMs: Math.max(
+								0,
+								entry.expiresAt - Date.now() - RESULT_GRACE_MS,
+							),
+						},
+					};
 		sendJson(response, 200, body);
 	}
 

@@ -14,9 +14,10 @@ interface DebuggerModule {
 		args?: unknown[];
 		world?: string;
 	}) => Promise<unknown>;
+	releaseAll: () => Promise<void>;
 }
 
-const { sendCommand, executeScriptWithFallback } = (await import(
+const { sendCommand, executeScriptWithFallback, releaseAll } = (await import(
 	extensionUrl("input/debugger.js")
 )) as DebuggerModule;
 
@@ -189,6 +190,33 @@ it("AC5: args 不能 JSON 序列化时抛明确错误", async () => {
 			args: [circular],
 		}),
 	).rejects.toThrow("args must be JSON-serializable");
+});
+
+it("releaseAll 让正在等的 CDP 调用失败，且不当成会话丢了去重挂", async () => {
+	const stub = stubChrome({
+		send: async () => {
+			// 命令到期：先摘调试器，再让等在路上的调用以 Detached 失败。
+			await releaseAll();
+			throw new Error("Detached");
+		},
+	});
+
+	await expect(
+		sendCommand(71, "Runtime.evaluate", { expression: "1" }),
+	).rejects.toThrow("Detached");
+	// 只挂过一次：没有自愈的 detach→attach→send 把放弃掉的命令重新跑起来。
+	expect(stub.methods.slice(0, 2)).toEqual(["attach", "send"]);
+	expect(stub.methods.filter((step) => step === "attach")).toHaveLength(1);
+});
+
+it("releaseAll 之后下一次调用重新挂调试器", async () => {
+	const stub = stubChrome();
+	await sendCommand(81, "Runtime.evaluate", { expression: "1" });
+	await releaseAll();
+	await sendCommand(81, "Runtime.evaluate", { expression: "2" });
+
+	expect(stub.debugger?.attach).toHaveBeenCalledTimes(2);
+	expect(stub.debugger?.detach).toHaveBeenCalledWith({ tabId: 81 });
 });
 
 it("AC4: 挂不上调试器时抛 cdp_unavailable，不归成 page_error", async () => {
