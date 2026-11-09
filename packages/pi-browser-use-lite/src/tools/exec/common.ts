@@ -16,8 +16,8 @@ import { errorInfo } from "../errors.ts";
 /** 执行器用到的桥。桩只要这三个方法。 */
 export interface ExecBridge {
 	start(): Promise<void>;
-	/** 真实状态。client 模式会问 owner，所以是异步的。 */
-	describe(): Promise<BridgeStatus>;
+	/** 等扩展第一次轮询，最多 2 秒；只对从未见过的扩展等待。 */
+	waitForFirstPoll(timeoutMs?: number): Promise<BridgeStatus>;
 	send(
 		action: ActionName,
 		params?: Record<string, unknown>,
@@ -83,8 +83,9 @@ export function navigateTimeoutMs(config: ResolvedConfig): number {
 }
 
 /**
- * 发一条命令。先确认扩展连着，再带上 sessionKey 与超时。
- * 桥没起时 `start()` 顺手起；扩展没轮询过就报 `extension_missing`，不白等到超时。
+ * 发一条命令。先等扩展第一次轮询（最多 2 秒），再确认它连着，然后带上 sessionKey 与超时。
+ * 桥没起时 `start()` 顺手起；从未见过的扩展给 2 秒宽限，见过但过期的立即报
+ * `extension_missing`，不白等到超时。
  */
 export async function call(
 	ctx: RunContext,
@@ -94,7 +95,7 @@ export async function call(
 ): Promise<unknown> {
 	const { bridge } = ctx.deps;
 	await bridge.start();
-	const status = await bridge.describe();
+	const status = await bridge.waitForFirstPoll();
 	if (!status.connected)
 		throw new ExecError(
 			errorInfo(

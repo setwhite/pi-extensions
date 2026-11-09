@@ -24,7 +24,7 @@ export interface ChromeCommand {
 	run(args: string): Promise<string>;
 }
 
-/** 装扩展的三步。`extension_missing` 与 status 未连上时都打印它。 */
+/** 装扩展的三步。`/chrome status` 未连上时打印它。 */
 export const INSTALL_STEPS = [
 	"hint: load the unpacked extension, then run /chrome status again",
 	"1. open chrome://extensions and turn on Developer mode",
@@ -76,8 +76,7 @@ export function createChromeCommand(deps: ChromeCommandDeps): ChromeCommand {
 }
 
 /**
- * 授权是用户的意图，与扩展此刻连没连上无关。
- * 扩展按轮询连上来，等它连上再授权会让第一次 `authorize on` 必然失败；状态行报连接即可。
+ * 授权是用户的意图，与扩展此刻连没连上无关。连接状态只由 `/chrome status` 报。
  */
 async function toggleAuthorize(
 	deps: ChromeCommandDeps,
@@ -92,10 +91,7 @@ async function toggleAuthorize(
 
 	await deps.bridge.start();
 	deps.policy.authorize(true);
-	const { connected } = await deps.bridge.describe();
-	return connected
-		? "authorized: on"
-		: `authorized: on, but the browser extension is not connected yet\n${INSTALL_STEPS}`;
+	return "authorized: on";
 }
 
 /** 状态行：桥的四项来自 `bridge.status()`，授权来自会话，target 来自宿主会话状态。 */

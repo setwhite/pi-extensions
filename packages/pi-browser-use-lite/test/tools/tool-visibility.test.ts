@@ -7,8 +7,8 @@ import {
 	useConfig,
 } from "../helpers/extension-api.ts";
 
-// `/chrome authorize on` 只在本机装了扩展、桥报 connected 时才授权，用例不依赖本机。
-beforeEach(() => stubBridge({ connected: true }));
+// `/chrome authorize on` 不查扩展连没连上，用例不依赖本机。
+beforeEach(() => stubBridge());
 
 afterEach(() => {
 	cleanupConfig();

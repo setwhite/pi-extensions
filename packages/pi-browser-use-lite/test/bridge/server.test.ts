@@ -131,6 +131,41 @@ it("AC7: 从未轮询时 connected 为 false，轮询过一次后为 true", asyn
 	expect((await status(bridge)).connected).toBe(true);
 });
 
+it("AC9: 首次轮询宽限只等从未见过的扩展，期限到就返回未连接", async () => {
+	const bridge = await startBridge(10);
+	const started = Date.now();
+	const result = await bridge.waitForFirstPoll(80);
+
+	expect(result.connected).toBe(false);
+	expect(result.lastSeenAt).toBeUndefined();
+	expect(Date.now() - started).toBeGreaterThanOrEqual(70);
+});
+
+it("AC9: 扩展在宽限内轮询后返回已连接", async () => {
+	const bridge = await startBridge(10);
+	const waiting = bridge.waitForFirstPoll(1_000);
+	await sleep(30);
+	await next(bridge);
+	const result = await waiting;
+
+	expect(result.connected).toBe(true);
+	expect(result.lastSeenAt).toBeDefined();
+});
+
+it("AC9: 见过但过期的扩展立即返回，不白等", async () => {
+	const bridge = await startBridge(10);
+	await next(bridge);
+	const realNow = Date.now();
+	const now = vi.spyOn(Date, "now").mockReturnValue(realNow + 6 * 60_000);
+	const started = Date.now();
+	const result = await bridge.waitForFirstPoll(5_000);
+
+	expect(result.connected).toBe(false);
+	expect(result.lastSeenAt).toBeDefined();
+	expect(Date.now() - started).toBe(0);
+	now.mockRestore();
+});
+
 it("停服后 status 报 stopped，send 立刻被拒", async () => {
 	const bridge = await startBridge(10);
 	await bridge.stop();

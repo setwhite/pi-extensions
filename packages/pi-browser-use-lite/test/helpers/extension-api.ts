@@ -45,11 +45,13 @@ export interface FakeApi {
 	) => Parameters<ExtensionAPI["registerCommand"]>[1] | undefined;
 	/** 跑一条已注册的命令，返回它 `ui.notify` 打印的文本。 */
 	runCommand: (name: string, args: string) => Promise<string>;
+	/** 触发 `session_start`。 */
+	startup: () => Promise<void>;
 	/** 触发 `session_shutdown`。 */
 	shutdown: () => Promise<void>;
 }
 
-/** 只记注册项、命令与 `session_shutdown` 的假 `ExtensionAPI`。 */
+/** 只记注册项、命令与 session 事件的假 `ExtensionAPI`。 */
 export function fakeApi(): FakeApi {
 	const registered: ToolDefinition[] = [];
 	const activeTools: string[] = [];
@@ -58,6 +60,7 @@ export function fakeApi(): FakeApi {
 		string,
 		Parameters<ExtensionAPI["registerCommand"]>[1]
 	>();
+	const startups: Array<(...args: unknown[]) => unknown> = [];
 	const shutdowns: Array<(...args: unknown[]) => unknown> = [];
 	const api = {
 		registerTool: (tool: ToolDefinition) => {
@@ -86,6 +89,7 @@ export function fakeApi(): FakeApi {
 			});
 		},
 		on: (event: string, handler: (payload: unknown) => void) => {
+			if (event === "session_start") startups.push(handler);
 			if (event === "session_shutdown") shutdowns.push(handler);
 			return () => {};
 		},
@@ -100,6 +104,10 @@ export function fakeApi(): FakeApi {
 			if (run === undefined) throw new Error(`no command registered: ${name}`);
 			return await run(args);
 		},
+		startup: async () => {
+			for (const handler of startups)
+				await handler({ type: "session_start", reason: "startup" }, FAKE_CTX);
+		},
 		shutdown: async () => {
 			for (const handler of shutdowns)
 				await handler({ type: "session_shutdown" }, FAKE_CTX);
@@ -110,21 +118,23 @@ export function fakeApi(): FakeApi {
 /**
  * 让桥不真的绑端口：起桥即成功、发命令即以 `bridge_unreachable` 拒绝。
  * 入口层测试只想看策略是否放行，不该占 17318，也不该依赖本机有没有装扩展。
- * `connected` 决定 `describe` 报扩展连没连上，而 `/chrome authorize on` 只在连上时才授权。
+ * `connected` 决定 `describe` 报扩展连没连上；`/chrome authorize on` 不再看它。
  */
 export function stubBridge({
 	connected = false,
 }: {
 	connected?: boolean;
 } = {}): void {
-	vi.spyOn(Bridge.prototype, "start").mockResolvedValue(undefined);
-	vi.spyOn(Bridge.prototype, "describe").mockResolvedValue({
-		mode: "server",
+	const status = {
+		mode: "server" as const,
 		url: "http://127.0.0.1:17318",
 		connected,
 		queuedCommands: 0,
 		pendingCommands: 0,
-	});
+	};
+	vi.spyOn(Bridge.prototype, "start").mockResolvedValue(undefined);
+	vi.spyOn(Bridge.prototype, "describe").mockResolvedValue(status);
+	vi.spyOn(Bridge.prototype, "waitForFirstPoll").mockResolvedValue(status);
 	vi.spyOn(Bridge.prototype, "send").mockRejectedValue(
 		new BridgeError(
 			"bridge_unreachable",

@@ -137,5 +137,8 @@ export const DEFAULT_HOLD_MS = 25_000;
 /** 一条命令的默认超时。SPEC-0001 非功能：单次工具调用超时 30 秒。 */
 export const DEFAULT_COMMAND_TIMEOUT_MS = 30_000;
 
+/** 新桥给扩展第一次轮询的宽限。扩展的轮询循环每秒重起，2 秒足够跨过首次。 */
+export const FIRST_POLL_GRACE_MS = 2_000;
+
 /** 最近一次轮询落在此窗口内算「已连接」。MV3 的 service worker 会暂停。 */
 export const CONNECTED_WINDOW_MS = 5 * 60_000;

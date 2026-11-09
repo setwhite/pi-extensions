@@ -22,6 +22,7 @@ import {
 	DEFAULT_COMMAND_TIMEOUT_MS,
 	DEFAULT_HOLD_MS,
 	EXTENSION_VERSION_HEADER,
+	FIRST_POLL_GRACE_MS,
 	type ForwardRequest,
 	type ForwardResponse,
 	HOST_VERSION_HEADER,
@@ -33,6 +34,9 @@ const HOST = "127.0.0.1";
 
 /** 探端口或问 owner 时，等它答 `/status` 的时限。 */
 const STATUS_PROBE_MS = 1_000;
+
+/** 等首次轮询时，两次 `describe()` 之间的间隔。 */
+const FIRST_POLL_WAIT_MS = 100;
 
 export interface BridgeOptions {
 	/** 端口。传 0 让系统分配，测试用。 */
@@ -220,6 +224,24 @@ export class Bridge {
 		return seen === undefined
 			? local
 			: { ...seen, mode: "client", url: this.url };
+	}
+
+	/**
+	 * 等扩展第一次轮询。只等从未见过的扩展：`lastSeenAt` 已定义说明它来过，
+	 * 过期了就立即返回，交给调用方快速报 `extension_missing`。
+	 * client 模式 `describe()` 会问 owner，所以两种模式共用这一份。
+	 */
+	async waitForFirstPoll(
+		timeoutMs: number = FIRST_POLL_GRACE_MS,
+	): Promise<BridgeStatus> {
+		const deadline = Date.now() + timeoutMs;
+		for (;;) {
+			const status = await this.describe();
+			if (status.connected || status.lastSeenAt !== undefined) return status;
+			const remaining = deadline - Date.now();
+			if (remaining <= 0) return status;
+			await sleep(Math.min(FIRST_POLL_WAIT_MS, remaining));
+		}
 	}
 
 	/**
@@ -618,6 +640,10 @@ export class Bridge {
 		if (index >= 0) this.queue.splice(index, 1);
 		return true;
 	}
+}
+
+function sleep(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function sendJson(

@@ -30,7 +30,7 @@ export function harness(
 	let target: number | undefined;
 	const bridge: ExecBridge = {
 		start: async () => undefined,
-		describe: async () => ({
+		waitForFirstPoll: async () => ({
 			mode: "server",
 			url: "http://127.0.0.1:17318",
 			connected: options.connected ?? true,

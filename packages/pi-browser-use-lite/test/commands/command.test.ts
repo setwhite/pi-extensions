@@ -1,4 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
+import { Bridge } from "../../src/bridge/index.ts";
 import {
 	completeChromeArgument,
 	createChromeCommand,
@@ -6,9 +7,17 @@ import {
 import { DEFAULTS, HOST_VERSION } from "../../src/config/index.ts";
 import piBrowserUseLite from "../../src/index.ts";
 import { createSessionPolicy } from "../../src/policy/index.ts";
-import { cleanupConfig, fakeApi, useConfig } from "../helpers/extension-api.ts";
+import {
+	cleanupConfig,
+	fakeApi,
+	stubBridge,
+	useConfig,
+} from "../helpers/extension-api.ts";
 
-afterEach(cleanupConfig);
+afterEach(() => {
+	vi.restoreAllMocks();
+	cleanupConfig();
+});
 
 type BridgeStatus = ReturnType<
 	import("../../src/bridge/index.ts").Bridge["status"]
@@ -111,17 +120,15 @@ it("AC3: 桥未连上时 status 打印装扩展的三步", async () => {
 	expect(text).toContain("browser-extension");
 });
 
-it("AC3: 未连上时 authorize on 照样授权，并打印装扩展的三步", async () => {
+it("AC3: 未连上时 authorize on 照样授权，装扩展的三步只在 status", async () => {
 	const bridge = fakeBridge({ connected: false });
 	const { policy, run } = commandOf(bridge);
 
 	const on = await run("authorize on");
 	const status = await run("status");
 
-	expect(on).toContain(
-		"authorized: on, but the browser extension is not connected yet",
-	);
-	expect(on).toContain("Load unpacked");
+	expect(on).toBe("authorized: on");
+	expect(on).not.toContain("Load unpacked");
 	expect(status).toContain("Load unpacked");
 	expect(policy.authorized).toBe(true);
 });
@@ -161,6 +168,17 @@ it("AC4: 两个子命令都不发浏览器命令", async () => {
 	}
 
 	expect(bridge.send).not.toHaveBeenCalled();
+});
+
+it("入口: session_start 先起桥", async () => {
+	useConfig();
+	const { api, startup } = fakeApi();
+	stubBridge();
+	piBrowserUseLite(api);
+
+	await startup();
+
+	expect(Bridge.prototype.start).toHaveBeenCalledTimes(1);
 });
 
 it("入口: /chrome 注册进扩展，打印走 ui.notify", async () => {

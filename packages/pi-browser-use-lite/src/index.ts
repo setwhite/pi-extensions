@@ -58,6 +58,11 @@ export default function piBrowserUseLite(pi: ExtensionAPI): void {
 		},
 	});
 
+	pi.on("session_start", async () => {
+		// 先起桥，给扩展留出第一次轮询的时间；授权与首个工具调用不再和它抢跑。
+		await bridge.start();
+	});
+
 	pi.on("session_shutdown", async (_event, ctx) => {
 		// 会话结束时按配置清掉本会话开的标签。清不掉要说出来：吞掉失败，用户只会看到标签留着。
 		try {
