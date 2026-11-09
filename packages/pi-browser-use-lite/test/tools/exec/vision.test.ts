@@ -42,6 +42,6 @@ it("扩展不给图时报 page_error", async () => {
 	const result = await run("chrome_vision", {});
 
 	expect(textOf(result).split("\n")[0]).toBe(
-		"page_error: the extension returned no image data",
+		"page_error: no image data came back",
 	);
 });

@@ -100,7 +100,7 @@ export async function call(
 		throw new ExecError(
 			errorInfo(
 				"extension_missing",
-				`the browser extension is not connected on ${new URL(status.url).host}`,
+				`no extension is polling ${new URL(status.url).host}`,
 			),
 		);
 	return await bridge.send(

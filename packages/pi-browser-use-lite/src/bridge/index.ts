@@ -24,6 +24,9 @@ import { CommandQueue, type PendingEntry } from "./queue.ts";
 /** 等首次轮询时，两次 `describe()` 之间的间隔。 */
 const FIRST_POLL_WAIT_MS = 100;
 
+/** 四种取消路径共用一句，免得同一件事有几种说法。 */
+const ABORTED = "the caller aborted the command";
+
 export interface BridgeOptions {
 	/** 端口。传 0 让系统分配，测试用。 */
 	port: number;
@@ -91,10 +94,7 @@ export class Bridge {
 		for (const entry of this.commands.entries())
 			this.commands.fail(
 				entry,
-				new BridgeError(
-					"bridge_unreachable",
-					"the bridge stopped before the command finished",
-				),
+				new BridgeError("bridge_unreachable", "the bridge stopped mid-command"),
 			);
 		await this.owner.close();
 	}
@@ -173,24 +173,16 @@ export class Bridge {
 			return Promise.reject(
 				new BridgeError(
 					"extension_version",
-					`the extension is on version ${this.extensionVersion} but this package is ${this.hostVersion}; reload the unpacked extension`,
+					`extension ${this.extensionVersion}, package ${this.hostVersion}; reload the unpacked extension`,
 				),
 			);
 		if (signal?.aborted)
-			return Promise.reject(
-				new BridgeError(
-					"aborted",
-					"the caller aborted before the command was sent",
-				),
-			);
+			return Promise.reject(new BridgeError("aborted", ABORTED));
 
 		const expiresAt = Date.now() + timeoutMs;
 		return new Promise<unknown>((resolveSend, rejectSend) => {
 			const onAbort = () =>
-				this.commands.fail(
-					entry,
-					new BridgeError("aborted", "the caller aborted the command"),
-				);
+				this.commands.fail(entry, new BridgeError("aborted", ABORTED));
 			const entry: PendingEntry = {
 				command: { id: randomUUID(), action, params },
 				expiresAt,
@@ -211,11 +203,7 @@ export class Bridge {
 		options: SendOptions,
 	): Promise<unknown> {
 		const { signal, timeoutMs = DEFAULT_COMMAND_TIMEOUT_MS } = options;
-		if (signal?.aborted)
-			throw new BridgeError(
-				"aborted",
-				"the caller aborted before the command was sent",
-			);
+		if (signal?.aborted) throw new BridgeError("aborted", ABORTED);
 
 		// 转发与被抢到端口后的本地重发共用这一份预算，抢端口不算新的一次调用。
 		const deadline = Date.now() + timeoutMs;
@@ -243,7 +231,7 @@ export class Bridge {
 			if (response.status === 403)
 				throw new BridgeError(
 					"bridge_unreachable",
-					"the bridge owner refused the command: it accepts commands only from local processes",
+					"the bridge accepts local processes only",
 				);
 			if (body.ok === true && response.ok) return body.result;
 			if (typeof body.error === "object" && body.error !== null)
@@ -254,13 +242,9 @@ export class Bridge {
 			);
 		} catch (error) {
 			if (error instanceof BridgeError) throw error;
-			if (signal?.aborted)
-				throw new BridgeError("aborted", "the caller aborted the command");
+			if (signal?.aborted) throw new BridgeError("aborted", ABORTED);
 			if (controller.signal.aborted)
-				throw new BridgeError(
-					"timeout",
-					`the bridge owner did not return a result within ${timeoutMs}ms`,
-				);
+				throw new BridgeError("timeout", `no result within ${timeoutMs}ms`);
 			if (!isOwnerUnreachable(error)) throw error;
 			await this.owner.ensureServer();
 			const remaining = deadline - Date.now();

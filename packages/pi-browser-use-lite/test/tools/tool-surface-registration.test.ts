@@ -66,5 +66,25 @@ it("AC9: guidance.<id>.promptGuidelines 整段替换该工具的规则", () => {
 	piBrowserUseLite(api);
 
 	const act = registered.find((tool) => tool.name === "chrome_act");
-	expect(act?.promptGuidelines).toStrictEqual(["a", "b"]);
+	expect(act?.promptGuidelines).toStrictEqual([
+		"chrome_act: a",
+		"chrome_act: b",
+	]);
+});
+
+it("改名后规则跟着用新名字", () => {
+	useConfig({ tools: { chrome_tab: { name: "browser_tabs" } } });
+	const { api, registered } = fakeApi();
+	piBrowserUseLite(api);
+
+	const rules = registered.find(
+		(tool) => tool.name === "browser_tabs",
+	)?.promptGuidelines;
+	expect(rules?.length).toBeGreaterThan(0);
+	expect(rules?.every((rule) => rule.startsWith("browser_tabs: "))).toBe(true);
+	expect(
+		registered
+			.flatMap((tool) => tool.promptGuidelines ?? [])
+			.some((rule) => rule.startsWith("chrome_tab: ")),
+	).toBe(false);
 });

@@ -113,16 +113,15 @@ export const ERROR_HINTS: Record<ErrorClass, string> = {
 	bridge_unreachable: "Run /chrome status, or change bridge.port",
 	extension_missing: "load the unpacked extension, then run /chrome status",
 	extension_version:
-		"wait a second: the extension reloads itself when the versions differ; if it keeps failing, the copy on disk is old",
+		"wait a second; if it keeps failing, the extension on disk is old",
 	no_target: "run chrome_act navigate or chrome_tab new first",
-	tab_not_found: "run chrome_tab list to see the tab ids",
-	tab_ambiguous: "pass a longer match or a tab id from chrome_tab list",
-	bad_args: "add the missing argument and retry",
+	tab_not_found: "run chrome_tab list",
+	tab_ambiguous: "pass a longer match or a tab id",
+	bad_args: "fix the arguments and retry",
 	timeout: "Run /chrome status",
 	cdp_unavailable: "close DevTools or the other debugger on that tab",
-	page_error:
-		"read the first line of the error, then retry or fix the arguments",
-	aborted: "retry if you still need the result",
+	page_error: "fix the cause, then retry",
+	aborted: "retry if you still need it",
 };
 
 const ERROR_CLASS_SET: ReadonlySet<string> = new Set(ERROR_CLASSES);

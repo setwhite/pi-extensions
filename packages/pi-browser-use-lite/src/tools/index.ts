@@ -36,7 +36,7 @@ function tabParam(): TSchema {
 	return Type.Optional(
 		Type.String({
 			description:
-				"Tab id, URL substring or title substring. Omit it to use this session's automation target.",
+				"Tab id, URL substring or title substring; omit for this session's target.",
 		}),
 	);
 }
@@ -56,341 +56,213 @@ export const TOOL_SPECS = {
 	chrome_act: {
 		label: "Chrome act",
 		description:
-			"Drive the user's real browser. One dispatcher for every interaction: navigate, click, type, fill, press, hover, drag, scroll, upload, eval, wait, and batch. Only action is required; every other parameter applies to the action you name. Pass tab to work on a named tab, omit it to use this session's automation target. Prefer refs from the snapshot over selectors or coordinates. Pass see to get a snapshot back together with the result. The reply is an ok line with the change count, or a classified error with a hint.",
+			"Drive the user's real browser; one dispatcher for every interaction, from navigate to batch.",
 		parameters: Type.Object({
-			action: Type.Enum(ACT_ACTIONS, {
-				description:
-					"Interaction to run. Every other parameter applies to the action named here; values that action does not read are ignored.",
-			}),
+			action: Type.Enum(ACT_ACTIONS),
 			tab: tabParam(),
 			see: Type.Optional(
 				Type.Enum(SEE_MODES, {
 					description:
-						"Append a snapshot after the action finishes. changes reports what this action changed, which is the cheapest way to confirm it worked.",
+						"Append a snapshot after the action; changes is the cheapest mode.",
 				}),
 			),
-			url: Type.Optional(
-				Type.String({
-					description:
-						"Absolute http(s) URL to load, for navigate. Returns after the load event fires and the page settles.",
-				}),
-			),
-			init_script: Type.Optional(
-				Type.String({
-					description:
-						"JavaScript to run in the new document before the page's own scripts start, for navigate.",
-				}),
-			),
-			ref: Type.Optional(
-				Type.String({
-					description:
-						"Element ref from a snapshot, such as e12. The most reliable locator for click, hover and drag; each fill field carries its own ref.",
-				}),
-			),
-			selector: Type.Optional(
-				Type.String({
-					description:
-						"CSS selector for the element. Use it only when the page or a query gave you no ref to work with.",
-				}),
-			),
+			url: Type.Optional(Type.String({ description: "Absolute http(s) URL." })),
+			init_script: Type.Optional(Type.String()),
+			ref: Type.Optional(Type.String()),
+			selector: Type.Optional(Type.String()),
 			x: Type.Optional(
 				Type.Number({
-					description:
-						"Viewport x in CSS pixels, for clicks on canvas, maps or other areas that have no element to point at.",
+					description: "Viewport x in CSS pixels.",
 				}),
 			),
 			y: Type.Optional(
 				Type.Number({
-					description:
-						"Viewport y in CSS pixels, paired with x for the same click or hover.",
+					description: "Viewport y in CSS pixels.",
 				}),
 			),
-			text: Type.Optional(
-				Type.String({
-					description:
-						"Text to type into the focused element, or the value to set when filling a single field.",
-				}),
-			),
+			text: Type.Optional(Type.String()),
 			replace: Type.Optional(
 				Type.Boolean({
-					description:
-						"Clear the field before typing instead of appending to the text already there.",
+					description: "Clear the field before typing.",
 				}),
 			),
 			press: Type.Optional(
 				Type.String({
-					description:
-						"Key to send after typing, such as Enter or Tab, to commit the value.",
+					description: "Key to send after typing.",
 				}),
 			),
 			key: Type.Optional(
 				Type.String({
-					description:
-						"Key or chord to press on its own: Enter, Escape, Tab, or Ctrl+A.",
+					description: "Key to press on its own.",
 				}),
 			),
 			fields: Type.Optional(
 				Type.Array(
 					Type.Object({
-						ref: Type.Optional(
-							Type.String({
-								description: "Field ref from a snapshot, such as e7.",
-							}),
-						),
-						selector: Type.Optional(
-							Type.String({
-								description:
-									"Field CSS selector, for when no ref is available.",
-							}),
-						),
+						ref: Type.Optional(Type.String()),
+						selector: Type.Optional(Type.String()),
 						value: Type.String({
-							description:
-								"Value to put in the field; it replaces whatever is stored there.",
+							description: "Value to store; it replaces the current content.",
 						}),
 					}),
-					{
-						description:
-							"Fields to fill in one call. Each entry takes a ref or a selector plus its value, and the stored value is replaced wholesale.",
-					},
 				),
 			),
-			from_ref: Type.Optional(
-				Type.String({
-					description:
-						"Drag source ref. Name one locator for the source and one for the target.",
-				}),
-			),
-			from_selector: Type.Optional(
-				Type.String({
-					description:
-						"Drag source CSS selector, for when the source has no ref.",
-				}),
-			),
-			from_x: Type.Optional(
-				Type.Number({
-					description:
-						"Drag source x in CSS pixels, paired with from_y for a bare point.",
-				}),
-			),
-			from_y: Type.Optional(
-				Type.Number({
-					description: "Drag source y in CSS pixels, paired with from_x.",
-				}),
-			),
-			to_ref: Type.Optional(
-				Type.String({
-					description: "Drag target ref, such as a slider position e21.",
-				}),
-			),
-			to_selector: Type.Optional(
-				Type.String({
-					description:
-						"Drag target CSS selector, for when the target has no ref.",
-				}),
-			),
-			to_x: Type.Optional(
-				Type.Number({
-					description:
-						"Drag target x in CSS pixels, paired with to_y for a bare point.",
-				}),
-			),
-			to_y: Type.Optional(
-				Type.Number({
-					description: "Drag target y in CSS pixels, paired with to_x.",
-				}),
-			),
+			from_ref: Type.Optional(Type.String()),
+			from_selector: Type.Optional(Type.String()),
+			from_x: Type.Optional(Type.Number()),
+			from_y: Type.Optional(Type.Number()),
+			to_ref: Type.Optional(Type.String()),
+			to_selector: Type.Optional(Type.String()),
+			to_x: Type.Optional(Type.Number()),
+			to_y: Type.Optional(Type.Number()),
 			dy: Type.Optional(
 				Type.Number({
 					description:
-						"Vertical scroll delta in CSS pixels. Positive scrolls down, negative scrolls up.",
+						"Vertical scroll delta in CSS pixels; positive scrolls down.",
 				}),
 			),
 			dx: Type.Optional(
 				Type.Number({
 					description:
-						"Horizontal scroll delta in CSS pixels. Positive scrolls right.",
+						"Horizontal scroll delta in CSS pixels; positive scrolls right.",
 				}),
 			),
 			paths: Type.Optional(
 				Type.Array(Type.String(), {
-					description:
-						"Absolute paths of files to upload. The next file chooser that opens receives them, and the paths should point at files that already exist.",
+					description: "Absolute paths; the next file chooser receives them.",
 				}),
 			),
 			js: Type.Optional(
 				Type.String({
 					description:
-						"JavaScript to evaluate in the page. The expression is awaited, so it may return a promise, and the result comes back as JSON or as text.",
+						"JavaScript to evaluate in the page; awaited, so it may return a promise.",
 				}),
 			),
-			kind: Type.Optional(
-				Type.Enum(WAIT_KINDS, {
-					description: "What to wait for: selector, expression or text.",
-				}),
-			),
-			value: Type.Optional(
-				Type.String({
-					description:
-						"The selector, expression or text that wait polls for, once per 250ms.",
-				}),
-			),
+			kind: Type.Optional(Type.Enum(WAIT_KINDS)),
+			value: Type.Optional(Type.String()),
 			timeout_ms: Type.Optional(
 				Type.Number({
-					description:
-						"How long wait polls before it gives up, in milliseconds. Defaults to 15000.",
+					description: "Wait timeout in milliseconds; default 15000.",
 				}),
 			),
 			steps: Type.Optional(
 				Type.Array(
 					Type.Object({
-						action: Type.Enum(ACT_ACTIONS, {
-							description:
-								"Action this step runs, using the same names as a top-level call.",
-						}),
+						action: Type.Enum(ACT_ACTIONS),
 						optional: Type.Optional(
 							Type.Boolean({
-								description:
-									"Keep going after this step fails instead of aborting the rest of the batch.",
+								description: "Keep going after this step fails.",
 							}),
 						),
 						args: Type.Optional(
 							Type.Unknown({
-								description:
-									'Arguments for this step, named exactly like the parameters of a top-level call. For example {"ref": "e12"} for a click step.',
+								description: "Arguments, named like a top-level call.",
 							}),
 						),
 					}),
 					{
 						description:
-							"Steps to run in order, at most 50. A step that fails stops the batch unless it set optional, and the reply says which step stopped it.",
+							"Steps to run in order, at most 50; a failure stops the batch unless optional.",
 					},
 				),
 			),
 		}),
 		promptGuidelines: [
-			"chrome_act: this is the user's real browser; confirm before destructive actions.",
-			"chrome_act: pass see: refs on navigate, then click the refs from that snapshot; a ref from an older page fails.",
-			"chrome_act: passing see adds a snapshot to the reply and costs extra tokens; ask for it only when the page just changed.",
-			"chrome_act: name the action first, then send only the parameters that action reads.",
-			"chrome_act: batch runs steps in order and stops at the first failure unless the step is optional.",
+			"this is the user's real browser; confirm before destructive actions.",
+			"prefer refs from a snapshot; a ref from an older page fails.",
+			"pass see to get a snapshot back; it costs tokens, so ask only when the page just changed.",
 		],
 	},
 	chrome_see: {
 		label: "Chrome see",
 		description:
-			"Read the page. mode refs is the default and the cheapest way to look: title, summary, heading tree, elements with refs, form state, hints and changes, never body text. mode text returns the heading tree and then the body. mode changes returns only what changed since the previous snapshot. mode full returns every field, including layout. Use query for a natural-language lookup that returns the best matching refs, ref or selector to inspect one element in depth, logs to read the console or network records captured since this tab loaded, and request_id for a single request record.",
+			"Read the page; refs is the cheapest mode, changes is the last diff, logs is console or network records.",
 		parameters: Type.Object({
 			mode: Type.Optional(
 				Type.Enum(SEE_MODES, {
-					description:
-						"What to return: refs for elements with refs, text for the body, changes for the last diff, full for every field. Defaults to refs.",
+					description: "What to return; refs is the default.",
 				}),
 			),
 			query: Type.Optional(
 				Type.String({
 					description:
-						"Natural-language description of the element you need. Returns the best matching refs in order of relevance.",
+						"What you are looking for, in natural language; returns refs.",
 				}),
 			),
 			ref: Type.Optional(
-				Type.String({
-					description:
-						"Ref to inspect in depth, such as e12. Returns that element's attributes, state and text.",
-				}),
+				Type.String({ description: "Ref to inspect in depth." }),
 			),
-			selector: Type.Optional(
-				Type.String({
-					description:
-						"CSS selector to inspect in depth, for when you have no ref for the element you need.",
-				}),
-			),
-			logs: Type.Optional(
-				Type.Enum(["console", "network"] as const, {
-					description:
-						"Which records to read: console or network, captured from this tab's navigation onwards.",
-				}),
-			),
+			selector: Type.Optional(Type.String()),
+			logs: Type.Optional(Type.Enum(["console", "network"] as const)),
 			request_id: Type.Optional(
 				Type.String({
 					description:
-						"Identifier of one network request, to return its full record including bodies.",
+						"Id of one network request; returns its full record with bodies.",
 				}),
 			),
 			clear: Type.Optional(
 				Type.Boolean({
-					description:
-						"Empty the chosen log after reading it, so the next read starts clean.",
+					description: "Empty the log after reading it.",
 				}),
 			),
 			tab: tabParam(),
 		}),
 		promptGuidelines: [
-			"chrome_see: read before you act; refs is cheaper than text.",
-			"chrome_see: mode changes answers what moved; do not re-read the whole page to find it.",
+			"read before you act; refs is cheaper than text.",
+			"mode changes answers what moved; do not re-read the whole page.",
 		],
 	},
 	chrome_tab: {
 		label: "Chrome tab",
 		description:
-			"Manage the tabs in this session's own browser window. action list prints every tab there with its id, the active marker, title and URL. new opens a tab there, switch brings that window to the front on a tab, close closes a tab. switch and close need tab, which matches a tab id, a URL substring or a title substring. A match that hits several tabs lists up to five candidates instead of guessing, so a vague name costs one extra call rather than the wrong tab.",
+			"Manage the tabs of this session's own browser window; list, new, switch or close.",
 		parameters: Type.Object({
-			action: Type.Enum(TAB_ACTIONS, {
-				description: "Tab operation: list, new, switch or close.",
-			}),
+			action: Type.Enum(TAB_ACTIONS),
 			tab: Type.Optional(
 				Type.String({
-					description:
-						"Tab id, URL substring or title substring. switch and close need it; list and new do not.",
+					description: "Tab id, URL substring or title substring.",
 				}),
 			),
 			url: Type.Optional(
 				Type.String({
-					description:
-						"Absolute http(s) URL to open, for new. Omit it to open a blank tab you navigate later.",
+					description: "Absolute http(s) URL; omit it to open a blank tab.",
 				}),
 			),
 		}),
 		promptGuidelines: [
-			"chrome_tab: do not switch or close tabs the user did not name.",
-			"chrome_tab: list first when the user names a site, then act on the id that list returned.",
+			"do not switch or close tabs the user did not name.",
+			"list first, then act on an id from the list.",
 		],
 	},
 	chrome_vision: {
 		label: "Chrome vision",
 		description:
-			"Save a screenshot to disk and return the path. Without full_page the image is the current viewport. full_page captures the whole page in one image, unless the page is taller than four viewports, in which case it is captured screen by screen into tiles named -1ofN. The reply carries file paths only, never image data; read a path to look at the picture. Format and directory come from configuration, so the same call always lands in the same place.",
+			"Save a screenshot to disk and return the path; read the path to see the picture.",
 		parameters: Type.Object({
 			full_page: Type.Optional(
 				Type.Boolean({
-					description:
-						"Capture the whole page instead of the viewport. Pages taller than four viewports come back as several tiles.",
+					description: "Capture the whole page instead of the viewport.",
 				}),
 			),
 			tab: tabParam(),
 		}),
 		promptGuidelines: [
-			"chrome_vision: screenshots are files; read the path when the picture matters and do not capture twice.",
+			"screenshots are files; read the path instead of capturing twice.",
 		],
 	},
 	chrome_cdp: {
 		label: "Chrome CDP",
 		description:
-			"Raw Chrome DevTools Protocol escape hatch for everything the other tools do not cover. Send any method, such as Page.getLayoutMetrics or Network.enable, with its argument object, and the JSON result comes back unchanged. It runs on this session's automation target, or on the tab you name. It does not enumerate targets: use chrome_tab list to find tab ids first, then pass one here.",
+			"Raw Chrome DevTools Protocol escape hatch; the JSON result comes back unchanged.",
 		parameters: Type.Object({
 			method: Type.String({
-				description:
-					"CDP method name, such as Page.getLayoutMetrics, Runtime.evaluate or Network.enable.",
+				description: "CDP method name, such as Page.getLayoutMetrics.",
 			}),
-			params: Type.Optional(
-				Type.Unknown({
-					description:
-						"Argument object for the method. Omit it for methods that take no arguments.",
-				}),
-			),
+			params: Type.Optional(Type.Unknown()),
 			tab: tabParam(),
 		}),
 		promptGuidelines: [
-			"chrome_cdp: prefer the high-level tools; drop to CDP only where they stop.",
+			"prefer the high-level tools; drop to CDP only where they stop.",
 		],
 	},
 } satisfies Record<string, ToolSpec>;
@@ -401,7 +273,10 @@ export interface SurfaceSettings {
 	name: string;
 }
 
-/** `guidance.<id>` 的覆盖字段。`""` 与 `[]` 表示清空。 */
+/**
+ * `guidance.<id>` 的覆盖字段。`""` 与 `[]` 表示清空。
+ * 规则只写句子：工具名由 `buildSurface` 加，改名后规则跟着改。
+ */
 export interface GuidanceOverride {
 	description?: string;
 	promptSnippet?: string;
@@ -437,12 +312,14 @@ export function buildSurface(
 		}
 		if (!setting.enabled) continue;
 		const override = guidance[id] ?? {};
+		const rules = override.promptGuidelines ?? spec.promptGuidelines;
 		const tool: SurfaceTool = {
 			id,
 			name: setting.name,
 			label: spec.label,
 			description: override.description ?? spec.description,
-			promptGuidelines: override.promptGuidelines ?? spec.promptGuidelines,
+			// pi 平铺规则时不加工具前缀，所以名字在这里拼一次；改名后规则跟着改名。
+			promptGuidelines: rules.map((line) => `${setting.name}: ${line}`),
 			parameters: spec.parameters,
 		};
 		const snippet = override.promptSnippet;

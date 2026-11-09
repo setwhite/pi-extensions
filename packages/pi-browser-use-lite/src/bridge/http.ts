@@ -103,7 +103,7 @@ async function handleCommand(
 	if (!isLocalProcessRequest(request)) {
 		sendJson(response, 403, {
 			ok: false,
-			error: "the bridge accepts commands only from local processes",
+			error: "the bridge accepts local processes only",
 		});
 		return;
 	}
@@ -230,10 +230,7 @@ export function bridgeErrorFrom(error: unknown): Error {
 				message,
 			);
 	}
-	return new BridgeError(
-		"page_error",
-		"the extension reported a failure without a message",
-	);
+	return new BridgeError("page_error", "the extension sent no message");
 }
 
 /** 扩展的 service worker 带 `chrome-extension://` 的 Origin，网页带的是自己站点的。 */

@@ -40,9 +40,7 @@ export async function runVision(
 	)) as { format?: "png" | "jpeg"; images?: { data: string }[] };
 	const images = result.images ?? [];
 	if (images.length === 0)
-		throw new ExecError(
-			errorInfo("page_error", "the extension returned no image data"),
-		);
+		throw new ExecError(errorInfo("page_error", "no image data came back"));
 	const save = ctx.deps.saveScreenshots ?? saveScreenshots;
 	const paths = await save({
 		dir: config.screenshot.dir,

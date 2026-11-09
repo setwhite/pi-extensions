@@ -86,7 +86,7 @@ export class BridgeOwnership {
 		if (this.mode === "stopped")
 			throw new BridgeError(
 				"bridge_unreachable",
-				"the bridge was stopped before the command could be forwarded",
+				"the bridge stopped mid-command",
 			);
 		this.promotion ??= this.takePort().finally(() => {
 			this.promotion = undefined;

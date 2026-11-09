@@ -122,7 +122,7 @@ it("AC6: aborted 的 class 为 aborted，hint 指出可以重试", async () => {
 	const error = await catchError(pending);
 
 	expect(error.details.error.class).toBe("aborted");
-	expect(error.details.error.hint).toBe("retry if you still need the result");
+	expect(error.details.error.hint).toBe("retry if you still need it");
 });
 
 it("AC6: 扩展回传 ok 为 false 时原样抛出类别、原因与 hint", async () => {
@@ -141,7 +141,7 @@ it("AC6: 扩展回传 ok 为 false 时原样抛出类别、原因与 hint", asyn
 	expect(error.details.error).toStrictEqual({
 		class: "bad_args",
 		message: "js is required",
-		hint: "add the missing argument and retry",
+		hint: "fix the arguments and retry",
 	});
 });
 
@@ -188,9 +188,7 @@ it("AC6: 扩展没给原因时给一句兜底，类别仍是 page_error", async 
 	const error = await rejection;
 
 	expect(error.details.error.class).toBe("page_error");
-	expect(error.message).toBe(
-		"the extension reported a failure without a message",
-	);
+	expect(error.message).toBe("the extension sent no message");
 });
 
 it("超时从入队时刻算，不从扩展取走时刻算", async () => {

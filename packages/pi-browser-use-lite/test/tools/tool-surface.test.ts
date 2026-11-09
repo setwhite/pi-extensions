@@ -2,7 +2,8 @@ import { expect, it } from "vitest";
 import { TOOL_IDS } from "../../src/config/index.ts";
 import { buildSurface, TOOL_SPECS } from "../../src/tools/index.ts";
 
-const BUDGET = 12_000;
+/** SPEC-0001 的上限是 12,000 字符；精简后预算收紧到默认体积之上约 750。 */
+const BUDGET = 6_500;
 /** AC5 的第二个断言：加 2,000 字符就必须撞线，所以默认体积要贴近预算。 */
 const BUDGET_FLOOR = BUDGET - 2_000;
 
@@ -60,7 +61,7 @@ it("AC2: 默认配置下恰好 5 个工具，顺序与工具 id 一致", () => {
 	expect(Object.keys(TOOL_SPECS)).toStrictEqual([...TOOL_IDS]);
 });
 
-it("AC3: 默认工具面序列化后不超过 12,000 字符", () => {
+it("AC3: 默认工具面序列化后不超过 6,500 字符", () => {
 	expect(measure(surface)).toBeLessThanOrEqual(BUDGET);
 });
 
@@ -117,6 +118,10 @@ it("AC4: 各工具的参数与枚举按 SPEC-0001 冻结", () => {
 		"params",
 		"tab",
 	]);
+});
+
+it("默认工具面不带 promptSnippet，只有配置覆盖才写", () => {
+	for (const tool of surface) expect(tool.promptSnippet).toBeUndefined();
 });
 
 it("AC10: 每个工具的默认规则都以自己的名字开头", () => {

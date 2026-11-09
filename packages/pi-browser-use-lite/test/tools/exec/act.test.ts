@@ -197,7 +197,7 @@ it("扩展没连上时报 extension_missing，不发命令", async () => {
 	const result = await run("chrome_act", { action: "click", ref: "e1" });
 
 	expect(textOf(result).split("\n")[0]).toBe(
-		"extension_missing: the browser extension is not connected on 127.0.0.1:17318",
+		"extension_missing: no extension is polling 127.0.0.1:17318",
 	);
 	expect(sent).toStrictEqual([]);
 });
@@ -227,10 +227,7 @@ it("AC10: chrome_act 的默认规则里有一条讲 see 多花 token", async () 
 	const { TOOL_SPECS } = await import("../../../src/tools/index.ts");
 
 	const rule = TOOL_SPECS.chrome_act.promptGuidelines.find(
-		(line) =>
-			line.includes("chrome_act") &&
-			line.includes("see") &&
-			line.includes("token"),
+		(line) => line.includes("see") && line.includes("token"),
 	);
 
 	expect(rule).toBeDefined();
