@@ -232,7 +232,7 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 
 | 命令 | 作用 |
 |---|---|
-| `/chrome authorize on`、`off` | 开关授权。`on` 时先查桥的连接台账；没连上就打印装扩展的步骤，且不授权 |
+| `/chrome authorize on`、`off` | 开关授权。`on` 先起桥再授权，不看扩展此刻连没连上；没连上就在结果后面加印装扩展的三步 |
 | `/chrome status` | 报版本、授权、桥角色、端口、连接状态、在途命令数、本会话 target。不探测页面 |
 
 没有 `doctor`，没有 `onboard`。诊断信息由错误消息给出。装扩展的步骤由 `authorize` 与 `status` 在未连接时打印。
