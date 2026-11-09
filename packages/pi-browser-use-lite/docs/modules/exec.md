@@ -19,11 +19,11 @@
 | 动作 | 宿主带的参数 | 扩展回的形状 |
 |---|---|---|
 | `page.navigate` | `url`、`initScript`、`timeoutMs` | 一个标签对象，含 `id`，成功后宿主记成 target |
-| `page.click` | `ref` 或 `selector` 或 `x`+`y` | `{ changed }` |
+| `page.click` | `ref` 或 `selector` 或 `x`+`y` | `{ changed, opened? }` |
 | `page.hover` | `ref` 或 `selector` 或 `x`+`y` | `{ x, y }`，悬停不改页面，不算变更量 |
-| `page.type` | `text`、`replace`、`press` | `{ changed }` |
-| `page.fill` | `fields` | `{ changed }` |
-| `page.key` | `key` | `{ changed }` |
+| `page.type` | `text`、`replace`、`press` | `{ changed, opened? }` |
+| `page.fill` | `fields` | `{ changed, opened? }` |
+| `page.key` | `key` | `{ changed, opened? }` |
 | `page.drag` | `from`、`to`、`steps` | `{ changed }` |
 | `page.scroll` | `dx`、`dy`、`steps` | `{ changed }` |
 | `page.upload` | `paths`、`timeoutMs`（等 file chooser） | `{ changed }` |
@@ -40,3 +40,5 @@
 | `automation.cleanup` | `closeOwnTabs` | `{ closed }` |
 
 `changed` 与 `page.snapshot` 的 `changes` 同形：`{ added, removed, updated, lines? }`。
+
+`opened` 只在动作顺带开出新标签时出现，元素是 `{ id, active, title, url }`。宿主把它打成一行 `opened: +1 <id> [*] <标题> <url>` 交给模型：目标标签的 URL 不会因为新标签而变，没有这一行时「回车无效」和「回车开了新页」在结果里长得一样。

@@ -113,7 +113,7 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 
 | 工具 | `content` | `details` |
 |---|---|---|
-| `chrome_act` 的交互类 | 判定行（`ok: click ref=e12`）、变更行（`changed: +1 -0 ~2`）、可选快照 | `{ ok, action, changed: { added, removed, updated }, snapshot?, ref? }` |
+| `chrome_act` 的交互类 | 判定行（`ok: click ref=e12`）、变更行（`changed: +1 -0 ~2`）、新标签行（`opened: +1 8 * 标题 url`，只在开了新页时出现）、可选快照 | `{ ok, action, changed: { added, removed, updated }, opened?, snapshot?, ref? }` |
 | `chrome_act` 的 `eval`、`wait` | 判定行，接返回值（`eval` 给 JSON 或文本，`wait` 给耗时） | `{ ok, action, value? }` |
 | `chrome_see` | 该 `mode` 的正文 | `{ mode, url, title, elements?, text?, changes?, truncated }` |
 | `chrome_tab` 的 `list` | 每行一个标签：id、`*` 表示活动页、标题、URL | `{ tabs }` |
@@ -122,6 +122,8 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 | `chrome_cdp` | 返回值的 JSON | `{ result }` |
 
 变更量是元素三元组的计数：标签、角色、可见文本。比较器与 `chrome_see` 的 `changes` 共用一份实现。变更量只给数字，不给明细。要明细就在 `chrome_act` 里传 `see: changes`。
+
+点、输入、填、按键这四个动作会顺带开出新标签（`target=_blank`）。此时目标标签的 URL 不变，所以扩展在动作前后各查一次目标窗口的标签 id，把新增的连同 `{ id, active, title, url }` 一起回给宿主。`opened` 只在真的多出标签时才有。
 
 ### 错误
 
@@ -139,7 +141,7 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 | `tab_not_found` | `tab` 参数匹配 0 个标签 | 列出最多 5 个候选 |
 | `tab_ambiguous` | `tab` 参数匹配多个标签 | 列出最多 5 个候选 |
 | `bad_args` | 参数不合法，例如缺定位方式、`batch` 超过 50 步 | 指出该补哪个参数 |
-| `timeout` | 三种失败原因：扩展没在轮询、轮询了没取走、取走后没回结果 | `Run /chrome status` |
+| `timeout` | 四种：扩展没在轮询、轮询了没取走、取走后没回结果、扩展到期放弃（带 `the debugger was detached`） | 前三种 `Run /chrome status`；第四种重试或换定位方式 |
 | `cdp_unavailable` | debugger 挂不上，被别的调试器或其它扩展 target 占用 | 关掉该页的开发者工具或密码管理器扩展 |
 | `page_error` | 页面内求值或注入抛错 | 给原始消息的首行 |
 | `aborted` | 调用方取消 | `retry if you still need the result` |
@@ -158,6 +160,8 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 | `GET /status` | 报告 owner 的连接状态 |
 
 串行。同一进程内的命令按发起顺序入队。一次只投递一条：扩展一次 `GET /next` 只取一条。不做并发。`/status` 的在途命令数就是队列长度。超时从入队时刻算，不从扩展取走时刻算。
+
+时限跟着命令走：`/next` 里带 `remainingMs`，等于剩余预算减去 500 毫秒的回传余量。扩展超过这个数就放弃：先摘掉调试器，再回 `timeout:`，轮询接着转。没有它，一次卡住的 CDP 调用能把整个扩展钉死。
 
 多会话保留（[DEC-0003](../decisions/0003-bridge-multi-session.md)）：先绑端口的进程当 server，其它进程当 client 转发。owner 不可达时 client 抢占端口升为 server。
 
