@@ -1,6 +1,6 @@
 {
 	"name": "pi-browser-use-lite",
-	"version": "0.3.2",
+	"version": "0.3.3",
 	"description": "Pi extension: drive your own Chrome through a companion browser extension.",
 	"keywords": ["pi-package", "pi-extension", "chrome", "browser"],
 	"type": "module",
