@@ -25,7 +25,6 @@
       "promptGuidelines": ["..."]
     }
   },
-  "prompt": { "guidelines": ["..."] }
 }
 ```
 
@@ -34,13 +33,13 @@
 - 5 个全关抛错。至少留一个。
 - 名字匹配 `^[a-z][a-z0-9_]{0,31}$`。撞宿主内置名抛错。两个工具同名抛错。都是加载期错误，不是 clamp。
 - 关掉的工具不进工具面，它的规则也一起消失。
-- 规则分两层：`prompt.guidelines` 放跨工具的规则，`guidance.<id>.promptGuidelines` 放该工具自己的规则。两层的默认值都在代码里。
+- 规则只有一层：每个工具自带默认 `promptGuidelines`，`guidance.<id>.promptGuidelines` 整段替换。跨工具的规则写 AGENTS.md。
 
 ## 不写 primer
 
 原计划让 `src/prompt/` 把一段约 2,500 字符的说明写进 `event.systemPromptOptions.sections`。取消。
 
-给模型的 Chrome 说明全部写成 `promptGuidelines` 条目：每个工具带默认规则，`guidance.<id>.promptGuidelines` 覆盖；跨工具的规则放 `prompt.guidelines`，`src/index.ts` 在 `before_agent_start` 把它合并进 `systemPromptOptions.promptGuidelines`。两层都是同一个机制，pi 平铺进 `<rules>` 段并去重。
+给模型的 Chrome 说明全部写成 `promptGuidelines` 条目：每个工具带默认规则，`guidance.<id>.promptGuidelines` 整段替换。规则由工具自己带进系统提示，pi 平铺进 `<rules>` 段并去重。
 
 四条理由：
 
@@ -53,7 +52,17 @@
 
 ## 代价
 
-配置是 15 个标量加两个记录。校验与测试多约 80 行。12,000 字符预算只在默认配置下断言；用户自己覆盖后可以超出。
+配置是 11 个标量加两个记录。校验与测试多约 80 行。12,000 字符预算只在默认配置下断言；用户自己覆盖后可以超出。
+
+## 修订 2026-11-09
+
+`prompt.guidelines` 已删，默认三条搬进 `chrome_act` 的 `promptGuidelines`。
+
+- 两层的机制相同，只是作用域不同。兄弟包都只有按工具一层，用户要学两套写法。
+- 默认三条全部点名 `chrome_act`。关掉 `chrome_act` 后它们仍进系统提示，违反上面「关掉的工具的规则也一起消失」。
+- 跨工具的规则写进 AGENTS.md。那是 pi 原生位置，很多包都读。
+
+代价：写了这个键的配置会以 `prompt: unknown key` 启动失败。
 
 ## 不做
 

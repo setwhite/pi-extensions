@@ -2,6 +2,16 @@
 
 本文件记录已发布版本的用户可见变更。更细的过程见 git log。破坏性变更标 **BREAKING**。
 
+## 0.2.0 — 2026-11-09
+
+- **BREAKING**：删掉 `prompt.guidelines`。默认三条规则搬进 `chrome_act` 自己的 `promptGuidelines`；跨工具的规则写 AGENTS.md。写了这个键的配置会以 `prompt: unknown key` 启动失败。
+- `/chrome` 有参数补全：输入 `/chrome ` 列子命令，`/chrome authorize ` 列 on 与 off，每项带一句说明。
+- 关掉某个工具后，系统提示里不再留下点名它的规则：此前全局规则里的三条 `chrome_act` 规则在关掉 `chrome_act` 后仍然保留。
+- **BREAKING**：删掉 `policy.background` 与 `/chrome background`。点不动页面时由输入路径自己把标签与窗口带到前台；读操作照样不打扰。写了这个键的配置会以 `policy.background: unknown key` 启动失败。
+- 输入前的可见性检查改成自救：不可见就激活标签、把窗口带到前台，仍不可见才报错并说清原因（标签非活动、窗口最小化、被盖住）。
+- `chrome_tab new` 建的新标签在自己的窗口里是活动标签，不再出现「新标签点不动」。
+- README 说清自动化窗口不聚焦地打开、第一次点击或打字会把它带到前台。
+
 ## 0.1.1 — 2026-11-09
 
 - 补中文 README：`README.zh-CN.md`，英文版顶部有切换链接，npm 包同时收录两份。

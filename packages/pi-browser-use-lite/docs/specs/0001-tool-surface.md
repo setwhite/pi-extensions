@@ -23,7 +23,7 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 - 作为 Pi 用户，我要授权可控，以便在我不在时锁住浏览器控制。
 - 作为 Pi 用户，我要一条命令看到当前状态，以便不用猜为什么工具不可用。
 - 作为维护者，我要配置只覆盖真会改的旋钮，以便文档与测试不膨胀。
-- 作为 Pi 用户，我要后台模式，以便 Pi 干活时不抢我的前台窗口。
+- 作为 Pi 用户，我要读操作不抢我的前台，只有真点击与打字才把浏览器带到前面，以便一边看一边干活。
 - 作为 Pi 用户，我要每个会话独占自己的浏览器窗口，以便分清哪些标签是 Pi 开的。
 - 作为 Pi 用户，我要多个会话或子代理共用一条 Chrome 连接，以便并发任务都能用浏览器。
 - 作为 Pi 用户，我要输入事件受信任，以便能操作有反自动化检测的站点。
@@ -46,7 +46,7 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 
 按配置注册：可逐个关闭，可改名，可整段替换文案（见「工具开关与提示词」）。默认全开，名字不变。
 
-`host` 写死 `127.0.0.1`。`port` 移进配置文件。`background` 移进 `/chrome background` 命令。`promptSnippet` 默认不发。
+`host` 写死 `127.0.0.1`。`port` 移进配置文件。`background` 不要：页面不可见时由输入路径自己把页面带到前台。`promptSnippet` 默认不发。
 
 **`chrome_act`** — 交互分派器。`action` 必填。共享参数只有 `see`：值为 `chrome_see` 的 `mode`，动作完成后附一次快照。
 
@@ -131,7 +131,7 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 
 | `class` | 触发条件 | `hint` |
 |---|---|---|
-| `locked` | 未授权，或背景模式挡下聚焦请求 | `Run /chrome authorize on`；背景模式挡下时是 `Run /chrome background off` |
+| `locked` | 未授权 | `Run /chrome authorize on` |
 | `bridge_unreachable` | 桥没起，或端口被别的进程占 | `Run /chrome status`，或改 `bridge.port` |
 | `extension_missing` | 桥在，但没有扩展轮询 | 打印装扩展的三步 |
 | `extension_version` | 扩展版本与宿主不匹配 | 等一秒：扩展会自己重载；仍失败说明磁盘上是旧代码 |
@@ -166,7 +166,6 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 | 策略 | 行为 |
 |---|---|
 | 授权 | `/chrome authorize on` 与 `off`。生效到会话结束，会话结束时自动关。状态只在内存，不落盘。`policy.authorizeOnStart` 为 `true` 时启动即授权。锁覆盖全部 5 个工具，只读的 `chrome_see`、`chrome_vision` 也要解锁——读页面等于读用户的隐私 |
-| 背景模式 | 默认开。开启时所有显式聚焦与标签页激活被统一拒绝，单次调用不可覆盖 |
 | 目标隔离 | 每个 Pi 会话一个浏览器窗口，窗口里放本会话的自动化 target。认「这是本会话的标签」要两条同时成立：它是台账里的 target，且它在本会话的窗口里。台账存扩展的 `storage.session` 与 `storage.local`，浏览器启动时整份作废——标签 id 与窗口 id 都会被重新分配。会话结束只关本会话创建的标签；`policy.closeOwnTabsOnExit` 为 `false` 时保留 |
 
 ### 配置
@@ -177,7 +176,6 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 |---|---|---|
 | `bridge.port` | `17318` | 端口被占 |
 | `policy.authorizeOnStart` | `false` | 不想每会话敲授权 |
-| `policy.background` | `true` | 要让浏览器真的切前台 |
 | `policy.closeOwnTabsOnExit` | `true` | 想在会话结束后继续用那些标签 |
 | `input.dragSteps` | `10` | 滑块、排序拖不动 |
 | `input.scrollSteps` | `5` | 无限滚动页滚不动一屏 |
@@ -187,12 +185,11 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 | `screenshot.dir` | `<agent dir>/pi-browser-use-lite/screenshots` | 想换盘 |
 | `screenshot.format` | `"png"` | 想省磁盘，换 jpeg |
 | `screenshot.keepNewest` | `20` | 截图占满磁盘 |
-| `prompt.guidelines` | 内置全局规则 | 想改或去掉跨工具的规则 |
 | `tools.<id>.enabled` | `true` | 用不上某个工具，省掉它的说明 |
 | `tools.<id>.name` | 工具原名 | 与别的扩展撞名 |
 | `guidance.<id>.description`、`.promptSnippet`、`.promptGuidelines` | 内置文案 | 想改工具自己的说法与规则 |
 
-13 个标量字段，加 `tools`（5 个工具 × 2 项）与 `guidance`（5 个工具 × 3 项）两个记录。
+11 个标量字段，加 `tools`（5 个工具 × 2 项）与 `guidance`（5 个工具 × 3 项）两个记录。
 
 文件缺失取全默认值。JSON 损坏或字段非法抛 `Error`，消息带文件路径与字段路径。数值越界只 clamp，枚举越界取默认值。
 
@@ -218,9 +215,6 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
       "promptGuidelines": ["chrome_act: take a see snapshot before clicking by ref."]
     }
   },
-  "prompt": {
-    "guidelines": ["chrome_act: this is the user's real browser; confirm before destructive actions."]
-  }
 }
 ```
 
@@ -230,10 +224,8 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 - `name` 匹配 `^[a-z][a-z0-9_]{0,31}$`。撞宿主内置名（`bash`、`edit`、`find`、`grep`、`ls`、`read`、`write`、`powershell`、`tool_search`）抛错，消息含 `reserved`。两个工具同名抛错，消息含 `same name`。
 - 关掉的工具不进工具面，它的规则也一起消失。这是 `promptGuidelines` 的行为，不用额外写过滤。
 - `guidance` 只认三个字段：`description`（工具说明）、`promptSnippet`（工具清单里的一行）、`promptGuidelines`（追加到系统提示的规则数组）。`""` 与 `[]` 表示清空。
-- 没有单独的 primer。给模型的 Chrome 使用说明全部写成 `promptGuidelines` 条目，分两层：
-  - `prompt.guidelines`：跨工具的规则。默认几条内置。`[]` 表示不加。
-  - `guidance.<id>.promptGuidelines`：该工具自己的规则。默认也是内置的。
-- 两层都平铺进系统提示的 `<rules>` 段，pi 按原文去重，不加工具前缀。所以每条规则必须点名工具，形如 `chrome_act: ...`。
+- 没有单独的 primer。给模型的 Chrome 使用说明全部写成该工具的 `promptGuidelines`，默认内置，`guidance.<id>.promptGuidelines` 整段替换。跨工具的规则不进配置，写 AGENTS.md。
+- 规则平铺进系统提示的 `<rules>` 段，pi 按原文去重，不加工具前缀。所以每条规则必须点名工具，形如 `chrome_act: ...`。
 - 12,000 字符预算按默认配置断言。覆盖后不拦。
 
 ### 命令
@@ -241,8 +233,7 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 | 命令 | 作用 |
 |---|---|
 | `/chrome authorize on`、`off` | 开关授权。`on` 时先查桥的连接台账；没连上就打印装扩展的步骤，且不授权 |
-| `/chrome status` | 报版本、授权、背景模式、桥角色、端口、连接状态、在途命令数、本会话 target。不探测页面 |
-| `/chrome background on`、`off` | 开关背景模式 |
+| `/chrome status` | 报版本、授权、桥角色、端口、连接状态、在途命令数、本会话 target。不探测页面 |
 
 没有 `doctor`，没有 `onboard`。诊断信息由错误消息给出。装扩展的步骤由 `authorize` 与 `status` 在未连接时打印。
 
@@ -265,7 +256,7 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 - Node ≥ 22.19.0。Chrome ≥ 91（模块 service worker）。轮询断了由扩展的 1 秒定时器重起；`chrome.alarms` 的 0.5 分钟周期是服务工作进程被回收后的兜底，Chrome 91–119 会把它夹到 1 分钟。
 - 扩展版本与宿主不一致时，扩展从 `/next` 应答头 `x-pi-browser-use-host-version` 读到期望版本，自己重载一次。重载后仍不一致就报 `extension_version`，不反复重载。
 - 浏览器要实现 `chrome.windows.create`：每个会话的自动化标签放在自己的窗口里。不依赖标签组，所以对 `chrome.tabs.group` 的实现不作要求（Vivaldi 8.2 的那一个是空操作）。
-- 可信输入要求页面可见：标签页被别的标签盖住、或窗口被别的窗口盖住时，Chrome 丢弃 CDP 输入。标签要先切到前台，窗口要露出来。
+- 可信输入要求页面可见：标签页被别的标签盖住、或窗口被别的窗口盖住时，Chrome 丢弃 CDP 输入。所以每次输入前先探测可见性，不可见就激活标签、把窗口带到前台，仍不可见才报错。
 - 安全：桥只绑 `127.0.0.1`。`/command` 只接受本机进程。`/next` 与 `/result` 校验浏览器来源。扩展的 `host_permissions` 用不带端口的 `http://127.0.0.1/*`，所以改 `bridge.port` 不必改 manifest、不必重装扩展。扩展侧的轮询地址在 `background/transport.js` 的 `BRIDGE_URL`，改端口时要一起改。
 
 ## 测试决定
@@ -275,7 +266,7 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 - 工具定义：序列化后量体积、查 schema。先例 `pi-web-search-lite` 的 `test/index.test.ts` 断言工具名与描述。
 - 配置解析：给临时目录。先例本仓库 `pi-web-search-lite` 的 `test/config.test.ts`。
 - 桥端点：起真 HTTP 服务发真请求。先例 pi-chrome `bridge-resilience.test.mjs`，改写为 vitest。
-- 策略判定：给状态与调用参数。先例 pi-chrome `background-policy.test.mjs`、`automation-target.test.mjs`。
+- 策略判定：给授权状态。先例 pi-chrome `automation-target.test.mjs`。
 - 扩展动作路由：挂 `globalThis.chrome` 桩后动态 `import`。先例 pi-chrome `input-reliability.test.mjs`，从 `node:vm` 改为模块导入。
 - 页面脚本自包含：静态扫描源码。无先例，新增。
 
@@ -313,6 +304,6 @@ pi-chrome 有、本版不做的参数。逐个判过，不是遗漏。
 | `retentionDays` | `chrome_screenshot` | 不做参数。只留 `screenshot.keepNewest` 一条修剪策略 |
 | `port`、`userDataDir`、`useDefaultProfile`、`headless` | `chrome_launch` | 原文即 `"Ignored."`。工具已删 |
 | `promptSnippet` | 全部 23 个工具 | 默认不发。需要时用 `guidance.<id>.promptSnippet` 覆盖 |
-| `background` | 19 个工具 | 改成 `/chrome background` 命令 |
+| `background` | 19 个工具 | 不要参数。不可见时输入路径自己把页面带到前台 |
 | `host`、`port` | 31 处 | 进配置文件 |
 | `targetId`、`urlIncludes`、`titleIncludes` | 各 22 处 | 并成单个 `tab` |

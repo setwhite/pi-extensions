@@ -33,8 +33,8 @@
 | `page.inspect` | `ref` 或 `selector` | `{ url, title, element }`，`element.rect` 是视口坐标 |
 | `page.screenshot` | `format`、`fullPage` | `{ format, images: [{ data }] }` |
 | `tab.list` | — | `{ tabs }`，每项 `{ id, active, title, url }` |
-| `tab.new` | `url`、`background: true` | `{ id }` |
-| `tab.activate` | `tabId`、`background: false` | `{}` |
+| `tab.new` | `url` | `{ id }` |
+| `tab.activate` | `tabId` | `{}` |
 | `tab.close` | `tabId` | `{}` |
 | `cdp.call` | `method`、`params` | `{ result }` |
 | `automation.cleanup` | `closeOwnTabs` | `{ closed }` |

@@ -19,6 +19,7 @@ The package has two halves. The pi extension registers the tools and runs a loca
 Behaviour worth knowing:
 
 - Each session gets its own browser window. The tools do not touch your own tabs. The tabs the session opened are closed when the session ends.
+- That window opens unfocused. The first click or keystroke raises it, because Chrome drops input to hidden pages. Reads never raise it.
 - Input goes through trusted CDP events, so pages that reject synthetic events still react.
 - Console and network capture starts at navigation, not at the first read.
 - Every failure carries a class and a `hint` that says what to do next.
@@ -41,7 +42,7 @@ Then authorize the tools for this session:
 /chrome authorize on
 ```
 
-Authorization ends with the session. Set `policy.authorizeOnStart` to skip this step.
+Authorization ends with the session. Set `policy.authorizeOnStart` to skip this step. Type `/chrome ` and press Tab to list the subcommands.
 
 ## Configuration
 
@@ -66,8 +67,6 @@ Without the file every value is the default. A wrong type or an unknown key fail
   // Session rules
   "policy": {
     "authorizeOnStart": false,  // true = the tools work without /chrome authorize on
-    "background": true,         // true = block every focusing call, chrome_tab switch included.
-                                //        Turn it off when the model must bring a page to the front
     "closeOwnTabsOnExit": true  // close the tabs this session opened when the session ends
   },
 
@@ -89,11 +88,6 @@ Without the file every value is the default. A wrong type or an unknown key fail
     "dir": "/home/me/.pi/agent/pi-browser-use-lite/screenshots",  // created on first use
     "format": "png",            // png | jpeg
     "keepNewest": 20            // older screenshots in that directory are deleted
-  },
-
-  // Global rules for the system prompt. These replace the three defaults; they do not extend them
-  "prompt": {
-    "guidelines": ["chrome_act: this is the user's real browser; confirm before destructive actions."]
   },
 
   // Tool switches and names. Keep at least one enabled; names must be unique and must not shadow a host tool
