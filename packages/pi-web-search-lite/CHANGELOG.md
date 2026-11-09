@@ -2,6 +2,12 @@
 
 本文件记录已发布版本的用户可见变更。更细的过程见 git log。0.x 期间破坏性变更走 minor 号，条目里标 **BREAKING**。
 
+## 0.13.0 — 2026-11-10
+
+- GitHub 页面多认三类：`commit/<sha>`、`compare/a...b`、`actions/runs/<id>`。commit 与 compare 只给摘要（作者、时间、增删行数、提交与文件清单），不给 patch：完整 diff 在本地 `git clone` 更合适。actions run 先取任务表，再补一次只看失败步骤的日志，没有失败步骤就只留任务表。
+- GitHub 页面类型没路由时不再静默。此前直接走提取器链，看不出为什么没走 gh。现在结果头写一行原因，`details.handlerSkips` 里也有。形状不认时不探测 gh。
+- 文件页取到二进制时改成 skipped 顺延。此前把 gh 的 stdout 当文本拼进正文，图片变成一段乱码。
+
 ## 0.12.0 — 2026-11-09
 
 - **BREAKING**：`promptSnippet` 默认不再发送。工具列表里的一行不再出现。此前默认发 `Search the web` 与 `Extract URL text`。这一行与 `promptGuidelines` 重复。另三个扩展本就不发。需要时用 `guidance.<tool>.promptSnippet` 覆盖。
