@@ -138,5 +138,3 @@ function createTargetHolder(): SessionTarget {
 		},
 	};
 }
-
-/** 参数里的动作名。只有 chrome_act 与 chrome_tab 带 action，别的工具给空串。 */

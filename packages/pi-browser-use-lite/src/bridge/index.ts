@@ -56,7 +56,6 @@ interface Waiter {
 	cancel: () => void;
 }
 
-/** 在途命令表里的一条。超时定时器在入队时设，所以从入队时刻算。 */
 /** 排队中的命令。`remainingMs` 要到交给扩展的那一刻才成立，见 `/next`。 */
 type QueuedCommand = Omit<BridgeCommand, "remainingMs">;
 

@@ -17,6 +17,11 @@ const CHANGES_MAX = 20;
 /** 基线在 storage.session 里的键前缀，后面接标签 id。 */
 const BASELINE_PREFIX = "snapshot.baseline.";
 
+// 标签关掉后基线不会再被读到，留着只占 storage.session 的配额。
+globalThis.chrome?.tabs?.onRemoved?.addListener((tabId) => {
+	void chrome.storage.session.remove(`${BASELINE_PREFIX}${tabId}`);
+});
+
 /**
  * 取一次页面快照。
  * @param {object} params
@@ -64,12 +69,13 @@ export async function snapshotPage({
  * @param {object} target 定位，二选一
  * @param {string} [target.ref] 元素 ref
  * @param {string} [target.selector] CSS 选择器
+ * @param {boolean} [target.scroll] 读 rect 前先把元素滚到视口中心，指针动作要它
  * @returns {Promise<{ url: string, title: string, element: object }>} 元素与其所在页面
  */
-export async function elementAt(tabId, { ref, selector } = {}) {
+export async function elementAt(tabId, { ref, selector, scroll } = {}) {
 	requireOptionalString(ref, "ref");
 	requireOptionalString(selector, "selector");
-	return await runPage(tabId, "inspect", { ref, selector });
+	return await runPage(tabId, "inspect", { ref, selector, scroll });
 }
 
 /**

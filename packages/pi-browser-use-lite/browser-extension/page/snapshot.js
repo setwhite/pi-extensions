@@ -134,6 +134,26 @@
 		};
 	}
 
+	/** 元素不完全在视口里时才滚到中间：把页面滚动当成副作用尽量少做。 */
+	function bringIntoView(element) {
+		const rect = element.getBoundingClientRect();
+		const visible =
+			rect.x >= 0 &&
+			rect.y >= 0 &&
+			rect.x + rect.width <= innerWidth &&
+			rect.y + rect.height <= innerHeight;
+		if (!visible) element.scrollIntoView({ block: "center", inline: "center" });
+	}
+
+	/** 掉出文档的元素不会再被点到，留着只让 ref map 变大。 */
+	function forgetDetached() {
+		const elementOf = globalThis[ELEMENT_OF_REF];
+		if (!elementOf) return;
+		for (const [ref, element] of elementOf) {
+			if (element.isConnected === false) elementOf.delete(ref);
+		}
+	}
+
 	function refFor(element) {
 		if (!globalThis[REF_OF_ELEMENT]) globalThis[REF_OF_ELEMENT] = new WeakMap();
 		const refOf = globalThis[REF_OF_ELEMENT];
@@ -190,7 +210,8 @@
 	}
 
 	function readText(element, parts) {
-		for (const child of element.children ?? []) {
+		// children 只有元素。文本节点只在 childNodes 里。
+		for (const child of element.childNodes ?? []) {
 			if (child.nodeType === 3) {
 				const text = normalize(child.textContent);
 				if (text) parts.push(text);
@@ -204,6 +225,7 @@
 	}
 
 	function collect() {
+		forgetDetached();
 		const headings = [];
 		const elements = [];
 		const fields = [];
@@ -232,18 +254,23 @@
 		};
 	}
 
-	/** 深查一个元素。ref 优先于 selector。 */
-	function inspect({ ref, selector }) {
+	/** 深查一个元素。ref 优先于 selector；`scroll` 让指针动作先把元素带进视口。 */
+	function inspect({ ref, selector, scroll }) {
 		const elementOf = globalThis[ELEMENT_OF_REF];
 		const element = ref
 			? elementOf?.get(ref)
 			: document.querySelector(selector);
-		if (!element)
+		if (!element || element.isConnected === false) {
+			// 元素已经被换掉：旧坐标落在别的元素上，静默点下去就是错的动作。
+			if (ref) elementOf?.delete(ref);
 			throw new Error(
 				ref
-					? `ref not found: ${ref}`
+					? `ref ${ref} is stale; take a new snapshot`
 					: `selector matched no element: ${selector}`,
 			);
+		}
+		// rect 是视口坐标。折叠线外先滚到中间，指针动作才点得到；已经看得见就别动页面。
+		if (scroll) bringIntoView(element);
 		return {
 			title: document.title,
 			url: location.href,

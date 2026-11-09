@@ -19,14 +19,11 @@ interface MouseEvent {
 interface PointerModule {
 	click: (target: Record<string, unknown>) => Promise<{ x: number; y: number }>;
 	hover: (target: Record<string, unknown>) => Promise<{ x: number; y: number }>;
-	moveMouse: (
-		target: Record<string, unknown>,
-	) => Promise<{ x: number; y: number }>;
 	drag: (target: Record<string, unknown>) => Promise<unknown>;
 	scroll: (target: Record<string, unknown>) => Promise<unknown>;
 }
 
-const { click, hover, moveMouse, drag, scroll } = (await import(
+const { click, hover, drag, scroll } = (await import(
 	extensionUrl("input/pointer.js")
 )) as PointerModule;
 
@@ -120,6 +117,17 @@ it("AC2/AC3: 按 selector 点击落在元素矩形内，事件序为 moved、pre
 	expect(released.buttons).toBe(0);
 });
 
+it("AC2: 按 selector 定位时先滚到视口中心再读 rect", async () => {
+	const stub = stubPointer();
+
+	await click({ tabId: 206, selector: "#submit" });
+
+	const probe = stub.calls.find((call) =>
+		String(call.params.expression).includes("querySelector"),
+	);
+	expect(String(probe?.params.expression)).toContain("scrollIntoView");
+});
+
 it("AC2: 按坐标点击直接使用给定坐标", async () => {
 	const stub = stubPointer();
 
@@ -174,7 +182,7 @@ it("AC4: 标签不是活动标签时，报错说明是这一点", async () => {
 	expect(mouseEvents(stub)).toHaveLength(0);
 });
 
-it("AC5: dragSteps 为 3 时发出 3 次中间 mouseMoved", async () => {
+it("AC5: dragSteps 为 3 时先移到起点，再发 3 次中间 mouseMoved", async () => {
 	const stub = stubPointer();
 
 	await drag({
@@ -185,9 +193,18 @@ it("AC5: dragSteps 为 3 时发出 3 次中间 mouseMoved", async () => {
 	});
 
 	const events = mouseEvents(stub);
-	expect(events[0].type).toBe("mousePressed");
+	// 按下前先经过起点，靠 :hover 出现的把手才会出现。
+	expect(events[0]).toMatchObject({
+		type: "mouseMoved",
+		x: 10,
+		y: 10,
+		buttons: 0,
+	});
+	expect(events[1].type).toBe("mousePressed");
 	expect(events.at(-1)?.type).toBe("mouseReleased");
-	const moves = events.filter((event) => event.type === "mouseMoved");
+	const moves = events.filter(
+		(event) => event.type === "mouseMoved" && event.buttons === 1,
+	);
 	expect(moves).toHaveLength(3);
 	expect(moves.every((event) => event.button === "left")).toBe(true);
 	expect(moves.every((event) => event.buttons === 1)).toBe(true);
@@ -205,7 +222,7 @@ it("AC5: 默认配置 10 步时 drag 发出 10 次中间 mouseMoved", async () =
 	});
 
 	const moves = mouseEvents(stub).filter(
-		(event) => event.type === "mouseMoved",
+		(event) => event.type === "mouseMoved" && event.buttons === 1,
 	);
 	expect(moves).toHaveLength(10);
 });
@@ -250,17 +267,6 @@ it("交付物: hover 只发一次 mouseMoved，落在元素中心", async () => 
 	expect(point).toEqual({ x: RECT.x, y: RECT.y });
 });
 
-it("质量: moveMouse 也走可见性自救，仍不可见时不发事件", async () => {
-	const stub = stubPointer({ visibility: "hidden" });
-
-	await expect(moveMouse({ tabId: 601, x: 1, y: 2 })).rejects.toThrow(
-		"page_error",
-	);
-
-	expect(mouseEvents(stub)).toHaveLength(0);
-	expect(stub.tabs.update).toHaveBeenCalledTimes(1);
-});
-
 it("质量: 可见性读不到时抛 page_error，不当作可见", async () => {
 	const stub = stubPointer({ visibility: "unreadable" });
 
@@ -277,7 +283,7 @@ it("质量: 非有限坐标抛 bad_args 且不发 CDP", async () => {
 		"bad_args",
 	);
 	await expect(
-		moveMouse({ tabId: 604, x: 1, y: Number.POSITIVE_INFINITY }),
+		hover({ tabId: 604, x: 1, y: Number.POSITIVE_INFINITY }),
 	).rejects.toThrow("bad_args");
 
 	expect(stub.debugger.sendCommand).not.toHaveBeenCalled();

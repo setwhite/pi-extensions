@@ -25,9 +25,12 @@ function startPolling() {
 		version: chrome.runtime.getManifest().version,
 		dispatch,
 	});
-	void transport.done.then(() => {
+	// 循环无论正常结束还是抛错都要放开闸门，否则 1 秒定时器再也起不来。
+	void transport.done.then(stopPolling, stopPolling);
+
+	function stopPolling() {
 		polling = false;
-	});
+	}
 }
 
 /** 醒来后把 alarm 续上，并确保轮询在跑。 */

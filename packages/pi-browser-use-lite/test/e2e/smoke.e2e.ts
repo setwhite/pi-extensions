@@ -112,6 +112,46 @@ it("AC5: click 点 #go，页面判定 PASS", async () => {
 	expect(detailsOf(verdict).value).toBe("PASS");
 });
 
+it("AC5: type 发出成对的 keydown/keyup，Ctrl+A 全选", async () => {
+	await openChallenge();
+	await run({
+		action: "eval",
+		js: `(() => {
+			const input = document.createElement("textarea");
+			input.id = "__kbd";
+			document.body.append(input);
+			input.focus();
+			globalThis.__kbd = { down: 0, up: 0, ctrlUp: 0, keys: [] };
+			input.addEventListener("keydown", (event) => {
+				globalThis.__kbd.down += 1;
+				globalThis.__kbd.keys.push(event.key);
+			});
+			input.addEventListener("keyup", (event) => {
+				globalThis.__kbd.up += 1;
+				globalThis.__kbd.keys.push(event.key);
+				if (event.key === "Control") globalThis.__kbd.ctrlUp += 1;
+			});
+			return "ok";
+		})()`,
+	});
+
+	const typed = await run({ action: "type", text: "ab", replace: true });
+	expect(textOf(typed).split("\n")[0]).toBe('ok: type "ab"');
+	const afterType = await readKbd();
+	expect(afterType.value).toBe("ab");
+	expect(afterType.up).toBe(afterType.down);
+	expect(afterType.down).toBeGreaterThanOrEqual(5);
+	expect(
+		afterType.keys.filter((key) => key === "a").length,
+	).toBeGreaterThanOrEqual(2);
+
+	const pressed = await run({ action: "press", key: "Ctrl+A" });
+	expect(textOf(pressed)).toBe("ok: press Ctrl+A");
+	const selected = await readKbd();
+	expect([selected.start, selected.end]).toEqual([0, 2]);
+	expect(selected.ctrlUp).toBeGreaterThanOrEqual(1);
+});
+
 it("AC5: 截屏落盘且文件存在", async () => {
 	await openChallenge();
 	const result = await executors.execute(
@@ -208,4 +248,30 @@ function textOf(result: ToolResult): string {
 
 function detailsOf(result: ToolResult): Record<string, unknown> {
 	return result.details;
+}
+
+interface KbdState {
+	down: number;
+	up: number;
+	ctrlUp: number;
+	keys: string[];
+	value: string;
+	start: number;
+	end: number;
+}
+
+async function readKbd(): Promise<KbdState> {
+	const result = await run({
+		action: "eval",
+		js: `(() => {
+			const input = document.getElementById("__kbd");
+			return JSON.stringify({
+				...globalThis.__kbd,
+				value: input.value,
+				start: input.selectionStart,
+				end: input.selectionEnd,
+			});
+		})()`,
+	});
+	return JSON.parse(String(detailsOf(result).value)) as KbdState;
 }

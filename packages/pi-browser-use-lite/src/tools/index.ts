@@ -84,7 +84,7 @@ export const TOOL_SPECS = {
 			ref: Type.Optional(
 				Type.String({
 					description:
-						"Element ref from a snapshot, such as e12. The most reliable locator for click, hover, type, fill and drag.",
+						"Element ref from a snapshot, such as e12. The most reliable locator for click, hover and drag; each fill field carries its own ref.",
 				}),
 			),
 			selector: Type.Optional(

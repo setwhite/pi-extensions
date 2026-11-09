@@ -57,7 +57,10 @@ const OPENING_ACTIONS = new Set([
 	"page.key",
 ]);
 
-/** 结果要带变更量的动作。悬停不在里面：鼠标经过不改 DOM，拍两次快照只会白花时间。 */
+/**
+ * 结果要带变更量的动作。悬停不在里面：鼠标经过不改 DOM，拍两次快照只会白花时间。
+ * navigate 也不在：跨文档的基线与新页面不可比，导航后要变更量就传 see。
+ */
 const CHANGED_ACTIONS = new Set([
 	"page.click",
 	"page.type",
@@ -133,7 +136,22 @@ export const routes = new Map([
 			return typed;
 		},
 	],
-	["page.fill", ({ tabId, fields } = {}) => fill({ tabId, fields })],
+	[
+		"page.fill",
+		// ref 只有快照能解成坐标，而且要在每次点击前才解：解析会滚动页面，
+		// 预先解完所有字段会让先解析的坐标失效。
+		({ tabId, fields } = {}) =>
+			fill({
+				tabId,
+				fields: Array.isArray(fields)
+					? fields.map((field) =>
+							typeof field?.ref === "string" && field.ref !== ""
+								? { ...field, locate: () => locator(tabId, field) }
+								: field,
+						)
+					: fields,
+			}),
+	],
 	["page.key", ({ tabId, key } = {}) => press({ tabId, key })],
 	[
 		"page.scroll",
@@ -176,7 +194,7 @@ export const routes = new Map([
 
 /**
  * 路由一条命令。
- * 动作名不在表里抛 `Unknown action: …`；在表里但实现没接抛 `… is not wired yet`。
+ * 动作名不在表里抛 `Unknown action: …`。
  * 需要标签 id 的动作先取 target 并开日志抓取，改元素的动作前后各拍一次快照比出变更量。
  * @param {string} action 动作名
  * @param {Record<string, unknown>} [params] 动作参数
@@ -185,7 +203,6 @@ export const routes = new Map([
 export async function dispatch(action, params = {}) {
 	if (!routes.has(action)) throw new Error(`Unknown action: ${action}`);
 	const route = routes.get(action);
-	if (route === undefined) throw new Error(`${action} is not wired yet`);
 	if (!TAB_ACTIONS.has(action)) return await route(params);
 
 	const tabId = await tabIdOf(action, params);
@@ -251,7 +268,7 @@ async function atPoint({ tabId, ...target }) {
 async function locator(tabId, target = {}) {
 	const { ref, selector, x, y } = target;
 	if (typeof ref !== "string" || ref === "") return { selector, x, y };
-	const { element } = await elementAt(tabId, { ref });
+	const { element } = await elementAt(tabId, { ref, scroll: true });
 	const rect = element?.rect;
 	if (!rect) throw new Error(`page_error: ref ${ref} is not on the page`);
 	return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };

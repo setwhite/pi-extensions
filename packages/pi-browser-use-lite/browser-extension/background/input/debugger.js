@@ -33,6 +33,10 @@ export async function releaseAll() {
 const SCRIPTING_DENIED =
 	/Cannot access contents of url|Cannot access .+ at origin|Extension manifest must request permission|matchAboutBlank must be true/i;
 
+/** Chrome 在扩展重载、导航收尾时会短暂拒绝 attach；这种失败重试一次。 */
+const TRANSIENT_ATTACH =
+	/Cannot access (a )?chrome-extension|Cannot access contents of|Another debugger|Target closed|No tab with id/i;
+
 /**
  * 挂上标签的调试器。已挂过就直接返回。
  * @param {number} tabId 标签 id
@@ -41,13 +45,42 @@ const SCRIPTING_DENIED =
 export async function attach(tabId) {
 	requireDebugger();
 	if (attachedTabs.has(tabId)) return;
+	await detachStaleTarget(tabId);
 	try {
 		await chrome.debugger.attach({ tabId }, "1.3");
 	} catch (error) {
-		// 挂不上的原因（开发者工具占着、别的扩展占着）只有这一处能说清。
-		throw new Error(`cdp_unavailable: ${errorMessage(error)}`);
+		if (!TRANSIENT_ATTACH.test(errorMessage(error)))
+			throw new Error(`cdp_unavailable: ${errorMessage(error)}`);
+		await sleep(180);
+		try {
+			await chrome.debugger.attach({ tabId }, "1.3");
+		} catch (retry) {
+			// 挂不上的原因（开发者工具占着、别的扩展占着）只有这一处能说清。
+			throw new Error(`cdp_unavailable: ${errorMessage(retry)}`);
+		}
 	}
 	attachedTabs.add(tabId);
+}
+
+/** attach 前先摘掉这个标签上的残留会话：扩展重载后 Chrome 偶尔留着半死的 target。 */
+async function detachStaleTarget(tabId) {
+	let targets = [];
+	try {
+		targets = (await chrome.debugger.getTargets?.()) ?? [];
+	} catch {
+		return;
+	}
+	if (
+		!Array.isArray(targets) ||
+		!targets.some((target) => target?.tabId === tabId && target.attached)
+	)
+		return;
+	await chrome.debugger.detach({ tabId }).catch(() => {});
+	await sleep(80);
+}
+
+function sleep(ms) {
+	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
@@ -121,7 +154,9 @@ export async function executeScriptWithFallback({
 			awaitPromise: true,
 		});
 		if (response.exceptionDetails)
-			throw new Error(exceptionMessage(response.exceptionDetails));
+			throw new Error(
+				`page_error: ${exceptionMessage(response.exceptionDetails)}`,
+			);
 		return [{ result: response.result?.value }];
 	}
 }
@@ -206,5 +241,6 @@ function jsonArgs(args) {
 }
 
 function requireDebugger() {
-	if (!chrome.debugger) throw new Error("chrome.debugger is not available");
+	if (!chrome.debugger)
+		throw new Error("cdp_unavailable: chrome.debugger is not available");
 }

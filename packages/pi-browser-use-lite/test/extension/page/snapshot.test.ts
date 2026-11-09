@@ -45,6 +45,7 @@ const runInPage = (spec: Record<string, unknown>) =>
 afterEach(() => {
 	uninstallChrome();
 	vi.unstubAllGlobals();
+	vi.resetModules();
 	delete PAGE_GLOBAL.__piChromeSnapshotPage;
 });
 
@@ -65,7 +66,7 @@ it("AC4: 新元素拿更大的 ref，删掉的元素 ref 不复用", () => {
 	const first = page.collect();
 	append(page.body, el("a", { attrs: { href: "/next" } }, ["Next"]));
 	const second = page.collect();
-	page.body.children.shift();
+	page.body.childNodes.shift();
 	const third = page.collect();
 
 	expect(second.elements[1].ref).not.toBe(first.elements[0].ref);
@@ -74,6 +75,40 @@ it("AC4: 新元素拿更大的 ref，删掉的元素 ref 不复用", () => {
 	);
 	expect(third.elements[0].ref).toBe(second.elements[1].ref);
 	expect(third.elements[0].ref).not.toBe(first.elements[0].ref);
+});
+
+it("深查只在元素不在视口内时滚动，refs 深查不滚", () => {
+	const far = el("button", { rect: { x: 0, y: 900, width: 100, height: 20 } }, [
+		"Far",
+	]);
+	const near = el("button", { rect: { x: 0, y: 10, width: 100, height: 20 } }, [
+		"Near",
+	]);
+	const page = loadSnapshotPage({ body: el("body", {}, [far, near]) });
+	const [farRef, nearRef] = page
+		.collect()
+		.elements.map((element) => element.ref);
+
+	page.page.inspect({ ref: farRef });
+	expect(far.scrollCalls).toBe(0);
+
+	page.page.inspect({ ref: farRef, scroll: true });
+	expect(far.scrollCalls).toBe(1);
+
+	// 已经看得见时不动页面：滚动是副作用，拖动两端的坐标不能被它改掉。
+	page.page.inspect({ ref: nearRef, scroll: true });
+	expect(near.scrollCalls).toBe(0);
+});
+
+it("ref 指向的元素已经掉出文档时报 stale，不拿旧坐标去点", () => {
+	const button = el("button", {}, ["Save"]);
+	const page = loadSnapshotPage({ body: el("body", {}, [button]) });
+	const [ref] = page.collect().elements.map((element) => element.ref);
+	button.isConnected = false;
+
+	expect(() => page.page.inspect({ ref })).toThrow(
+		`ref ${ref} is stale; take a new snapshot`,
+	);
 });
 
 it("AC6: 页面没装上全局时抛错，消息里有名字", async () => {
@@ -353,6 +388,24 @@ it("摘要与正文不含脚本、样式与隐藏子树的文本", async () => {
 	expect(String(refs.summary)).not.toContain("HIDDEN_TEXT");
 	expect(String(text.text)).not.toContain("SECRET_CODE");
 	expect(String(text.text)).not.toContain("HIDDEN_TEXT");
+});
+
+it("标签关掉后删掉它的基线", async () => {
+	const stub = stubChrome({ executeScript: runInPage });
+	mountPage(el("body", {}, [el("button", {}, ["Save"])]));
+	const module = await loadSnapshot();
+	await module.snapshotPage({
+		tabId: 314,
+		maxElements: 80,
+		textChars: 18_000,
+	});
+
+	stub.emitTabRemoved(314);
+
+	const readStored = stub.storage.session.get as unknown as (
+		key: string,
+	) => Promise<Record<string, unknown>>;
+	expect(await readStored("snapshot.baseline.314")).toEqual({});
 });
 
 it("AC6: scripting 被拒时读源码改走 CDP 注入", async () => {

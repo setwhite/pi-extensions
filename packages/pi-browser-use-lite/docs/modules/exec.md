@@ -22,7 +22,7 @@
 | `page.click` | `ref` 或 `selector` 或 `x`+`y` | `{ changed, opened? }` |
 | `page.hover` | `ref` 或 `selector` 或 `x`+`y` | `{ x, y }`，悬停不改页面，不算变更量 |
 | `page.type` | `text`、`replace`、`press` | `{ changed, opened? }` |
-| `page.fill` | `fields` | `{ changed, opened? }` |
+| `page.fill` | `fields`，每项带 `ref` 或 `selector` 加 `value` | `{ changed, opened? }`，`ref` 由扩展换成坐标 |
 | `page.key` | `key` | `{ changed, opened? }` |
 | `page.drag` | `from`、`to`、`steps` | `{ changed }` |
 | `page.scroll` | `dx`、`dy`、`steps` | `{ changed }` |
@@ -31,6 +31,9 @@
 | `page.waitFor` | `kind`、`value`、`timeoutMs` | `{ waitedMs }` |
 | `page.snapshot` | `mode`、`query`、`ref`、`selector`、`maxElements`、`textChars` | `{ mode, url, title, … }`，形状见 `background/page/snapshot.js` |
 | `page.inspect` | `ref` 或 `selector` | `{ url, title, element }`，`element.rect` 是视口坐标 |
+| `page.console.list` | `clear` | `{ records, note? }` |
+| `page.network.list` | `clear` | `{ records, note? }` |
+| `page.network.get` | `requestId` | 一条请求记录，带响应体 |
 | `page.screenshot` | `format`、`fullPage` | `{ format, images: [{ data }] }` |
 | `tab.list` | — | `{ tabs }`，每项 `{ id, active, title, url }` |
 | `tab.new` | `url` | `{ id }` |
@@ -40,5 +43,7 @@
 | `automation.cleanup` | `closeOwnTabs` | `{ closed }` |
 
 `changed` 与 `page.snapshot` 的 `changes` 同形：`{ added, removed, updated, lines? }`。
+
+`logs` 为空时宿主回一行 `no <kind> records captured for this tab`：空正文会让模型把「没有记录」读成「工具没输出」。抓取关闭或存储写不进时，`note` 放在记录之前。
 
 `opened` 只在动作顺带开出新标签时出现，元素是 `{ id, active, title, url }`。宿主把它打成一行 `opened: +1 <id> [*] <标题> <url>` 交给模型：目标标签的 URL 不会因为新标签而变，没有这一行时「回车无效」和「回车开了新页」在结果里长得一样。

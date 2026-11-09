@@ -50,21 +50,6 @@ export async function hover({ tabId, ...target } = {}) {
 }
 
 /**
- * 把指针移到视口坐标上。
- * @param {object} params
- * @param {number} params.tabId 标签 id
- * @param {number} params.x 视口坐标 x
- * @param {number} params.y 视口坐标 y
- * @returns {Promise<{ x: number, y: number }>}
- */
-export async function moveMouse({ tabId, x, y } = {}) {
-	const point = requirePoint({ x, y });
-	await assertVisible(tabId);
-	await movePointer(tabId, point);
-	return point;
-}
-
-/**
  * 拖拽。从按下到松开之间发 steps 次鼠标移动，步数来自配置 input.dragSteps。
  * @param {object} params
  * @param {number} params.tabId 标签 id
@@ -80,6 +65,8 @@ export async function drag({ tabId, from, to, steps } = {}) {
 	await assertVisible(tabId);
 	const start = await resolvePoint(tabId, fromKind, from);
 	const end = await resolvePoint(tabId, toKind, to);
+	// 先移到起点：靠 :hover 才出现的拖拽把手要先收到经过，按下才抓得住。
+	await movePointer(tabId, start);
 	await dispatchMouse(tabId, "mousePressed", start, {
 		button: "left",
 		buttons: 1,
@@ -191,6 +178,15 @@ async function elementCenter(tabId, selector) {
 	const expression = `(() => {
 	const element = document.querySelector(${JSON.stringify(selector)});
 	if (!element) return null;
+	// rect 是视口坐标：折叠线外先滚到中间，点到的坐标才在视口里。
+	const before = element.getBoundingClientRect();
+	if (
+		before.x < 0 ||
+		before.y < 0 ||
+		before.x + before.width > innerWidth ||
+		before.y + before.height > innerHeight
+	)
+		element.scrollIntoView({ block: "center", inline: "center" });
 	const rect = element.getBoundingClientRect();
 	return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
 })()`;

@@ -56,6 +56,14 @@ it("AC12: 没写类别的错误归 page_error", () => {
 	});
 });
 
+it("AC12: 原型链上的名字不算错误类别", () => {
+	for (const name of ["constructor", "__proto__"])
+		expect(classify(new Error(`${name}: boom`))).toMatchObject({
+			class: "page_error",
+			message: `${name}: boom`,
+		});
+});
+
 it("AC12: 桥的错误类别与 hint 原样透传", () => {
 	const info = classify(new BridgeError("timeout", "the tab never loaded"));
 

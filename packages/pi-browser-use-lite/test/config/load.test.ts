@@ -1,10 +1,9 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { homedir, tmpdir } from "node:os";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { expect, it } from "vitest";
 import {
 	agentDir,
-	configPath,
 	DEFAULTS,
 	loadConfig,
 	type ResolvedConfig,
@@ -36,7 +35,7 @@ function readConfig(value: unknown): ResolvedConfig {
 	);
 }
 
-it("AC2: 文件缺失时 13 个标量取默认值，工具全开且保留原名", () => {
+it("AC2: 文件缺失时 11 个标量取默认值，工具全开且保留原名", () => {
 	let root = "";
 	const config = withAgentDir(undefined, (agentDir) => {
 		root = agentDir;
@@ -212,30 +211,4 @@ it("AC3: JSON 损坏时抛错，消息含文件路径", () => {
 		const expected = join(agentDir, CONFIG_FILE);
 		expect(() => loadConfig(agentDir)).toThrowError(expected);
 	});
-});
-
-it("AC15: configPath 以 PI_CODING_AGENT_DIR 开头，未设时以 ~/.pi/agent 开头", () => {
-	const envDir = join(tmpdir(), "pi-browser-agent");
-	const path = configPath({ PI_CODING_AGENT_DIR: envDir });
-	expect(path.startsWith(envDir)).toBe(true);
-	expect(path.endsWith(CONFIG_FILE)).toBe(true);
-
-	const fallback = configPath({});
-	expect(fallback.startsWith(join(homedir(), ".pi", "agent"))).toBe(true);
-});
-
-it("AC15: configPath 默认读 process.env", () => {
-	const saved = process.env.PI_CODING_AGENT_DIR;
-	process.env.PI_CODING_AGENT_DIR = join(tmpdir(), "pi-browser-env");
-	try {
-		expect(configPath()).toBe(
-			join(process.env.PI_CODING_AGENT_DIR, CONFIG_FILE),
-		);
-	} finally {
-		if (saved === undefined) {
-			delete process.env.PI_CODING_AGENT_DIR;
-		} else {
-			process.env.PI_CODING_AGENT_DIR = saved;
-		}
-	}
 });

@@ -72,7 +72,7 @@ async function runLogs(
 			{ ...tab, requestId: params.request_id },
 			timeoutMs,
 		);
-		return okResult(valueText(record), { mode: "logs", logs: "network" });
+		return okResult(valueText(record), { logs: "network" });
 	}
 	const logs = params.logs ?? "console";
 	const result = (await call(
@@ -81,13 +81,15 @@ async function runLogs(
 		{ ...tab, clear: params.clear === true },
 		timeoutMs,
 	)) as { records?: unknown[]; note?: string };
-	const lines = (result.records ?? []).map((record) => valueText(record));
+	const records = result.records ?? [];
+	const lines = records.map((record) => valueText(record));
 	if (result.note !== undefined) lines.unshift(result.note);
-	return okResult(lines.join("\n"), {
-		mode: "logs",
-		logs,
-		count: (result.records ?? []).length,
-	});
+	return okResult(
+		lines.length === 0
+			? `no ${logs} records captured for this tab`
+			: lines.join("\n"),
+		{ logs, count: records.length },
+	);
 }
 
 /** details 只带该模式有意义的字段，形状按 SPEC-0001 的结果信封表。 */

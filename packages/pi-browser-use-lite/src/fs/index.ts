@@ -1,3 +1,5 @@
+/** 截图落盘与按数量修剪。只依赖 node:，不碰配置与网络。 */
+
 import { mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -17,7 +19,7 @@ export type SaveOptions = {
 	stamp?: number;
 };
 
-const SCREENSHOT = /\.(png|jpeg)$/i;
+const SCREENSHOT = /\.(?:png|jpeg)$/i;
 
 /**
  * 给这批图腾出保留位再写。多张图各占一个保留位。
@@ -30,7 +32,7 @@ export async function saveScreenshots({
 	keepNewest,
 	stamp = Date.now(),
 }: SaveOptions): Promise<string[]> {
-	if (images.length === 0) throw new Error("no images to save");
+	if (images.length === 0) throw new Error("bad_args: no images to save");
 	if (!Number.isInteger(keepNewest) || keepNewest < 0)
 		throw new Error("bad_args: keepNewest must be a non-negative integer");
 	if (images.length > keepNewest)

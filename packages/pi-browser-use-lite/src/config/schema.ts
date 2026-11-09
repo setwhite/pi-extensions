@@ -79,8 +79,8 @@ export interface ResolvedConfig {
 }
 
 /**
- * 13 个标量字段的默认值。工具记录与文案覆盖不在其中。
- * `screenshot.dir` 跟着 agent 目录走，由 buildConfig 补，不在这里。
+ * 配置里 11 个标量字段中，10 个的默认值在这里。
+ * `screenshot.dir` 跟着 agent 目录走，由 buildConfig 补。工具记录与文案覆盖不在其中。
  */
 export const DEFAULTS: Omit<
 	ResolvedConfig,

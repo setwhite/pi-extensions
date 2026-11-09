@@ -29,11 +29,6 @@ export function agentDir(env: NodeJS.ProcessEnv = process.env): string {
 	return env[ENV_AGENT_DIR] || join(homedir(), ".pi", "agent");
 }
 
-/** 配置文件路径：`<agent dir>/pi-browser-use-lite/config.json`。 */
-export function configPath(env: NodeJS.ProcessEnv = process.env): string {
-	return configFile(agentDir(env));
-}
-
 /** 读取并校验配置。文件不存在时返回全默认值。校验失败抛 Error。 */
 export function loadConfig(agentDir: string): ResolvedConfig {
 	const file = configFile(agentDir);

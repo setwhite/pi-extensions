@@ -22,13 +22,18 @@ export type FakeElement = {
 	[nodeType: string]: unknown;
 	nodeType: 1;
 	tagName: string;
-	children: FakeNode[];
+	/** 与 DOM 一致：只有元素。文本节点在 `childNodes` 里。 */
+	children: FakeElement[];
+	childNodes: FakeNode[];
 	parentElement: FakeElement | null;
 	textContent: string;
+	isConnected: boolean;
+	scrollCalls: number;
 	getAttribute(name: string): string | null;
 	hasAttribute(name: string): boolean;
 	getBoundingClientRect(): Rect;
 	checkVisibility(): boolean;
+	scrollIntoView(options?: { block?: string; inline?: string }): void;
 };
 
 export type FakeNode = FakeElement | { nodeType: 3; textContent: string };
@@ -46,7 +51,9 @@ export function el(
 	const node = {
 		nodeType: 1 as const,
 		tagName: tag.toUpperCase(),
-		children: [] as FakeNode[],
+		childNodes: [] as FakeNode[],
+		isConnected: true,
+		scrollCalls: 0,
 		parentElement: null as FakeElement | null,
 		attributes: new Map(Object.entries(options.attrs ?? {})),
 		rect: options.rect ?? { x: 0, y: 0, width: 100, height: 20 },
@@ -68,12 +75,18 @@ export function el(
 	(node as Record<string, unknown>).checkVisibility = () =>
 		(node as unknown as { visible: boolean }).visible;
 	Object.defineProperty(node, "textContent", {
-		get: () => node.children.map((child) => child.textContent).join(""),
+		get: () => node.childNodes.map((child) => child.textContent).join(""),
 	});
+	Object.defineProperty(node, "children", {
+		get: () => node.childNodes.filter((child) => child.nodeType === 1),
+	});
+	(node as Record<string, unknown>).scrollIntoView = () => {
+		node.scrollCalls += 1;
+	};
 	for (const child of children) {
 		const fake = typeof child === "string" ? text(child) : child;
 		if (fake.nodeType === 1) fake.parentElement = node;
-		node.children.push(fake);
+		node.childNodes.push(fake);
 	}
 	return node;
 }
@@ -81,7 +94,7 @@ export function el(
 /** 把子元素挂到父元素上，维护反向链接。 */
 export function append(parent: FakeElement, child: FakeElement) {
 	child.parentElement = parent;
-	parent.children.push(child);
+	parent.childNodes.push(child);
 }
 
 function findById(node: FakeElement, id: string): FakeElement | null {
@@ -134,10 +147,17 @@ export function loadSnapshotPage(options: {
 	const context: Record<string, unknown> = {
 		document,
 		location: { href: options.url ?? "https://example.test/" },
+		innerHeight: 800,
+		innerWidth: 1_200,
 	};
 	runInNewContext(PAGE_SOURCE, context);
 	const page = context.__piChromeSnapshotPage as {
 		collect: () => SnapshotPayload;
+		inspect: (target: {
+			ref?: string;
+			selector?: string;
+			scroll?: boolean;
+		}) => { url: string; title: string; element: SnapshotElement };
 	};
 	return {
 		body: options.body,

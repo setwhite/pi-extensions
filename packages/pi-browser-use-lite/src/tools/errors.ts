@@ -62,5 +62,6 @@ export function classify(cause: unknown): ErrorInfo {
 }
 
 function isErrorClass(value: string): value is ErrorClass {
-	return value in HINTS;
+	// in 会命中原型链：constructor、__proto__ 会被当成类别。
+	return Object.hasOwn(HINTS, value);
 }

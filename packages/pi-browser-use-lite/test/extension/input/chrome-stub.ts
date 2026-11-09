@@ -22,11 +22,17 @@ export interface ChromeStub {
 	debugger: {
 		attach: Mock;
 		detach: Mock;
+		getTargets: Mock;
 		sendCommand: Mock;
 		onEvent: { addListener: Mock; removeListener: Mock };
 		onDetach: { addListener: Mock; removeListener: Mock };
 	};
-	tabs: { get: Mock; update: Mock; query: Mock };
+	tabs: {
+		get: Mock;
+		update: Mock;
+		query: Mock;
+		onRemoved: { addListener: Mock };
+	};
 	windows: { get: Mock; update: Mock };
 	scripting: { executeScript: Mock };
 	runtime: {
@@ -45,6 +51,8 @@ export interface ChromeStub {
 	};
 	/** 向已注册的 onDetach 监听器报一次摘除。 */
 	emitDetach: (source: { tabId?: number }, reason: string) => void;
+	/** 向已注册的 tabs.onRemoved 监听器报一次关闭。 */
+	emitTabRemoved: (tabId: number) => void;
 	/** 向已注册的 onEvent 监听器发一条调试器事件。 */
 	emit: (
 		source: { tabId?: number; targetId?: string },
@@ -66,6 +74,10 @@ export interface StubOptions {
 	detachResults?: unknown[];
 	/** 给了就让它成为 chrome.debugger.attach 抛出的错误。 */
 	attachError?: Error;
+	/** attach 按队列应答，队列里的 Error 会被抛出。给了就不看 attachError。 */
+	attachResults?: unknown[];
+	/** chrome.debugger.getTargets 报的残留 target，默认空。 */
+	debuggerTargets?: Array<{ tabId?: number; attached?: boolean }>;
 	/** 预先塞进 chrome.storage.session 的键值。 */
 	storage?: Record<string, unknown>;
 	/** `chrome.runtime.getManifest().version` 报的版本，默认 `0.0.0`。 */
@@ -78,6 +90,8 @@ export interface StubOptions {
 	windowState?: string;
 	/** `chrome.tabs.get` 报的目标标签是否活动，默认 `false`。 */
 	tabActive?: boolean;
+	/** 给了就让 `chrome.storage.session.set` 抛出这个错误。 */
+	storageError?: Error;
 }
 
 /** 扩展侧的 JS 没有类型声明，用文件 URL 动态载入。 */
@@ -109,9 +123,14 @@ export function stubChrome(options: StubOptions = {}): ChromeStub {
 		},
 	);
 	const attach = vi.fn(async () => {
+		const queued = options.attachResults
+			? shift(options.attachResults, undefined)
+			: undefined;
+		if (queued instanceof Error) throw queued;
 		if (options.attachError) throw options.attachError;
 		methods.push("attach");
 	});
+	const getTargets = vi.fn(async () => options.debuggerTargets ?? []);
 	const detach = vi.fn(async () => {
 		methods.push("detach");
 		if (options.detachResults) shift(options.detachResults, undefined);
@@ -146,7 +165,14 @@ export function stubChrome(options: StubOptions = {}): ChromeStub {
 	const emitDetach: ChromeStub["emitDetach"] = (source, reason) => {
 		for (const listener of [...detachListeners]) listener(source, reason);
 	};
-	const debuggerStub = { attach, detach, sendCommand, onEvent, onDetach };
+	const debuggerStub = {
+		attach,
+		detach,
+		getTargets,
+		sendCommand,
+		onEvent,
+		onDetach,
+	};
 	const scripting = {
 		executeScript: vi.fn(async (spec: Record<string, unknown>) => {
 			if (options.scriptingError) throw options.scriptingError;
@@ -161,6 +187,7 @@ export function stubChrome(options: StubOptions = {}): ChromeStub {
 		})),
 		update: vi.fn(async () => ({})),
 	};
+	const removedListeners = new Set<(tabId: number) => void>();
 	const tabs = {
 		get: vi.fn(async (id: number) => ({
 			id,
@@ -169,6 +196,11 @@ export function stubChrome(options: StubOptions = {}): ChromeStub {
 		})),
 		update: vi.fn(async (id: number) => ({ id, windowId: 1, active: true })),
 		query: vi.fn(async () => [] as Record<string, unknown>[]),
+		onRemoved: {
+			addListener: vi.fn((listener: (tabId: number) => void) => {
+				removedListeners.add(listener);
+			}),
+		},
 	};
 	const runtime = {
 		getURL: vi.fn((path: string) => `chrome-extension://test/${path}`),
@@ -193,6 +225,8 @@ export function stubChrome(options: StubOptions = {}): ChromeStub {
 			return found;
 		}),
 		set: vi.fn(async (values: Record<string, unknown>) => {
+			if (store === session && options.storageError !== undefined)
+				throw options.storageError;
 			for (const [name, value] of Object.entries(values))
 				store.set(name, value);
 		}),
@@ -216,6 +250,9 @@ export function stubChrome(options: StubOptions = {}): ChromeStub {
 		methods,
 		debugger: debuggerStub,
 		tabs,
+		emitTabRemoved: (tabId: number) => {
+			for (const listener of [...removedListeners]) listener(tabId);
+		},
 		windows,
 		scripting,
 		runtime,

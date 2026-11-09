@@ -10,11 +10,12 @@ const KEY_PREFIX = "capture.logs.";
 const CONSOLE_LIMIT = 500;
 const NETWORK_LIMIT = 1_000;
 const BODY_LIMIT = 200_000;
-
-/** tabId → { console, network, starts, capturing, offReason } */
+/** tabId → { console, network, starts, capturing, offReason, saveError } */
 const buffers = new Map();
 /** 正在从存储里读的缓冲区。两个调用同时到时共用同一次读，不各建一份。 */
 const pending = new Map();
+/** tabId → { busy, again }：同一标签同时只写一次，写的过程中来的事件合并成一次补写。 */
+const saves = new Map();
 let subscribed = false;
 
 subscribe();
@@ -26,6 +27,7 @@ function subscribe() {
 	subscribed = true;
 	debuggerApi.onEvent.addListener(onEvent);
 	debuggerApi.onDetach.addListener(onDetach);
+	globalThis.chrome?.tabs?.onRemoved?.addListener(onTabRemoved);
 }
 
 /**
@@ -38,6 +40,7 @@ export async function startCapture(tabId) {
 	subscribe();
 	const buffer = await bufferOf(tabId);
 	buffer.offReason = undefined;
+	buffer.saveError = undefined;
 	try {
 		await attach(tabId);
 		if (buffer.capturing !== true) {
@@ -76,7 +79,7 @@ export async function listConsole(tabId, { clear = false } = {}) {
 		buffer.console.length = 0;
 		await save(tabId, buffer);
 	}
-	return withNote(records, buffer.offReason);
+	return withNote(records, buffer);
 }
 
 /**
@@ -92,7 +95,7 @@ export async function listNetwork(tabId, { clear = false } = {}) {
 		buffer.network.length = 0;
 		await save(tabId, buffer);
 	}
-	return withNote(records, buffer.offReason);
+	return withNote(records, buffer);
 }
 
 /**
@@ -137,7 +140,15 @@ async function handleEvent(source, method, params) {
 	else if (method === "Network.responseReceived") markStatus(buffer, params);
 	else if (method === "Network.loadingFinished") markDuration(buffer, params);
 	else return;
-	await save(tabId, buffer);
+	await saveSoon(tabId, buffer);
+}
+
+/** 标签关掉后它的缓冲区与存储键都不会再被读到。 */
+function onTabRemoved(tabId) {
+	buffers.delete(tabId);
+	pending.delete(tabId);
+	saves.delete(tabId);
+	void chrome.storage.session.remove(KEY_PREFIX + tabId);
 }
 
 function onDetach(source, reason) {
@@ -200,32 +211,72 @@ async function bufferOf(tabId) {
 				console: saved.console ?? [],
 				network: saved.network ?? [],
 				starts: new Map(Object.entries(saved.starts ?? {})),
-				capturing: saved.capturing === true,
+				// attach 不跨 service worker 存活。恢复出来一律当没开域，
+				// 否则 startCapture 会跳过 Runtime.enable，抓取静默停摆。
+				capturing: false,
 				offReason: saved.offReason,
+				saveError: undefined,
 			};
 		});
 		pending.set(tabId, loading);
 	}
 	const buffer = await loading;
+	// 读的过程中标签被关掉：onTabRemoved 已经删掉 pending，别再把它缓存回来。
+	if (!pending.delete(tabId)) return buffer;
 	buffers.set(tabId, buffer);
-	pending.delete(tabId);
 	return buffer;
 }
 
+/**
+ * 把缓冲区写进 storage.session。写入被拒（配额满、存储不可用）时不抛：
+ * 抓取继续在内存里，读的时候把原因带出去。
+ */
 async function save(tabId, buffer) {
-	await chrome.storage.session.set({
-		[KEY_PREFIX + tabId]: {
-			console: buffer.console,
-			network: buffer.network,
-			starts: Object.fromEntries(buffer.starts),
-			capturing: buffer.capturing,
-			offReason: buffer.offReason,
-		},
-	});
+	// 标签已关：在途的写不要再把键写回去。
+	if (!buffers.has(tabId)) return;
+	try {
+		await chrome.storage.session.set({
+			[KEY_PREFIX + tabId]: {
+				console: buffer.console,
+				network: buffer.network,
+				starts: Object.fromEntries(buffer.starts),
+				offReason: buffer.offReason,
+			},
+		});
+		buffer.saveError = undefined;
+	} catch (error) {
+		buffer.saveError = `the log buffer is not being saved: ${messageOf(error)}`;
+	}
 }
 
-function withNote(records, offReason) {
-	return offReason === undefined ? { records } : { records, note: offReason };
+/**
+ * 事件驱动的落盘：同一标签同时只写一次。写的过程中来的事件只留一个「补写」标记，
+ * 一次突发因此最多写两次，而不是每个事件都序列化整份缓冲区。
+ */
+async function saveSoon(tabId, buffer) {
+	const state = saves.get(tabId) ?? { busy: false, again: false };
+	saves.set(tabId, state);
+	if (state.busy) {
+		state.again = true;
+		return;
+	}
+	state.busy = true;
+	try {
+		do {
+			state.again = false;
+			await save(tabId, buffer);
+		} while (state.again);
+	} finally {
+		state.busy = false;
+		saves.delete(tabId);
+	}
+}
+
+function withNote(records, buffer) {
+	const notes = [buffer.offReason, buffer.saveError].filter(
+		(note) => note !== undefined,
+	);
+	return notes.length === 0 ? { records } : { records, note: notes.join("; ") };
 }
 
 function levelOf(type) {

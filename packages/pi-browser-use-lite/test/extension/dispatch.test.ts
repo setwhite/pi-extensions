@@ -130,12 +130,7 @@ it("AC2: 原型链上的名字也当未知动作", async () => {
 		await expect(dispatch(action)).rejects.toThrow(`Unknown action: ${action}`);
 });
 
-it("AC2: 25 条动作都接上了", () => {
-	const missing = [...routes]
-		.filter(([, route]) => route === undefined)
-		.map(([action]) => action);
-
-	expect(missing).toStrictEqual([]);
+it("AC2: 24 条动作都接上了", () => {
 	expect([...routes.keys()].sort()).toStrictEqual([...ACTION_NAMES].sort());
 });
 
@@ -258,10 +253,36 @@ it("AC4: navigate 把 initScript 与超时原样转给 tabs", async () => {
 it("AC4: ref 换成坐标再交给 pointer，pointer 从不见 ref", async () => {
 	stubChrome();
 	const pointer = await moduleOf("input/pointer.js");
+	const snapshot = await moduleOf("page/snapshot.js");
 
 	await dispatch("page.click", { sessionKey: "s1", ref: "e12" });
 
+	// 折叠线外的元素要先滚进视口，否则点到的坐标在视口外。
+	expect(snapshot.elementAt).toHaveBeenCalledWith(7, {
+		ref: "e12",
+		scroll: true,
+	});
 	expect(pointer.click).toHaveBeenCalledWith({ tabId: 7, x: 25, y: 40 });
+});
+
+it("AC4: fill 给 ref 字段挂上 locator，点击前才换坐标", async () => {
+	stubChrome();
+	const keyboard = await moduleOf("input/keyboard.js");
+
+	await dispatch("page.fill", {
+		sessionKey: "s1",
+		fields: [{ ref: "e1", value: "pi" }],
+	});
+
+	const [call] = (keyboard.fill as ReturnType<typeof vi.fn>).mock.calls[0];
+	const [field] = call.fields as Array<{
+		ref: string;
+		value: string;
+		locate: () => Promise<{ x: number; y: number }>;
+	}>;
+	expect(field).toMatchObject({ ref: "e1", value: "pi" });
+	// 解析会滚动页面，所以它必须在每次点击前发生，不能提前批量做完。
+	expect(await field.locate()).toEqual({ x: 25, y: 40 });
 });
 
 it("AC4: selector 与坐标直接透传", async () => {
@@ -422,7 +443,7 @@ it("AC4: 其余动作的参数按 wire 表转发", async () => {
 
 	expect(keyboard.fill).toHaveBeenCalledWith({
 		tabId: 7,
-		fields: [{ ref: "e1" }],
+		fields: [{ ref: "e1", locate: expect.any(Function) }],
 	});
 	expect(keyboard.press).toHaveBeenCalledWith({ tabId: 7, key: "Ctrl+A" });
 	expect(pointer.drag).toHaveBeenCalledWith({

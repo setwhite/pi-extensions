@@ -69,7 +69,8 @@ export async function activateTab({ tabId } = {}) {
  * @returns {Promise<{ id: number, active: boolean, title: string, url: string }>}
  */
 export async function navigateTab({ tabId, url, initScript, timeoutMs } = {}) {
-	if (timeoutMs === undefined) throw new Error("timeoutMs is required");
+	if (timeoutMs === undefined)
+		throw new Error("bad_args: timeoutMs is required");
 	let identifier;
 	if (initScript) {
 		const added = await sendCommand(

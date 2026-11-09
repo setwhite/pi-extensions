@@ -40,7 +40,7 @@ afterEach(() => {
 	vi.useRealTimers();
 });
 
-it("AC2: 不传 fullPage 时只截一张视口大小的图", async () => {
+it("AC2: 不传 fullPage 时截当前视口，不带 clip", async () => {
 	const stub = stubChrome({ send: answer(2_000) });
 
 	const result = await loadScreenshot().then((module) =>
@@ -52,12 +52,33 @@ it("AC2: 不传 fullPage 时只截一张视口大小的图", async () => {
 
 	expect(result.images).toHaveLength(1);
 	expect(captures).toHaveLength(1);
-	expect(captures[0].params.clip).toMatchObject({
-		x: 0,
-		y: 0,
-		width: 800,
-		height: 600,
+	expect(captures[0].params).toMatchObject({
+		captureBeyondViewport: false,
+		fromSurface: true,
 	});
+	// clip 用页面坐标，(0,0) 是文档左上角。带上它，滚动后的「视口」会跑到文档顶部。
+	expect(captures[0].params.clip).toBeUndefined();
+});
+
+it("AC2: 页面已滚动时视口截图仍不带 clip", async () => {
+	const stub = stubChrome({
+		send: (method) =>
+			method === "Page.getLayoutMetrics"
+				? {
+						cssLayoutViewport: { ...VIEWPORT, pageX: 0, pageY: 3_000 },
+						cssContentSize: { x: 0, y: 0, width: 800, height: 9_000 },
+					}
+				: { data: IMAGE },
+	});
+
+	await loadScreenshot().then((module) =>
+		module.screenshotPage({ tabId: 406 }),
+	);
+	const [capture] = stub.calls.filter(
+		(call) => call.method === "Page.captureScreenshot",
+	);
+
+	expect(capture.params.clip).toBeUndefined();
 });
 
 it("AC3: fullPage 且整页不超过 4 倍视口时产出一张整页图", async () => {

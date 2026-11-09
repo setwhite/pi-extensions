@@ -285,7 +285,7 @@ it("质量: 缺 sessionKey 或超时时抛明确错误", async () => {
 		"sessionKey is required",
 	);
 	await expect(navigateTab({ tabId: 1, url: "https://a/" })).rejects.toThrow(
-		"timeoutMs is required",
+		"bad_args: timeoutMs is required",
 	);
 
 	expect(stub.tabs.create).not.toHaveBeenCalled();

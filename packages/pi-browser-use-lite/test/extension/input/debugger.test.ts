@@ -88,6 +88,31 @@ it("AC4: chrome.debugger 不可用时抛错，且不激活标签", async () => {
 	expect(stub.tabs.update).not.toHaveBeenCalled();
 });
 
+it("AC4: attach 前先摘掉这个标签上的残留会话", async () => {
+	const stub = stubChrome({
+		debuggerTargets: [{ tabId: 98, attached: true }],
+	});
+
+	await sendCommand(98, "Runtime.evaluate", { expression: "1" });
+
+	expect(stub.debugger?.detach).toHaveBeenCalledWith({ tabId: 98 });
+	expect(stub.methods.slice(0, 2)).toEqual(["detach", "attach"]);
+});
+
+it("AC4: attach 遇到残留会话失败后重试一次", async () => {
+	const stub = stubChrome({
+		attachResults: [
+			new Error(
+				"Cannot access a chrome-extension:// URL of different extension",
+			),
+		],
+	});
+
+	await sendCommand(97, "Runtime.evaluate", { expression: "1" });
+
+	expect(stub.debugger?.attach).toHaveBeenCalledTimes(2);
+});
+
 it("AC5: executeScript 报 Cannot access contents of url 时改走 CDP", async () => {
 	const stub = stubChrome({
 		sendResults: [{ result: { type: "number", value: 3 } }],

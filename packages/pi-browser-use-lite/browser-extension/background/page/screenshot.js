@@ -28,8 +28,9 @@ export async function screenshotPage({
 		throw new Error("bad_args: fullPage must be a boolean");
 	const metrics = await sendCommand(tabId, "Page.getLayoutMetrics", {});
 	const viewport = boxOf(metrics?.cssLayoutViewport, metrics?.layoutViewport);
+	// 视口截图不带 clip：CDP 的 clip 用页面坐标，(0,0) 是文档左上角，不是当前滚动位置。
 	if (!fullPage)
-		return { format, images: [await capture(tabId, format, viewport, false)] };
+		return { format, images: [await capture(tabId, format, undefined, false)] };
 	const page = boxOf(metrics?.cssContentSize, metrics?.contentSize);
 	const images = await withTimeout(
 		captureWhole(tabId, format, page, viewport),
@@ -72,12 +73,13 @@ async function captureWhole(tabId, format, page, viewport) {
 }
 
 async function capture(tabId, format, clip, beyondViewport) {
-	const response = await sendCommand(tabId, "Page.captureScreenshot", {
+	const params = {
 		format,
-		clip: { ...clip, scale: 1 },
 		captureBeyondViewport: beyondViewport,
 		fromSurface: true,
-	});
+	};
+	if (clip !== undefined) params.clip = { ...clip, scale: 1 };
+	const response = await sendCommand(tabId, "Page.captureScreenshot", params);
 	if (!response?.data)
 		throw new Error("page_error: screenshot returned no data");
 	return { data: response.data };

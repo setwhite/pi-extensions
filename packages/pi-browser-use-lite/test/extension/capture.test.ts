@@ -275,6 +275,57 @@ it("service worker 回收后缓冲区从存储里回来，耗时照算", async (
 	]);
 });
 
+it("worker 回收后重新开域：capturing 不跨 worker", async () => {
+	const { stub, capture } = await setup(7);
+	await capture.startCapture(7);
+
+	vi.resetModules();
+	const reloaded = (await import(extensionUrl("capture.js"))) as CaptureModule;
+	await reloaded.startCapture(7);
+
+	const enables = stub.calls.filter((call) => call.method === "Runtime.enable");
+	expect(enables).toHaveLength(2);
+});
+
+it("存储写不进时不抛，读的时候说明没在保存", async () => {
+	const { stub, capture } = await setup(7, {
+		storageError: new Error("QUOTA_BYTES quota exceeded"),
+	});
+
+	await expect(capture.startCapture(7)).resolves.toBeUndefined();
+	stub.emit({ tabId: 7 }, "Runtime.consoleAPICalled", {
+		type: "log",
+		args: [{ value: "still here" }],
+		timestamp: 1,
+	});
+
+	const result = await capture.listConsole(7);
+
+	expect(result.records).toHaveLength(1);
+	expect(result.note).toBe(
+		"the log buffer is not being saved: QUOTA_BYTES quota exceeded",
+	);
+});
+
+it("标签关掉后删掉它的缓冲区与存储键", async () => {
+	const { stub, capture } = await setup(7);
+	await capture.startCapture(7);
+	stub.emit({ tabId: 7 }, "Network.requestWillBeSent", {
+		requestId: "r1",
+		request: { method: "GET", url: "https://a/gone" },
+		timestamp: 1,
+	});
+	await capture.listNetwork(7);
+
+	stub.emitTabRemoved(7);
+
+	const readStored = stub.storage.session.get as unknown as (
+		key: string,
+	) => Promise<Record<string, unknown>>;
+	expect(await readStored("capture.logs.7")).toEqual({});
+	expect((await capture.listNetwork(7)).records).toEqual([]);
+});
+
 it("AC3: network 停在 1,000 条，丢最旧的", async () => {
 	const { stub, capture } = await setup(7);
 	await capture.startCapture(7);

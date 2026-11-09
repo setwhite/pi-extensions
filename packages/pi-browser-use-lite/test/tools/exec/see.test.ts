@@ -63,6 +63,15 @@ it("logs 走网络或控制台清单，不读快照", async () => {
 	expect(textOf(result)).toBe('{"status":200,"url":"https://a"}');
 });
 
+it("logs 为空时给一行说明，不回空正文", async () => {
+	const { run } = harness({ reply: () => ({ records: [] }) });
+
+	const result = await run("chrome_see", { logs: "console" });
+
+	expect(textOf(result)).toBe("no console records captured for this tab");
+	expect(result.details).toMatchObject({ logs: "console", count: 0 });
+});
+
 it("request_id 取单条请求详情", async () => {
 	const { run, sent } = harness({
 		reply: () => ({ url: "https://a", body: "x" }),
