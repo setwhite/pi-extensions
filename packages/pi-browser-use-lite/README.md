@@ -19,7 +19,7 @@ The package has two halves. The pi extension registers the tools and runs a loca
 Behaviour worth knowing:
 
 - Each session gets its own browser window. The tools do not touch your own tabs. The tabs the session opened are closed when the session ends.
-- That window opens unfocused. The first click or keystroke raises it, because Chrome drops input to hidden pages. Reads never raise it.
+- That window opens unfocused. If a click or keystroke finds the page hidden, the extension enables focus emulation so Chrome accepts the input without raising the window. Reads never touch it.
 - Input goes through trusted CDP events, so pages that reject synthetic events still react.
 - Console and network capture starts at navigation, not at the first read.
 - Every failure carries a class and a `hint` that says what to do next.

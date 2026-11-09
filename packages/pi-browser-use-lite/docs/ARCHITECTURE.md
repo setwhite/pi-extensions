@@ -79,7 +79,7 @@
 - 同一时间只能有一份本扩展在轮询。两个浏览器都装了同一版本时，桥分不出它们，命令会被先到的那一份取走，另一份只看到超时。跑 e2e 前关掉另一个浏览器。
 - 版本自愈只在版本号不一致时触发。改了扩展代码但没改版本号时桥不会叫扩展重载，跑 `pnpm test:e2e` 前仍要在扩展页手动刷新一次。
 - 收工 QA 四条：`pnpm lint`、`pnpm check:imports`、`pnpm test`、`pnpm typecheck`。
-- e2e 实测环境：Edge（Chromium）与 Vivaldi。用例里 `chrome_tab switch` 会把 Pi 的窗口带到前台，点击才过得了：窗口留在后台时页面是 `hidden`，Chrome 丢弃可信输入。
+- e2e 实测环境：Edge（Chromium）与 Vivaldi。用例里 `chrome_tab switch` 会把 Pi 的窗口带到前台，`waitVisible` 才有稳定的 `visible`：窗口留在后台且尚未开过焦点模拟时，读操作看到的仍是 `hidden`；输入开过之后页面会持续自报 visible。
 
 ## 4. 文档职责（防止重复）
 

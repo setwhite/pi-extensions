@@ -146,18 +146,22 @@ it("AC2: 按坐标点击直接使用给定坐标", async () => {
 	]);
 });
 
-it("AC4: 目标标签不可见时先激活标签与窗口，变可见后照常点击", async () => {
+it("AC4: 目标标签不可见时先开焦点模拟，变可见后照常点击", async () => {
 	const stub = stubPointer({ visibility: ["hidden", "visible"] });
 
 	const point = await click({ tabId: 203, selector: "#a" });
 
-	expect(stub.tabs.update).toHaveBeenCalledWith(203, { active: true });
-	expect(stub.windows.update).toHaveBeenCalledWith(1, { focused: true });
+	expect(stub.calls).toContainEqual({
+		method: "Emulation.setFocusEmulationEnabled",
+		params: { enabled: true },
+	});
+	expect(stub.tabs.update).not.toHaveBeenCalled();
+	expect(stub.windows.update).not.toHaveBeenCalled();
 	expect(mouseEvents(stub).length).toBeGreaterThan(0);
 	expect(point).toEqual({ x: RECT.x, y: RECT.y });
 });
 
-it("AC4: 激活后仍不可见时抛错并说原因，不发鼠标事件", async () => {
+it("AC4: 焦点模拟后仍不可见时抛错并说原因，不发鼠标事件", async () => {
 	const stub = stubPointer({
 		visibility: "hidden",
 		tabActive: true,
@@ -169,7 +173,11 @@ it("AC4: 激活后仍不可见时抛错并说原因，不发鼠标事件", async
 	);
 
 	expect(mouseEvents(stub)).toHaveLength(0);
-	expect(stub.tabs.update).toHaveBeenCalledTimes(1);
+	expect(stub.calls).toContainEqual({
+		method: "Emulation.setFocusEmulationEnabled",
+		params: { enabled: true },
+	});
+	expect(stub.tabs.update).not.toHaveBeenCalled();
 });
 
 it("AC4: 标签不是活动标签时，报错说明是这一点", async () => {
@@ -180,6 +188,7 @@ it("AC4: 标签不是活动标签时，报错说明是这一点", async () => {
 	);
 
 	expect(mouseEvents(stub)).toHaveLength(0);
+	expect(stub.tabs.update).not.toHaveBeenCalled();
 });
 
 it("AC5: dragSteps 为 3 时先移到起点，再发 3 次中间 mouseMoved", async () => {
@@ -274,6 +283,11 @@ it("质量: 可见性读不到时抛 page_error，不当作可见", async () => 
 
 	expect(mouseEvents(stub)).toHaveLength(0);
 	expect(stub.tabs.update).not.toHaveBeenCalled();
+	expect(
+		stub.calls.some(
+			(call) => call.method === "Emulation.setFocusEmulationEnabled",
+		),
+	).toBe(false);
 });
 
 it("质量: 非有限坐标抛 bad_args 且不发 CDP", async () => {

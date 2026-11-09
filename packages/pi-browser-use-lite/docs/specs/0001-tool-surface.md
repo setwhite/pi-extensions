@@ -46,7 +46,7 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 
 按配置注册：可逐个关闭，可改名，可整段替换文案（见「工具开关与提示词」）。默认全开，名字不变。
 
-`host` 写死 `127.0.0.1`。`port` 移进配置文件。`background` 不要：页面不可见时由输入路径自己把页面带到前台。`promptSnippet` 默认不发。
+`host` 写死 `127.0.0.1`。`port` 移进配置文件。`background` 不要：页面不可见时由输入路径先开焦点模拟，仍不可见才报错。`promptSnippet` 默认不发。
 
 **`chrome_act`** — 交互分派器。`action` 必填。共享参数只有 `see`：值为 `chrome_see` 的 `mode`，动作完成后附一次快照。
 
@@ -263,7 +263,7 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 - Node ≥ 22.19.0。Chrome ≥ 91（模块 service worker）。轮询断了由扩展的 1 秒定时器重起；`chrome.alarms` 的 0.5 分钟周期是服务工作进程被回收后的兜底，Chrome 91–119 会把它夹到 1 分钟。
 - 扩展版本与宿主不一致时，扩展从 `/next` 应答头 `x-pi-browser-use-host-version` 读到期望版本，自己重载一次。重载后仍不一致就报 `extension_version`，不反复重载。
 - 浏览器要实现 `chrome.windows.create`：每个会话的自动化标签放在自己的窗口里。不依赖标签组，所以对 `chrome.tabs.group` 的实现不作要求（Vivaldi 8.2 的那一个是空操作）。
-- 可信输入要求页面可见：标签页被别的标签盖住、或窗口被别的窗口盖住时，Chrome 丢弃 CDP 输入。所以每次输入前先探测可见性，不可见就激活标签、把窗口带到前台，仍不可见才报错。
+- 可信输入要求页面可见：标签页被别的标签盖住、或窗口被别的窗口盖住时，Chrome 丢弃 CDP 输入。所以每次输入前先探测可见性；不可见就发 `Emulation.setFocusEmulationEnabled`，让页面自报 visible 并接受 CDP 输入，不抢用户前台；等一个短窗口仍不可见才报错。
 - 安全：桥只绑 `127.0.0.1`。`/command` 只接受本机进程。`/next` 与 `/result` 校验浏览器来源。扩展的 `host_permissions` 用不带端口的 `http://127.0.0.1/*`，所以改 `bridge.port` 不必改 manifest、不必重装扩展。扩展侧的轮询地址在 `background/transport.js` 的 `BRIDGE_URL`，改端口时要一起改。
 
 ## 测试决定
@@ -311,6 +311,6 @@ pi-chrome 有、本版不做的参数。逐个判过，不是遗漏。
 | `retentionDays` | `chrome_screenshot` | 不做参数。只留 `screenshot.keepNewest` 一条修剪策略 |
 | `port`、`userDataDir`、`useDefaultProfile`、`headless` | `chrome_launch` | 原文即 `"Ignored."`。工具已删 |
 | `promptSnippet` | 全部 23 个工具 | 默认不发。需要时用 `guidance.<id>.promptSnippet` 覆盖 |
-| `background` | 19 个工具 | 不要参数。不可见时输入路径自己把页面带到前台 |
+| `background` | 19 个工具 | 不要参数。不可见时输入路径先开焦点模拟，仍不可见才报错 |
 | `host`、`port` | 31 处 | 进配置文件 |
 | `targetId`、`urlIncludes`、`titleIncludes` | 各 22 处 | 并成单个 `tab` |

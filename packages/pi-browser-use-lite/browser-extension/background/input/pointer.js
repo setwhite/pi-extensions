@@ -1,6 +1,6 @@
 /**
  * 指针事件：移动、点击、悬停、拖动、滚轮。全部走 CDP，不做 DOM 假事件回退（DEC-0007）。
- * Chrome 会丢弃不可见页面的可信输入，所以每个入口先调 assertVisible：不可见就把标签与窗口提到前台。
+ * Chrome 会丢弃不可见页面的可信输入，所以每个入口先调 assertVisible：不可见就开焦点模拟，仍不可见才报错。
  */
 
 import { evaluate, sendCommand } from "./debugger.js";
@@ -206,9 +206,9 @@ async function viewportCenter(tabId) {
 	return { x: center.x, y: center.y };
 }
 
-/** 聚焦之后等页面变可见的次数与间隔：Chrome 要过一个 tick 才改 visibilityState。 */
-const RAISE_TRIES = 6;
-const RAISE_WAIT_MS = 50;
+/** 焦点模拟之后等页面变可见的次数与间隔：Chrome 要过一个 tick 才改 visibilityState。 */
+const VISIBLE_TRIES = 6;
+const VISIBLE_WAIT_MS = 50;
 
 function sleep(ms) {
 	return new Promise((resolve) => setTimeout(resolve, ms));
@@ -233,8 +233,8 @@ async function hiddenReason(tabId) {
 }
 
 /**
- * 输入前确保页面可见。不可见就先激活标签、把窗口带到前台，仍不可见才报错。
- * 激活标签不改窗口焦点，所以这一步只在真需要可信输入时打扰用户。
+ * 输入前确保页面可见。不可见就开焦点模拟，让页面自报 visible 并接受 CDP 输入；
+ * 等一个短窗口仍不可见才报错。整个过程不激活标签，也不抢用户前台。
  */
 export async function assertVisible(tabId) {
 	const state = await visibilityState(tabId);
@@ -243,14 +243,16 @@ export async function assertVisible(tabId) {
 		throw new Error(
 			`page_error: could not read document.visibilityState for tab ${tabId}`,
 		);
-	const reason = await hiddenReason(tabId);
-	const tab = await chrome.tabs.update(tabId, { active: true });
-	await chrome.windows.update(tab.windowId, { focused: true });
-	for (let attempt = 0; attempt < RAISE_TRIES; attempt++) {
-		await sleep(RAISE_WAIT_MS);
+	// 设置随调试器会话存在：releaseAll() 或重连后，下一次输入会重新发一次。
+	await sendCommand(tabId, "Emulation.setFocusEmulationEnabled", {
+		enabled: true,
+	});
+	for (let attempt = 0; attempt < VISIBLE_TRIES; attempt++) {
+		await sleep(VISIBLE_WAIT_MS);
 		if ((await visibilityState(tabId)) === "visible") return;
 	}
+	const reason = await hiddenReason(tabId);
 	throw new Error(
-		`page_error: tab ${tabId} is hidden because ${reason}; Chrome drops trusted input to hidden pages. Bring the window to the front, then retry`,
+		`page_error: tab ${tabId} is hidden because ${reason}; Chrome drops trusted input to hidden pages and focus emulation did not help. Restore the window, then retry`,
 	);
 }
