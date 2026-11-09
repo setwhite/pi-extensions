@@ -13,7 +13,7 @@
 | `src/index.ts` | 读配置，按 `tools.*` 注册工具（默认 5 个，未授权时注册为不活动），挂 `/chrome` 命令与其参数补全，授权变化时同步活动工具集 | 只有扩展入口。不导出可复用 API |
 | `src/config/` | 定位、加载、校验、clamp 配置文件 | 只依赖 `node:`。不碰网络与浏览器 |
 | `src/protocol/` | 桥的命令与结果信封类型、动作名表、错误类别与 hint、超时常量 | 无依赖。动作名与错误 hint 是唯一来源 |
-| `src/bridge/` | 本地 HTTP 桥：`/next` 长轮询、`/result`、`/command` 转发、`/status`、在途命令表、扩展版本闸。端口上先到者当 server，其余当 client 转发，owner 消失时抢端口升为 server | 只依赖 `protocol/`。不认识工具语义 |
+| `src/bridge/` | 本地 HTTP 桥：`/next` 长轮询、`/result`、`/command` 转发、`/status`、在途命令表、扩展版本闸。端口上先到者当 server，其余当 client 转发，owner 消失时抢端口升为 server。四个文件：`index`（门面）、`queue`（在途表与等待队列）、`ownership`（端口归属）、`http`（四个端点） | 只依赖 `protocol/`。不认识工具语义 |
 | `src/policy/` | 策略插点：授权。自动化 target 归属在扩展侧 `background/target.js` | 依赖 `config/`。不做 IO |
 | `src/tools/` | 5 个工具的定义与执行器、各自的默认 `promptGuidelines` 常量。`guidance.*` 在此覆盖文案与规则 | 组装模型可见文本的唯一处。错误文案取自 `protocol/` 的 hint |
 | `src/format/` | 结构化结果转模型文本的纯函数 | 无依赖 |
@@ -89,6 +89,7 @@
 | `docs/ARCHITECTURE.md` | 模块职责、依赖方向、目录与测试约定、seam 清单、本表 | 模块内部签名与字段 |
 | `docs/GLOSSARY.md` | 术语的唯一命名来源 | 实现细节 |
 | `docs/decisions/` | 背景、决定了什么、为什么、砍了什么 | 字段表、契约细节 |
+| `docs/rfc/` | 架构变更提案：问题、选项、迁移步骤、验收与风险 | 已批准的决策理由（写在 `decisions/`） |
 | `docs/research/` | 外部世界的实测数据 | 本包的契约与决策 |
 | `docs/modules/<module>.md` | 该模块的取舍、坑与指针 | 其它模块的内容；代码或测试已表达的 API、契约、默认值 |
 | `CHANGELOG.md` | 各版本的用户可见变更 | 契约与理由 |
@@ -127,3 +128,4 @@
 | 目标隔离 | `browser-extension/background/target.js` | 挂 `chrome.storage.session` 与 `chrome.storage.local` 桩，看每个 sessionKey 的 target |
 | `/chrome` 命令 | `src/commands/` 的子命令处理函数 | 给桥桩，看打印文本与会话状态 |
 | 页面脚本自包含 | `browser-extension/page/*.js` | 静态扫描源码，断无 `import`、`export`、`require`、动态 `import()` |
+| 扩展错误前缀 | `browser-extension/` 的 `.js` | 静态扫描 `new Error(`<class>: …`)`，断类别都在 `protocol/` 的表里 |
