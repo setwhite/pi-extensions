@@ -109,15 +109,20 @@ export function fakeApi(): FakeApi {
 
 /** 调一次工具的执行器。参数与上下文都不参与策略判定。 */
 /**
- * 让桥不真的绑端口：起桥即成功、报扩展没连上、发命令即以 `bridge_unreachable` 拒绝。
- * 入口层测试只想看策略是否放行，不该占 17318。
+ * 让桥不真的绑端口：起桥即成功、发命令即以 `bridge_unreachable` 拒绝。
+ * 入口层测试只想看策略是否放行，不该占 17318，也不该依赖本机有没有装扩展。
+ * `connected` 决定 `describe` 报扩展连没连上，而 `/chrome authorize on` 只在连上时才授权。
  */
-export function stubBridge(): void {
+export function stubBridge({
+	connected = false,
+}: {
+	connected?: boolean;
+} = {}): void {
 	vi.spyOn(Bridge.prototype, "start").mockResolvedValue(undefined);
 	vi.spyOn(Bridge.prototype, "describe").mockResolvedValue({
 		mode: "server",
 		url: "http://127.0.0.1:17318",
-		connected: false,
+		connected,
 		queuedCommands: 0,
 		pendingCommands: 0,
 	});

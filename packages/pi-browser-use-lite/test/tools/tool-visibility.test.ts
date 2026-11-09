@@ -1,8 +1,19 @@
-import { afterEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import piBrowserUseLite from "../../src/index.ts";
-import { cleanupConfig, fakeApi, useConfig } from "../helpers/extension-api.ts";
+import {
+	cleanupConfig,
+	fakeApi,
+	stubBridge,
+	useConfig,
+} from "../helpers/extension-api.ts";
 
-afterEach(cleanupConfig);
+// `/chrome authorize on` 只在本机装了扩展、桥报 connected 时才授权，用例不依赖本机。
+beforeEach(() => stubBridge({ connected: true }));
+
+afterEach(() => {
+	cleanupConfig();
+	vi.restoreAllMocks();
+});
 
 const ALL = [
 	"chrome_act",
