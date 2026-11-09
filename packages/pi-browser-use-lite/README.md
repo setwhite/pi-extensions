@@ -120,8 +120,9 @@ Every key is optional. `src/config/schema.ts` holds the ranges and the defaults.
 | Project | Borrowed |
 |---|---|
 | [tianrendong/pi-chrome](https://github.com/tianrendong/pi-chrome) | The base of this package. It is pi-chrome v0.15.57, trimmed. The local bridge, the companion Chrome extension, the `/chrome` authorize flow and the CDP input layer come from it |
+| [dondai44423/bladebro](https://github.com/dondai44423/bladebro) | The 5-tool decision and the tool-surface size guard. The chain differs: it starts its own Chromium, this package uses your browser |
 
-The project is open source under MIT. Thank you for the code.
+Both projects are open source. Thank you for the code.
 
 ## Docs
 

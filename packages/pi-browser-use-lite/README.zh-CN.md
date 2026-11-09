@@ -120,8 +120,9 @@ pi install npm:pi-browser-use-lite
 | 项目 | 借鉴内容 |
 |---|---|
 | [tianrendong/pi-chrome](https://github.com/tianrendong/pi-chrome) | 本包的底本。把它 v0.15.57 删减成现在这样。本地桥、配套 Chrome 扩展、`/chrome` 授权流程与 CDP 输入层都出自它 |
+| [dondai44423/bladebro](https://github.com/dondai44423/bladebro) | 5 个固定工具的取舍、工具面体积守卫。链路不同：它自起 Chromium，本包用你自己的浏览器 |
 
-这个项目是开源的，许可证为 MIT。感谢它的代码。
+这两个项目都是开源的。感谢它们的代码。
 
 ## 文档
 
