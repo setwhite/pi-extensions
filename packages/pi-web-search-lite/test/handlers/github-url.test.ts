@@ -5,7 +5,7 @@ function parse(url: string) {
 	return parseGitHubUrl(new URL(url));
 }
 
-describe("parseGitHubUrl 命中六类页面", () => {
+describe("parseGitHubUrl 命中支持的页面", () => {
 	it("仓库首页", () => {
 		expect(parse("https://github.com/o/r")).toEqual({ kind: "repo", owner: "o", repo: "r" });
 	});
@@ -98,6 +98,39 @@ describe("parseGitHubUrl 命中六类页面", () => {
 		});
 	});
 
+	it("commit：7 到 40 位十六进制 sha", () => {
+		expect(parse("https://github.com/o/r/commit/58fddbe2d1509daf83e2df02f6c004f34e072ce6")).toEqual(
+			{
+				kind: "commit",
+				owner: "o",
+				repo: "r",
+				sha: "58fddbe2d1509daf83e2df02f6c004f34e072ce6",
+			},
+		);
+		expect(parse("https://github.com/o/r/commit/58fddbe")).toMatchObject({ kind: "commit" });
+	});
+
+	it("compare：... 两侧都非空，ref 里的斜杠拼回来", () => {
+		expect(parse("https://github.com/o/r/compare/main...dev")).toEqual({
+			kind: "compare",
+			owner: "o",
+			repo: "r",
+			spec: "main...dev",
+		});
+		expect(parse("https://github.com/o/r/compare/main...feature%2Fx?expand=1")).toMatchObject({
+			spec: "main...feature/x",
+		});
+	});
+
+	it("actions run", () => {
+		expect(parse("https://github.com/o/r/actions/runs/42652602921")).toEqual({
+			kind: "run",
+			owner: "o",
+			repo: "r",
+			id: 42652602921,
+		});
+	});
+
 	it("www.github.com 与 .git 后缀", () => {
 		expect(parse("https://www.github.com/o/r.git")).toEqual({
 			kind: "repo",
@@ -112,6 +145,14 @@ describe("parseGitHubUrl 不命中", () => {
 		"https://gist.github.com/o/abc123",
 		"https://github.com/o/r/wiki",
 		"https://github.com/o/r/actions",
+		"https://github.com/o/r/actions/runs/abc",
+		"https://github.com/o/r/actions/runs/1/job/2",
+		"https://github.com/o/r/actions/workflows/ci.yml",
+		"https://github.com/o/r/commit/abc",
+		"https://github.com/o/r/commit/58fddbe2d1509daf83e2df02f6c004f34e072ce6x",
+		"https://github.com/o/r/compare/main",
+		"https://github.com/o/r/compare/main...",
+		"https://github.com/o/r/compare/main...dev...x",
 		"https://github.com/o/r/discussions/3",
 		"https://github.com/o/r/settings",
 		"https://example.com/o/r",

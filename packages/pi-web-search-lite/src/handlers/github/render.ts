@@ -54,6 +54,24 @@ export function renderTarget(
 					}
 				: renderPull(target, first);
 			break;
+		case "commit":
+			page = {
+				title: `${target.owner}/${target.repo}@${target.sha.slice(0, 7)}`,
+				content: first.trim(),
+			};
+			break;
+		case "compare":
+			page = { title: `${target.owner}/${target.repo} ${target.spec}`, content: first.trim() };
+			break;
+		case "run":
+			page = {
+				title: `${target.owner}/${target.repo} run ${target.id}`,
+				content: outputs
+					.map((text) => text.trim())
+					.filter((text) => text !== "")
+					.join("\n\n"),
+			};
+			break;
 		case "release":
 			page = renderRelease(target, first);
 			break;

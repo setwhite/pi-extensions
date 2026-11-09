@@ -9,7 +9,7 @@ Two tools for pi: `web_search` finds pages. `web_fetch` extracts text from a pag
 ## Features
 
 - One search provider out of eight (tavily / brave / exa / firecrawl / perplexity / parallel / keenable / deepseek). The extension does not fall back to another provider.
-- Fetching tries each entry of `fetch.extractors` in order. The default order is `html` → `jina`. Neither entry needs a key. GitHub pages go through `gh`, which is optional. Reddit only swaps in a redlib host.
+- Fetching tries each entry of `fetch.extractors` in order. The default order is `html` → `jina`. Neither entry needs a key. GitHub repo, file, directory, issue, pull, release, commit, compare and actions-run pages go through `gh`, which is optional. Other GitHub pages take the extractor chain, and the reason goes to `details.handlerSkips`. Reddit only swaps in a redlib host.
 - The extension rejects private and loopback addresses. The extension re-checks every redirect hop. The check reads the URL literal only. The check does no DNS lookup.
 - The extension truncates oversize results. If `context.spillToFile` is true, the full text goes to a temp file and the path comes back for `read`.
 - You can rename a tool, disable a tool or defer a tool. The built-in prompts are single-line English. `guidance` overrides any field.

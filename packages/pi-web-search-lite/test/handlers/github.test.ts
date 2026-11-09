@@ -346,6 +346,79 @@ describe("github handler：gh 可用", () => {
 	});
 });
 
+describe("github handler：commit / compare / actions run", () => {
+	it("commit：投影在 gh 侧完成，正文原样当结果", async () => {
+		const stub = ghStub({ reply: () => ok("- Author: alice <a@b>\n- Date: 2026-01-01") });
+		const result = asHandled(
+			await githubHandler.run(
+				new URL("https://github.com/o/r/commit/58fddbe"),
+				baseContext({ execGh: stub.exec }),
+			),
+		);
+
+		expect(stub.calls[2]?.slice(0, 2)).toEqual(["api", "repos/o/r/commits/58fddbe"]);
+		expect(stub.calls[2]).toContain("--jq");
+		expect(result.title).toBe("o/r@58fddbe");
+		expect(result.content).toContain("Author: alice");
+	});
+
+	it("compare：spec 整段进 api 路径", async () => {
+		const stub = ghStub({ reply: () => ok("- Status: ahead") });
+		const result = asHandled(
+			await githubHandler.run(
+				new URL("https://github.com/o/r/compare/main...feature%2Fx"),
+				baseContext({ execGh: stub.exec }),
+			),
+		);
+
+		expect(stub.calls[2]?.slice(0, 2)).toEqual(["api", "repos/o/r/compare/main...feature/x"]);
+		expect(result.title).toBe("o/r main...feature/x");
+	});
+
+	it("actions run：第二步只取失败日志，失败时保留第一步", async () => {
+		const stub = ghStub({
+			reply: (args) =>
+				args.includes("--log-failed")
+					? { ok: false, stdout: "", stderr: "no failed steps", error: "exit 1" }
+					: ok("JOBS\nX test in 30s"),
+		});
+		const result = asHandled(
+			await githubHandler.run(
+				new URL("https://github.com/o/r/actions/runs/42652602921"),
+				baseContext({ execGh: stub.exec }),
+			),
+		);
+
+		expect(stub.calls[2]).toEqual(["run", "view", "42652602921", "--repo", "o/r"]);
+		expect(stub.calls[3]).toEqual(["run", "view", "42652602921", "--repo", "o/r", "--log-failed"]);
+		expect(result.content).toBe("JOBS\nX test in 30s");
+	});
+
+	it("blob 取到二进制时返回 skipped，交给提取器链", async () => {
+		const stub = ghStub({ reply: () => ok("\u0000\u0001PNG\uFFFD") });
+		const skip = asSkip(
+			await githubHandler.run(
+				new URL("https://github.com/o/r/blob/main/assets/cover.png"),
+				baseContext({ execGh: stub.exec }),
+			),
+		);
+
+		expect(skip.reason).toContain("binary");
+	});
+
+	it("blob 取到文本时照常渲染", async () => {
+		const stub = ghStub({ reply: () => ok("const a = 1;") });
+		const result = asHandled(
+			await githubHandler.run(
+				new URL("https://github.com/o/r/blob/main/src/a.ts"),
+				baseContext({ execGh: stub.exec }),
+			),
+		);
+
+		expect(result.content).toContain("const a = 1;");
+	});
+});
+
 describe("looksUnauthenticated", () => {
 	it("认明确的未登录，不认网络故障", () => {
 		expect(looksUnauthenticated("You are not logged into any GitHub hosts.")).toBe(true);

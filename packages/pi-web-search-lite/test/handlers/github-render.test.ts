@@ -12,6 +12,9 @@ const issue: GitHubTarget = { kind: "issue", owner: "o", repo: "r", number: 7 };
 const pull: GitHubTarget = { kind: "pull", owner: "o", repo: "r", number: 12, files: false };
 const pullFiles: GitHubTarget = { kind: "pull", owner: "o", repo: "r", number: 12, files: true };
 const release: GitHubTarget = { kind: "release", owner: "o", repo: "r", tag: "v0.2.0" };
+const commit: GitHubTarget = { kind: "commit", owner: "o", repo: "r", sha: "58fddbe2d150" };
+const compare: GitHubTarget = { kind: "compare", owner: "o", repo: "r", spec: "main...dev" };
+const run: GitHubTarget = { kind: "run", owner: "o", repo: "r", id: 42652602921 };
 
 describe("renderTarget", () => {
 	it("仓库首页：信息 + README", () => {
@@ -80,6 +83,29 @@ describe("renderTarget", () => {
 		expect(page.content).toContain("v0.2.0");
 		expect(page.content).toContain("@dave");
 		expect(page.content).toContain("修复若干问题");
+	});
+});
+
+describe("renderTarget：jq 输出直出", () => {
+	it("commit：标题带短 sha，正文原样", () => {
+		const page = renderTarget(commit, ["- Author: alice <a@b>"], MAX);
+
+		expect(page.title).toBe("o/r@58fddbe");
+		expect(page.content).toBe("- Author: alice <a@b>");
+	});
+
+	it("compare：标题带 spec", () => {
+		const page = renderTarget(compare, ["- Status: ahead"], MAX);
+
+		expect(page.title).toBe("o/r main...dev");
+		expect(page.content).toBe("- Status: ahead");
+	});
+
+	it("run：摘要与失败日志拼接，空的附加输出被丢掉", () => {
+		const page = renderTarget(run, ["JOBS\nX test in 30s", ""], MAX);
+
+		expect(page.title).toBe("o/r run 42652602921");
+		expect(page.content).toBe("JOBS\nX test in 30s");
 	});
 });
 

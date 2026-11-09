@@ -9,7 +9,7 @@
 ## 功能
 
 - 搜索源八选一：tavily / brave / exa / firecrawl / perplexity / parallel / keenable / deepseek。不自动切换搜索源。
-- 按 `fetch.extractors` 的顺序抓取。默认顺序是 `html` → `jina`。两者都不需要 key。GitHub 页面走 `gh`，可选。reddit 只换 redlib 域名。
+- 按 `fetch.extractors` 的顺序抓取。默认顺序是 `html` → `jina`。两者都不需要 key。GitHub 的仓库、文件、目录、issue、pull、release、commit、compare、actions run 页面走 `gh`，可选。其余 GitHub 页面走提取器链，原因记在 `details.handlerSkips`。reddit 只换 redlib 域名。
 - 拒绝内网与回环地址。每一跳重定向都复查。判定只看 URL 字面量，不解析 DNS。
 - 超过上限就截断。`context.spillToFile` 为真时，全文落临时文件，路径回填，供 `read` 续读。
 - 工具可改名、可关、可改成按需发现。内置提示词是英文单行。`guidance` 可逐字段覆盖。

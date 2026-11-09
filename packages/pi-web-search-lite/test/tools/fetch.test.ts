@@ -137,6 +137,26 @@ describe("executeFetch：handler 与提取器链", () => {
 	});
 });
 
+describe("executeFetch：GitHub 页面类型没路由", () => {
+	it("写明没走 gh 的原因，并按链抓取正文", async () => {
+		const http = fakeHttp(() => ({
+			text: `<html><title>wiki</title><body>${"wiki 正文".repeat(60)}</body></html>`,
+		}));
+
+		const result = await executeFetch(
+			makeConfig(),
+			{ url: "https://github.com/o/r/wiki" },
+			undefined,
+			{ http },
+		);
+
+		expect(result.details.source).toBe("html");
+		expect(result.details.handlerSkips?.[0]).toContain("no gh route");
+		expect(firstText(result)).toContain("no gh route");
+		expect(firstText(result)).toContain("wiki 正文");
+	});
+});
+
 describe("executeFetch：reddit URL 改写", () => {
 	const REDDIT_POST = "https://www.reddit.com/r/rust/comments/1abc/title/";
 

@@ -13,7 +13,10 @@ export type GitHubTarget =
 	| { kind: "tree"; owner: string; repo: string; ref: string; path: string }
 	| { kind: "issue"; owner: string; repo: string; number: number }
 	| { kind: "pull"; owner: string; repo: string; number: number; files: boolean }
-	| { kind: "release"; owner: string; repo: string; tag: string };
+	| { kind: "release"; owner: string; repo: string; tag: string }
+	| { kind: "commit"; owner: string; repo: string; sha: string }
+	| { kind: "compare"; owner: string; repo: string; spec: string }
+	| { kind: "run"; owner: string; repo: string; id: number };
 
 const GITHUB_HOSTS = new Set(["github.com", "www.github.com"]);
 /** 2 段路径才会被当成仓库，这些首段其实是站内路由。 */
@@ -132,15 +135,52 @@ const RELEASE_FIELDS = [
 	"url",
 ];
 
+/**
+ * 单命令单投影的页面把投影写在 `--jq` 里，不回 TS 里再拼一遍：这类页面没有跨源合并与解码可做。
+ * 字段取不到时 jq 直接失败，于是走 skipped 顺延 —— 比静默少一行好查。
+ */
+const COMMIT_JQ = [
+	'"- Author: " + (.commit.author.name // "unknown") + " <" + (.commit.author.email // "") + ">"',
+	'"- Date: " + .commit.author.date',
+	'"- Stats: +" + (.stats.additions | tostring) + " -" + (.stats.deletions | tostring) + " in " + ((.files // []) | length | tostring) + " files"',
+	'""',
+	'"## Message"',
+	'""',
+	".commit.message",
+	'""',
+	'"## Files"',
+	'""',
+	'((.files // [])[] | "- " + .status + " " + .filename + " (+" + (.additions | tostring) + " -" + (.deletions | tostring) + ")")',
+].join(", ");
+
+/** compare 的 REST 接口对提交数有硬上限；拿到的比 total_commits 少时要说出来。 */
+const COMPARE_JQ = [
+	'"- Ahead / behind: " + (.ahead_by | tostring) + " / " + (.behind_by | tostring) + " · " + .status',
+	'"- Commits: " + (.total_commits | tostring)',
+	'(if .total_commits > ((.commits // []) | length) then "- Note: the API returned the first " + ((.commits // []) | length | tostring) + " commits only" else empty end)',
+	'""',
+	'"## Commits"',
+	'""',
+	'((.commits // [])[] | "- " + .sha[0:7] + " " + (.commit.message | split("\\n")[0]))',
+	'""',
+	'"## Files"',
+	'""',
+	'((.files // [])[] | "- " + .status + " " + .filename + " (+" + (.additions | tostring) + " -" + (.deletions | tostring) + ")")',
+].join(", ");
+
 export const githubHandler: PageHandler = {
 	name: "github",
-	match: (url) => parseGitHubUrl(url) !== null,
+	// 域名命中就进来：形状不认时要给一条具体原因，不能让「没走 gh」静默
+	match: (url) => GITHUB_HOSTS.has(url.hostname.toLowerCase()),
 	async run(url, ctx) {
-		const target = parseGitHubUrl(url);
-		if (!target) return null;
 		const settings = ctx.github;
 		if (!settings.enabled) {
 			return skip("handlers.github.enabled is false; GitHub-specific handling skipped");
+		}
+		const target = parseGitHubUrl(url);
+		// 形状不认就在探测前放弃：一次探测要起两个子进程
+		if (!target) {
+			return skip("this GitHub page type has no gh route; the extractor chain takes over");
 		}
 
 		const exec = ctx.execGh ?? execGh;
@@ -172,6 +212,11 @@ export const githubHandler: PageHandler = {
 				break;
 			}
 			outputs.push(result.stdout);
+		}
+
+		// gh 的 stdout 是文本通道：二进制过一遍 utf8 只剩乱码，交给链反而可能拿到东西
+		if (target.kind === "blob" && looksBinary(outputs[0] ?? "")) {
+			return skip("binary file; gh returns text only, so the extractor chain takes over");
 		}
 
 		const page = renderTarget(target, outputs, settings.maxChars);
@@ -240,6 +285,24 @@ export function parseGitHubUrl(url: URL): GitHubTarget | null {
 			// tag 与 blob/tree 的 ref 同过 safeRef：控制字符（如 %00）进了 gh 参数会被 execFile 拒，报错文案来自 Node 而非本层
 			const tag = safeRef(segments.slice(4).join("/"));
 			return tag === null ? null : { kind: "release", ...slug, tag };
+		}
+		case "commit": {
+			if (segments.length !== 4) return null;
+			const sha = segments[3];
+			return /^[0-9a-fA-F]{7,40}$/.test(sha) ? { kind: "commit", ...slug, sha } : null;
+		}
+		case "compare": {
+			if (segments.length < 4) return null;
+			// ref 里可以有斜杠，切分点拿不到，所以整段拼回来；`...` 两侧都必须非空
+			const spec = segments.slice(3).join("/");
+			const sides = spec.split("...");
+			if (sides.length !== 2 || sides[0] === "" || sides[1] === "" || /\s/.test(spec)) return null;
+			return safeRef(spec) === null ? null : { kind: "compare", ...slug, spec };
+		}
+		case "actions": {
+			if (segments.length !== 5 || segments[3].toLowerCase() !== "runs") return null;
+			const id = positiveInt(segments[4]);
+			return id === null ? null : { kind: "run", ...slug, id };
 		}
 		default:
 			return null;
@@ -332,6 +395,16 @@ function planSteps(target: GitHubTarget): GhStep[] {
 							],
 						},
 					];
+		case "commit":
+			return [{ args: ["api", `repos/${repoSlug}/commits/${target.sha}`, "--jq", COMMIT_JQ] }];
+		case "compare":
+			return [{ args: ["api", `repos/${repoSlug}/compare/${target.spec}`, "--jq", COMPARE_JQ] }];
+		case "run":
+			return [
+				{ args: ["run", "view", String(target.id), "--repo", repoSlug] },
+				// 只有失败步骤的日志值得看；成功的 run 上这条会失败，恰好被「附加步骤失败就忽略」吃掉
+				{ args: ["run", "view", String(target.id), "--repo", repoSlug, "--log-failed"] },
+			];
 		case "release":
 			// tag 取自 URL 末段，可能以 - 开头；gh 走 pflag，-- 之后一律当位置参数，所以 flag 全排在它前面
 			return [
@@ -353,6 +426,11 @@ function planSteps(target: GitHubTarget): GhStep[] {
 
 function isUnknownFieldError(result: { stderr: string; error?: string }): boolean {
 	return /unknown (?:json )?field|UnknownField/i.test(`${result.stderr}\n${result.error ?? ""}`);
+}
+
+/** 二进制过 utf8 解码会留下 NUL 或替换字符；正文里出现它们就说明这个文件不能当文本读。 */
+function looksBinary(text: string): boolean {
+	return text.includes("\u0000") || text.includes("\uFFFD");
 }
 
 function skip(reason: string): HandlerSkip {
