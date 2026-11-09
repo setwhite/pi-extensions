@@ -12,7 +12,7 @@
 
 ## 选了
 
-3。方案与迁移步骤见 [RFC-0001](../rfc/0001-split-bridge.md)，这里只记结论。
+3。
 
 - `index.ts` 只剩门面与公开 API，`queue.ts` 不认识 HTTP，`ownership.ts` 不认识命令，`http.ts` 不认识端口选举。
 - 公开 API、协议、超时数值全不变；`test/bridge/` 一行没改。

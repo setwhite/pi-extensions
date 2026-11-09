@@ -101,12 +101,13 @@ Without the file every value is the default. A wrong type or an unknown key fail
     "chrome_cdp": { "enabled": true, "name": "chrome_cdp" }
   },
 
-  // Override the built-in prompts per tool. "" clears description or promptSnippet; [] adds no rules
+  // Override the built-in prompts per tool. "" clears description or promptSnippet; [] adds no rules.
+  // Rules are sentences: the tool name prefix is added for you, so a rename keeps them correct
   "guidance": {
     "chrome_act": {
       "description": "Drive the user's real browser.",
       "promptSnippet": "Drive the browser",
-      "promptGuidelines": ["chrome_act: pass see: refs on navigate."]
+      "promptGuidelines": ["pass see: refs on navigate."]
     }
   }
 }

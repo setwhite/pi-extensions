@@ -34,12 +34,23 @@
 - 名字匹配 `^[a-z][a-z0-9_]{0,31}$`。撞宿主内置名抛错。两个工具同名抛错。都是加载期错误，不是 clamp。
 - 关掉的工具不进工具面，它的规则也一起消失。
 - 规则只有一层：每个工具自带默认 `promptGuidelines`，`guidance.<id>.promptGuidelines` 整段替换。跨工具的规则写 AGENTS.md。
+- 规则只写句子。工具名由 `buildSurface` 拼成 `<name>: <句子>`，改名后规则跟着改名；覆盖的规则也拼，没有例外分支。
+- 不给 `promptSnippet` 默认值。只有 `guidance.<id>.promptSnippet` 非空时才写进工具定义。
+
+## 文案体量
+
+默认工具面 2,486 字符：工具说明 436、29 条参数说明 1,392、9 条规则 658。序列化 5,578，测试按 6,500 断言，SPEC-0001 的上限是 12,000。
+
+判据：
+
+- 工具说明一句话，体量对齐 `web_search` 的 "Search the web; returns titles, URLs and snippets."。
+- schema 说过的信息不写进文字：参数名、类型、枚举、可选性、嵌套结构交给 schema。52 个参数节点只留 29 条说明。`pi-todo-lite` 与 `pi-herdr-subagents-lite` 的参数一个说明都没有。
+- 留下的说明只写 schema 读不出的四类：默认值（`timeout_ms` 15000）、单位与格式（CSS 像素、绝对路径）、副作用与优先级（`replace` 清空、`value` 替换、`steps` 最多 50 且失败即停、`paths` 交给下一个文件选择器）、名称碰撞（`press` 与 `key`）。
+- 错误 `hint` 只在失败时进上下文，按「下一步动作」写，不复述消息。原因在消息里，已经在模型眼前。
 
 ## 不写 primer
 
-原计划让 `src/prompt/` 把一段约 2,500 字符的说明写进 `event.systemPromptOptions.sections`。取消。
-
-给模型的 Chrome 说明全部写成 `promptGuidelines` 条目：每个工具带默认规则，`guidance.<id>.promptGuidelines` 整段替换。规则由工具自己带进系统提示，pi 平铺进 `<rules>` 段并去重。
+原计划让 `src/prompt/` 把一段说明写进 `event.systemPromptOptions.sections`。取消：给模型的 Chrome 说明全部写成 `promptGuidelines` 条目，规则由工具自己带进系统提示，pi 平铺进 `<rules>` 段并去重。
 
 四条理由：
 
@@ -48,21 +59,13 @@
 3. pi 会按原文去重（`buildRules` 里的 `seen` 集合），sections 不会。
 4. 少一个模块、两个配置字段、一份「按已注册工具生成文本」的逻辑。
 
-代价：规则是一串 `- ` 条目，不是分段 prose。每条必须点名工具，写起来啰嗦一点。
+代价：规则是一串 `- ` 条目，不是分段 prose。每条都由工具名开头，读起来重复。
 
 ## 代价
 
-配置是 11 个标量加两个记录。校验与测试多约 80 行。12,000 字符预算只在默认配置下断言；用户自己覆盖后可以超出。
+配置是 11 个标量加两个记录。校验与测试多约 80 行。
 
-## 修订 2026-11-09
-
-`prompt.guidelines` 已删，默认三条搬进 `chrome_act` 的 `promptGuidelines`。
-
-- 两层的机制相同，只是作用域不同。兄弟包都只有按工具一层，用户要学两套写法。
-- 默认三条全部点名 `chrome_act`。关掉 `chrome_act` 后它们仍进系统提示，违反上面「关掉的工具的规则也一起消失」。
-- 跨工具的规则写进 AGENTS.md。那是 pi 原生位置，很多包都读。
-
-代价：写了这个键的配置会以 `prompt: unknown key` 启动失败。
+`chrome_act` 的 12 个动作不再由说明列出，只由 `action` 枚举给出；`from_*` 与 `to_*` 的单位靠 `x`、`y` 类推。
 
 ## 不做
 

@@ -14,30 +14,6 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 
 链路不变：Pi 扩展 → 本地桥 → Chrome 扩展 → 页面。输入走 `chrome.debugger` 的受信任事件，失败直接报错，不回退页面内合成事件（[DEC-0012](../decisions/0012-trusted-input-via-debugger.md)）。
 
-## 用户故事
-
-- 作为使用已有 Chrome 登录态的 Pi 用户，我要 Pi 直接操作我的真实浏览器，以便不必重登任何站点。
-- 作为 Pi 用户，我要工具少而全，以便模型一次选对，且不占太多 context。
-- 作为 Pi 用户，我要模型在点击前先看页面拿到 ref，以便不靠猜坐标。
-- 作为 Pi 用户，我要操作返回判定与页面增量，以便知道做成了没有。
-- 作为 Pi 用户，我要授权可控，以便在我不在时锁住浏览器控制。
-- 作为 Pi 用户，我要一条命令看到当前状态，以便不用猜为什么工具不可用。
-- 作为维护者，我要配置只覆盖真会改的旋钮，以便文档与测试不膨胀。
-- 作为 Pi 用户，我要读操作不抢我的前台，只有真点击与打字才把浏览器带到前面，以便一边看一边干活。
-- 作为 Pi 用户，我要每个会话独占自己的浏览器窗口，以便分清哪些标签是 Pi 开的。
-- 作为 Pi 用户，我要多个会话或子代理共用一条 Chrome 连接，以便并发任务都能用浏览器。
-- 作为 Pi 用户，我要输入事件受信任，以便能操作有反自动化检测的站点。
-- 作为 Pi 用户，我要在严格 CSP 站点上也能求值和快照，以便不被 `script-src` 挡住。
-- 作为 Pi 用户，我要原始 CDP 逃生口，以便专用工具覆盖不到时还能干活。
-- 作为 Pi 用户，我要能看 console 与网络请求，以便调试页面问题。
-- 作为 Pi 用户，我要控制台与网络捕获从导航开始，以便早期错误不丢。
-- 作为维护者，我要源码按职责分模块，以便改动只碰一处。
-- 作为维护者，我要依赖方向由脚本强制，以便分层不被慢慢破坏。
-- 作为维护者，我要工具面体积有回归守卫，以便后续加能力时不悄悄变贵。
-- 作为 Pi 用户，我要关掉用不上的工具、替换工具文案与规则，以便工具面贴合我自己的用法。
-- 作为维护者，我要配置有统一契约，以便与本仓库其它包一致。
-- 作为维护者，我要页面注入代码有自包含检查，以便拆分后不会线上才炸。
-
 ## 实现决定
 
 ### 工具面
@@ -147,9 +123,11 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 | `timeout` | 四种：扩展没在轮询、轮询了没取走、取走后没回结果、扩展到期放弃（带 `the debugger was detached`） | 前三种 `Run /chrome status`；第四种重试或换定位方式 |
 | `cdp_unavailable` | debugger 挂不上，被别的调试器或其它扩展 target 占用 | 关掉该页的开发者工具或密码管理器扩展 |
 | `page_error` | 页面内求值或注入抛错 | 给原始消息的首行 |
-| `aborted` | 调用方取消 | `retry if you still need the result` |
+| `aborted` | 调用方取消 | `retry if you still need it` |
 
 每条消息要能单独读懂，不依赖上文。模型拿到 `hint` 就能自己恢复。
+
+`hint` 只写下一步动作，不写原因、不复述消息：原因在消息里，已经在模型眼前。
 
 ### 桥协议
 
@@ -221,7 +199,7 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
     "chrome_act": {
       "description": "Drive the browser: click, type, navigate.",
       "promptSnippet": "Drive Chrome",
-      "promptGuidelines": ["chrome_act: take a see snapshot before clicking by ref."]
+      "promptGuidelines": ["take a see snapshot before clicking by ref."]
     }
   },
 }
@@ -234,8 +212,8 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 - 关掉的工具不进工具面，它的规则也一起消失。这是 `promptGuidelines` 的行为，不用额外写过滤。
 - `guidance` 只认三个字段：`description`（工具说明）、`promptSnippet`（工具清单里的一行）、`promptGuidelines`（追加到系统提示的规则数组）。`""` 与 `[]` 表示清空。
 - 没有单独的 primer。给模型的 Chrome 使用说明全部写成该工具的 `promptGuidelines`，默认内置，`guidance.<id>.promptGuidelines` 整段替换。跨工具的规则不进配置，写 AGENTS.md。
-- 规则平铺进系统提示的 `<rules>` 段，pi 按原文去重，不加工具前缀。所以每条规则必须点名工具，形如 `chrome_act: ...`。
-- 12,000 字符预算按默认配置断言。覆盖后不拦。
+- 规则平铺进系统提示的 `<rules>` 段，pi 按原文去重，不加工具前缀。`buildSurface` 给每条规则加 `${tools.<id>.name}: ` 前缀，所以改名后规则跟着改名，配置里也只需写句子。
+- 默认工具面按 6,500 字符断言（SPEC 上限 12,000）。覆盖后不拦。
 
 ### 命令
 
@@ -254,7 +232,7 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 
 ### 非功能
 
-- 工具面序列化体积 ≤ 12,000 字符（默认配置）。其中 5 个工具的 `description` 合计 ≤ 4,000 字符，参数描述合计 ≤ 5,500 字符。
+- 工具面序列化体积 ≤ 12,000 字符（上限）。默认配置按 6,500 断言，见「工具开关与提示词」。其中 5 个工具的 `description` 合计 ≤ 4,000 字符，参数描述合计 ≤ 5,500 字符。
 - 单次工具调用超时 30 秒。`navigate` 按 `timing.navigateTimeoutMs` 加 2 秒。整页截图 120 秒。
 - 快照：`refs` 摘要 500 字符、元素 80 个；`text` 18,000 字符；`full` 30,000 字符。`content` 截断线 32,000 字符，比 `full` 留 2,000 字符信封余量。console 500 条。请求体 200,000 字符。
 - 写死但配置可覆盖：拖动 10 步（`input.dragSteps`）、滚动 5 步（`input.scrollSteps`）、导航 15 秒（`timing.navigateTimeoutMs`）。
@@ -267,17 +245,6 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 - 浏览器要实现 `chrome.windows.create`：每个会话的自动化标签放在自己的窗口里。不依赖标签组，所以对 `chrome.tabs.group` 的实现不作要求（Vivaldi 8.2 的那一个是空操作）。
 - 可信输入要求页面可见：标签页被别的标签盖住、或窗口被别的窗口盖住时，Chrome 丢弃 CDP 输入。所以每次输入前先探测可见性；不可见就发 `Emulation.setFocusEmulationEnabled`，让页面自报 visible 并接受 CDP 输入，不抢用户前台；等一个短窗口仍不可见才报错。
 - 安全：桥只绑 `127.0.0.1`。`/command` 只接受本机进程。`/next` 与 `/result` 校验浏览器来源。扩展的 `host_permissions` 用不带端口的 `http://127.0.0.1/*`，所以改 `bridge.port` 不必改 manifest、不必重装扩展。扩展侧的轮询地址在 `background/transport.js` 的 `BRIDGE_URL`，改端口时要一起改。
-
-## 测试决定
-
-按 [ARCHITECTURE.md](../ARCHITECTURE.md) §5 seam 清单测。
-
-- 工具定义：序列化后量体积、查 schema。先例 `pi-web-search-lite` 的 `test/index.test.ts` 断言工具名与描述。
-- 配置解析：给临时目录。先例本仓库 `pi-web-search-lite` 的 `test/config.test.ts`。
-- 桥端点：起真 HTTP 服务发真请求。先例 pi-chrome `bridge-resilience.test.mjs`，改写为 vitest。
-- 策略判定：给授权状态。先例 pi-chrome `automation-target.test.mjs`。
-- 扩展动作路由：挂 `globalThis.chrome` 桩后动态 `import`。先例 pi-chrome `input-reliability.test.mjs`，从 `node:vm` 改为模块导入。
-- 页面脚本自包含：静态扫描源码。无先例，新增。
 
 ## 不做的
 

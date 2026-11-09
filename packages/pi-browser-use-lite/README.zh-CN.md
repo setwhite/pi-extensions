@@ -101,12 +101,13 @@ pi install npm:pi-browser-use-lite
     "chrome_cdp": { "enabled": true, "name": "chrome_cdp" }
   },
 
-  // 按工具改内置提示。"" 清空 description 或 promptSnippet；[] 表示不加规则
+  // 按工具改内置提示。"" 清空 description 或 promptSnippet；[] 表示不加规则。
+  // 规则写句子就行：工具名前缀由扩展补，改名后规则跟着改
   "guidance": {
     "chrome_act": {
       "description": "操作用户真实的浏览器。",
       "promptSnippet": "操作浏览器",
-      "promptGuidelines": ["chrome_act: navigate 时带上 see: refs。"]
+      "promptGuidelines": ["navigate 时带上 see: refs。"]
     }
   }
 }

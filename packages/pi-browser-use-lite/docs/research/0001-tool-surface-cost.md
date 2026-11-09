@@ -1,9 +1,5 @@
 # 0001 工具面成本
 
-## 结论
-
-pi-chrome 的工具面约是 bladebro 的两倍。收束到 5 个工具可行。
-
 ## 依据
 
 实测方法：用 node 读源码，提取 `description:` 与 `"description":` 后的字符串字面量，按字符计数。模板字面量单独计。
@@ -59,7 +55,3 @@ bladebro `AGENTS.md:52`：
 bladebro `src/mcp/tools.rs:3-6`：
 
 > Design (D5): few tools, full control. Five tools, not twenty. ... Descriptions are hand-crafted for LLM token efficiency: every token serves the agent's decision of which tool to call and how to parameterize it. No redundancy between description and schema.
-
-## 未决问题
-
-无。
