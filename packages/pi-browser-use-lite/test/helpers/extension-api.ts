@@ -37,27 +37,34 @@ export function cleanupConfig(): void {
 export interface FakeApi {
 	api: ExtensionAPI;
 	registered: ToolDefinition[];
+	/** 一条已注册命令的注册项，用来读 `getArgumentCompletions`。 */
+	commandOptions: (
+		name: string,
+	) => Parameters<ExtensionAPI["registerCommand"]>[1] | undefined;
 	/** 跑一条已注册的命令，返回它 `ui.notify` 打印的文本。 */
 	runCommand: (name: string, args: string) => Promise<string>;
 	/** 触发 `session_shutdown`。 */
 	shutdown: () => Promise<void>;
-	/** 触发 `before_agent_start`，返回扩展改过的 systemPromptOptions。 */
-	startRun: (promptGuidelines: string[]) => { promptGuidelines: string[] };
 }
 
-/** 只记注册项、命令与两个事件的假 `ExtensionAPI`。 */
+/** 只记注册项、命令与 `session_shutdown` 的假 `ExtensionAPI`。 */
 export function fakeApi(): FakeApi {
 	const registered: ToolDefinition[] = [];
 	const commands = new Map<string, (args: string) => Promise<string>>();
+	const commandOptions = new Map<
+		string,
+		Parameters<ExtensionAPI["registerCommand"]>[1]
+	>();
 	const shutdowns: Array<(...args: unknown[]) => unknown> = [];
-	const starts: Array<(payload: unknown) => void> = [];
 	const api = {
 		registerTool: (tool: ToolDefinition) => void registered.push(tool),
 		// 签名取自 SDK：它改了这里就跟着红，不用手抄。
 		registerCommand: (
 			name: string,
-			{ handler }: Parameters<ExtensionAPI["registerCommand"]>[1],
+			options: Parameters<ExtensionAPI["registerCommand"]>[1],
 		) => {
+			commandOptions.set(name, options);
+			const { handler } = options;
 			commands.set(name, async (args) => {
 				const printed: string[] = [];
 				// 命令上下文只用到 ui.notify，其余成员测试不碰。
@@ -70,19 +77,13 @@ export function fakeApi(): FakeApi {
 		},
 		on: (event: string, handler: (payload: unknown) => void) => {
 			if (event === "session_shutdown") shutdowns.push(handler);
-			if (event === "before_agent_start") starts.push(handler);
 			return () => {};
 		},
-	};
-	const startRun = (promptGuidelines: string[]) => {
-		const systemPromptOptions = { promptGuidelines };
-		for (const handler of starts)
-			handler({ type: "before_agent_start", systemPromptOptions });
-		return systemPromptOptions;
 	};
 	return {
 		api: api as unknown as ExtensionAPI,
 		registered,
+		commandOptions: (name) => commandOptions.get(name),
 		runCommand: async (name, args) => {
 			const run = commands.get(name);
 			if (run === undefined) throw new Error(`no command registered: ${name}`);
@@ -92,7 +93,6 @@ export function fakeApi(): FakeApi {
 			for (const handler of shutdowns)
 				await handler({ type: "session_shutdown" }, FAKE_CTX);
 		},
-		startRun,
 	};
 }
 

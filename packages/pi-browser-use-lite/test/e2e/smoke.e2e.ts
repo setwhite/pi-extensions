@@ -129,8 +129,8 @@ let opened: Promise<void> | undefined;
 
 /**
  * 打开挑战页并把它切到前台。
- * 隐藏的标签页会被 Chrome 丢掉可信输入，所以点击前必须先让它可见；
- * 真正决定能不能切前台的是背景模式，e2e 不经过策略层。
+ * 隐藏的标签页会被 Chrome 丢掉可信输入，所以点击前必须先让它可见。
+ * 输入路径自己会把标签与窗口提到前台，这里显式走一次 chrome_tab switch，先验证这条路通。
  */
 function openChallenge(): Promise<void> {
 	opened ??= (async () => {

@@ -1,5 +1,8 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { createChromeCommand } from "../../src/commands/index.ts";
+import {
+	completeChromeArgument,
+	createChromeCommand,
+} from "../../src/commands/index.ts";
 import { DEFAULTS, HOST_VERSION } from "../../src/config/index.ts";
 import piBrowserUseLite from "../../src/index.ts";
 import { createSessionPolicy } from "../../src/policy/index.ts";
@@ -49,13 +52,12 @@ function commandOf(
 	};
 }
 
-it("AC2: 不带参数时列出 3 个子命令，不含 doctor 与 onboard", async () => {
+it("AC2: 不带参数时列出 2 个子命令，不含 doctor 与 onboard", async () => {
 	const { run } = commandOf(fakeBridge());
 
 	const text = await run("");
 
 	expect(text).toContain("/chrome authorize on|off");
-	expect(text).toContain("/chrome background on|off");
 	expect(text).toContain("/chrome status");
 	expect(text).not.toContain("doctor");
 	expect(text).not.toContain("onboard");
@@ -80,7 +82,6 @@ it("AC5: status 报 8 项", async () => {
 
 	expect(text).toContain(`host: ${HOST_VERSION}`);
 	expect(text).toContain("authorized: off");
-	expect(text).toContain("background: on");
 	expect(text).toContain("bridge: server");
 	expect(text).toContain("port: 17318");
 	expect(text).toContain("connected: yes");
@@ -140,23 +141,7 @@ it("AC3: 参数不对时给用法，不改状态", async () => {
 	expect(await run("authorize")).toContain(
 		"bad_args: expected /chrome authorize on|off",
 	);
-	expect(await run("background maybe")).toContain(
-		"bad_args: expected /chrome background on|off",
-	);
 	expect(policy.authorized).toBe(false);
-	expect(policy.background).toBe(DEFAULTS.policy.background);
-});
-
-it("AC6: background on 与 off 改会话状态，status 反映它", async () => {
-	const { policy, run } = commandOf(fakeBridge());
-
-	expect(await run("background off")).toBe("background: off");
-	expect(await run("status")).toContain("background: off");
-	expect(policy.background).toBe(false);
-
-	expect(await run("background on")).toBe("background: on");
-	expect(await run("status")).toContain("background: on");
-	expect(policy.background).toBe(true);
 });
 
 it("client 模式下也能授权，status 报 client", async () => {
@@ -167,11 +152,11 @@ it("client 模式下也能授权，status 报 client", async () => {
 	expect(await run("status")).toContain("bridge: client");
 });
 
-it("AC4: 三个子命令都不发浏览器命令", async () => {
+it("AC4: 两个子命令都不发浏览器命令", async () => {
 	const bridge = fakeBridge();
 	const { run } = commandOf(bridge);
 
-	for (const args of ["", "status", "authorize on", "background off"]) {
+	for (const args of ["", "status", "authorize on"]) {
 		await run(args);
 	}
 
@@ -185,13 +170,7 @@ it("入口: /chrome 注册进扩展，打印走 ui.notify", async () => {
 
 	const text = await runCommand("chrome", "");
 
-	expect(text).toBe(
-		[
-			"/chrome authorize on|off",
-			"/chrome background on|off",
-			"/chrome status",
-		].join("\n"),
-	);
+	expect(text).toBe(["/chrome authorize on|off", "/chrome status"].join("\n"));
 });
 
 it("AC5: status 先起桥再读状态", async () => {
@@ -202,4 +181,42 @@ it("AC5: status 先起桥再读状态", async () => {
 
 	expect(bridge.start).toHaveBeenCalledTimes(1);
 	expect(bridge.describe).toHaveBeenCalledTimes(1);
+});
+
+it("补全: 空前缀列全部子命令，去掉 on|off 的写法", () => {
+	expect(completeChromeArgument("")?.map((item) => item.value)).toStrictEqual([
+		"authorize on",
+		"authorize off",
+		"status",
+	]);
+});
+
+it("补全: 打到一层只剩 on 与 off，每项带说明", () => {
+	const items = completeChromeArgument("authorize ");
+
+	expect(items?.map((item) => item.value)).toStrictEqual([
+		"authorize on",
+		"authorize off",
+	]);
+	expect(items?.every((item) => item.description !== "")).toBe(true);
+});
+
+it("补全: 没匹配返回 null，让 pi 用它自己的", () => {
+	expect(completeChromeArgument("zzz")).toBeNull();
+});
+
+it("入口: /chrome 注册了参数补全", async () => {
+	useConfig();
+	const { api, commandOptions } = fakeApi();
+	piBrowserUseLite(api);
+
+	const complete = commandOptions("chrome")?.getArgumentCompletions;
+	expect(complete?.("status")).toStrictEqual([
+		{
+			value: "status",
+			label: "status",
+			description:
+				"print host, extension, authorization, bridge and target state",
+		},
+	]);
 });

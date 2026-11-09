@@ -65,7 +65,7 @@ it("tab 命中 0 个时返回 tab_not_found 与全部候选", async () => {
 	expect(result.details?.error).toMatchObject({ class: "tab_not_found" });
 });
 
-it("按 id 精确解析，switch 带 background: false", async () => {
+it("按 id 精确解析，switch 只传 tabId", async () => {
 	const { run, sent } = harness({ reply: () => ({ tabs: TABS }) });
 
 	await run("chrome_tab", { action: "switch", tab: "14" });
@@ -74,7 +74,7 @@ it("按 id 精确解析，switch 带 background: false", async () => {
 		"tab.list",
 		"tab.activate",
 	]);
-	expect(sent[1].params).toMatchObject({ tabId: 14, background: false });
+	expect(sent[1].params).toStrictEqual({ sessionKey: "s1", tabId: 14 });
 });
 
 it("AC15: new 成功后记下 target", async () => {
@@ -84,9 +84,9 @@ it("AC15: new 成功后记下 target", async () => {
 
 	const result = await run("chrome_tab", { action: "new", url: "https://new" });
 
-	expect(sent[0].params).toMatchObject({
+	expect(sent[0].params).toStrictEqual({
+		sessionKey: "s1",
 		url: "https://new",
-		background: true,
 	});
 	expect(target.get()).toBe(21);
 	expect(textOf(result)).toBe("ok: new 21 https://new");

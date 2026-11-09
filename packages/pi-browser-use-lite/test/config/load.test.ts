@@ -94,7 +94,7 @@ it("AC3: screenshot.dir 写空串报错，不当成默认目录", () => {
 	);
 });
 
-it("AC2: 13 个标量逐项等于 schema 默认值", () => {
+it("AC2: 11 个标量逐项等于 schema 默认值", () => {
 	let root = "";
 	const config = withAgentDir(JSON.stringify({}), (agentDir) => {
 		root = agentDir;
@@ -103,7 +103,6 @@ it("AC2: 13 个标量逐项等于 schema 默认值", () => {
 	expect({
 		bridge: config.bridge.port,
 		authorizeOnStart: config.policy.authorizeOnStart,
-		background: config.policy.background,
 		closeOwnTabsOnExit: config.policy.closeOwnTabsOnExit,
 		dragSteps: config.input.dragSteps,
 		scrollSteps: config.input.scrollSteps,
@@ -113,11 +112,9 @@ it("AC2: 13 个标量逐项等于 schema 默认值", () => {
 		dir: config.screenshot.dir,
 		format: config.screenshot.format,
 		keepNewest: config.screenshot.keepNewest,
-		guidelines: config.prompt.guidelines,
 	}).toStrictEqual({
 		bridge: DEFAULTS.bridge.port,
 		authorizeOnStart: DEFAULTS.policy.authorizeOnStart,
-		background: DEFAULTS.policy.background,
 		closeOwnTabsOnExit: DEFAULTS.policy.closeOwnTabsOnExit,
 		dragSteps: DEFAULTS.input.dragSteps,
 		scrollSteps: DEFAULTS.input.scrollSteps,
@@ -127,7 +124,6 @@ it("AC2: 13 个标量逐项等于 schema 默认值", () => {
 		dir: join(root, "pi-browser-use-lite", "screenshots"),
 		format: DEFAULTS.screenshot.format,
 		keepNewest: DEFAULTS.screenshot.keepNewest,
-		guidelines: DEFAULTS.prompt.guidelines,
 	});
 });
 
@@ -199,15 +195,9 @@ it("AC11: guidance 显式清空自己的规则，其余工具保持内置", () =
 	expect(config.guidance.chrome_see).toBeUndefined();
 });
 
-it("AC12: prompt.guidelines 空数组原样保留", () => {
-	expect(
-		readConfig({ prompt: { guidelines: [] } }).prompt.guidelines,
-	).toStrictEqual([]);
-});
-
-it("AC13: prompt 未知字段抛错，消息含 prompt.guideline", () => {
-	expect(() => readConfig({ prompt: { guideline: ["a"] } })).toThrowError(
-		"prompt.guideline",
+it("AC12: 顶层 prompt 现在是未知键", () => {
+	expect(() => readConfig({ prompt: { guidelines: ["a"] } })).toThrowError(
+		"prompt: unknown key",
 	);
 });
 

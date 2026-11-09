@@ -68,29 +68,15 @@ export interface ResolvedConfig {
 	bridge: { port: number };
 	policy: {
 		authorizeOnStart: boolean;
-		background: boolean;
 		closeOwnTabsOnExit: boolean;
 	};
 	input: { dragSteps: number; scrollSteps: number };
 	timing: { navigateTimeoutMs: number };
 	output: { maxElements: number; textChars: number };
 	screenshot: { dir: string; format: ScreenshotFormat; keepNewest: number };
-	prompt: { guidelines: string[] };
 	tools: Record<ToolId, ToolSettings>;
 	guidance: Partial<Record<ToolId, GuidanceFields>>;
 }
-
-/**
- * 跨工具的默认规则。每条以工具名开头：两层规则平铺进系统提示后按原文去重，
- * 不加工具前缀，只有点名才看得出是哪个工具的规则。
- * 全局规则只点名 chrome_act：别的工具可以关掉，点名它们的规则放在该工具的
- * promptGuidelines 里，才能随工具一起消失（SPEC-0001「关掉的工具……规则也一起消失」）。
- */
-export const DEFAULT_PROMPT_GUIDELINES = [
-	"chrome_act: this is the user's real browser; confirm before destructive actions.",
-	"chrome_act: pass see: refs on navigate, then click the refs from that snapshot; a ref from an older page fails.",
-	"chrome_act: passing see adds a snapshot to the reply and costs extra tokens; ask for it only when the page just changed.",
-] as const;
 
 /**
  * 13 个标量字段的默认值。工具记录与文案覆盖不在其中。
@@ -105,14 +91,12 @@ export const DEFAULTS: Omit<
 	bridge: { port: 17_318 },
 	policy: {
 		authorizeOnStart: false,
-		background: true,
 		closeOwnTabsOnExit: true,
 	},
 	input: { dragSteps: 10, scrollSteps: 5 },
 	timing: { navigateTimeoutMs: 15_000 },
 	output: { maxElements: 80, textChars: 18_000 },
 	screenshot: { format: "png", keepNewest: 20 },
-	prompt: { guidelines: [...DEFAULT_PROMPT_GUIDELINES] },
 };
 
 export type Raw = Record<string, unknown>;

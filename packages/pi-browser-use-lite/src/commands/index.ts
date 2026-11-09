@@ -1,5 +1,5 @@
 /**
- * `/chrome` 命令：authorize、background、status 三个子命令。
+ * `/chrome` 命令：authorize 与 status 两个子命令。
  * 命令只改会话状态与读桥的状态，不发浏览器命令；子命令文本由 {@link ChromeCommand.run} 返回。
  */
 
@@ -32,11 +32,35 @@ export const INSTALL_STEPS = [
 	"3. leave the extension enabled; it polls the bridge by itself",
 ].join("\n");
 
-const SUBCOMMANDS = [
-	"/chrome authorize on|off",
-	"/chrome background on|off",
-	"/chrome status",
-].join("\n");
+const SUBCOMMANDS = ["/chrome authorize on|off", "/chrome status"].join("\n");
+
+/** 一条参数补全。形状与 pi 的 `AutocompleteItem` 一致，命令层不引 TUI 类型。 */
+export interface ChromeCompletion {
+	value: string;
+	label: string;
+	description: string;
+}
+
+/** 整条子命令加一句说明，顺序即补全列表的顺序。 */
+const COMPLETIONS: ReadonlyArray<readonly [string, string]> = [
+	["authorize on", "unlock the tools for this session"],
+	["authorize off", "lock the tools until the next authorize on"],
+	["status", "print host, extension, authorization, bridge and target state"],
+];
+
+/**
+ * `/chrome` 的参数补全：按整条子命令做前缀匹配，打到 `authorize ` 只剩 on 与 off。
+ * 一个都没匹配上返回 null，让 pi 用它的默认补全。
+ */
+export function completeChromeArgument(
+	prefix: string,
+): ChromeCompletion[] | null {
+	const typed = prefix.trimStart();
+	const items = COMPLETIONS.filter(([value]) => value.startsWith(typed)).map(
+		([value, description]) => ({ value, label: value, description }),
+	);
+	return items.length > 0 ? items : null;
+}
 
 export function createChromeCommand(deps: ChromeCommandDeps): ChromeCommand {
 	return {
@@ -45,7 +69,6 @@ export function createChromeCommand(deps: ChromeCommandDeps): ChromeCommand {
 			if (trimmed === "") return SUBCOMMANDS;
 			const [verb, value] = trimmed.split(/\s+/);
 			if (verb === "authorize") return toggleAuthorize(deps, value);
-			if (verb === "background") return toggleBackground(deps, value);
 			if (verb === "status") return statusOf(deps);
 			return `bad_args: unknown subcommand: ${trimmed}\nhint: run /chrome for the list`;
 		},
@@ -71,17 +94,7 @@ async function toggleAuthorize(
 	return "authorized: on";
 }
 
-function toggleBackground(
-	deps: ChromeCommandDeps,
-	value: string | undefined,
-): string {
-	const on = flagOf(value);
-	if (on === undefined) return usage("background on|off");
-	deps.policy.setBackground(on);
-	return `background: ${on ? "on" : "off"}`;
-}
-
-/** 状态行：桥的四项来自 `bridge.status()`，策略两项来自会话，target 来自宿主会话状态。 */
+/** 状态行：桥的四项来自 `bridge.status()`，授权来自会话，target 来自宿主会话状态。 */
 async function statusOf(deps: ChromeCommandDeps): Promise<string> {
 	await deps.bridge.start();
 	const bridge = await deps.bridge.describe();
@@ -90,7 +103,6 @@ async function statusOf(deps: ChromeCommandDeps): Promise<string> {
 		`host: ${deps.hostVersion}`,
 		`extension: ${bridge.extensionVersion ?? "not connected"}`,
 		`authorized: ${deps.policy.authorized ? "on" : "off"}`,
-		`background: ${deps.policy.background ? "on" : "off"}`,
 		`bridge: ${bridge.mode}`,
 		`port: ${new URL(bridge.url).port}`,
 		`connected: ${bridge.connected ? "yes" : "no"}`,

@@ -34,7 +34,6 @@ export async function runTab(
 		case "new": {
 			const result = (await call(ctx, "tab.new", {
 				url: params.url,
-				background: true,
 			})) as TabInfo;
 			const id = targetIdOf(result);
 			if (id !== undefined) ctx.deps.target.set(id);
@@ -45,10 +44,7 @@ export async function runTab(
 		}
 		case "switch": {
 			const tabId = await requireTab(ctx, "switch", params.tab);
-			const result = await call(ctx, "tab.activate", {
-				tabId,
-				background: false,
-			});
+			const result = await call(ctx, "tab.activate", { tabId });
 			return okResult(`ok: switch ${tabId}`, { result });
 		}
 		case "close": {

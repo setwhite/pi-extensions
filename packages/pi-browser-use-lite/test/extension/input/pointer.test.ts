@@ -32,16 +32,29 @@ const { click, hover, moveMouse, drag, scroll } = (await import(
 
 const RECT = { left: 8, top: 16, width: 4, height: 8, x: 10, y: 20 };
 
-/** 桩的 Runtime.evaluate 应答：可见性、元素中心、视口中心。 */
+/** 桩的 Runtime.evaluate 应答：可见性（可给序列）、元素中心、视口中心。 */
 function stubPointer(
-	options: { visibility?: string; element?: boolean } = {},
+	options: {
+		visibility?: string | string[];
+		element?: boolean;
+		windowState?: string;
+		tabActive?: boolean;
+	} = {},
 ): ChromeStub {
-	const visibility = options.visibility ?? "visible";
+	const states = Array.isArray(options.visibility)
+		? [...options.visibility]
+		: [options.visibility ?? "visible"];
+	const nextState = (): string | undefined =>
+		states.length > 1 ? states.shift() : states[0];
 	const element = options.element ?? true;
 	return stubChrome({
+		windowState: options.windowState,
+		tabActive: options.tabActive,
 		evaluate: (expression) => {
-			if (expression === "document.visibilityState")
-				return visibility === "unreadable" ? undefined : visibility;
+			if (expression === "document.visibilityState") {
+				const state = nextState();
+				return state === "unreadable" ? undefined : state;
+			}
 			if (expression.includes("querySelector"))
 				return element ? { x: RECT.x, y: RECT.y } : null;
 			return { x: 400, y: 300 };
@@ -125,13 +138,40 @@ it("AC2: 按坐标点击直接使用给定坐标", async () => {
 	]);
 });
 
-it("AC4: 目标标签不可见时抛错，不发鼠标事件，也不激活标签", async () => {
-	const stub = stubPointer({ visibility: "hidden" });
+it("AC4: 目标标签不可见时先激活标签与窗口，变可见后照常点击", async () => {
+	const stub = stubPointer({ visibility: ["hidden", "visible"] });
 
-	await expect(click({ tabId: 203, selector: "#a" })).rejects.toThrow("hidden");
+	const point = await click({ tabId: 203, selector: "#a" });
+
+	expect(stub.tabs.update).toHaveBeenCalledWith(203, { active: true });
+	expect(stub.windows.update).toHaveBeenCalledWith(1, { focused: true });
+	expect(mouseEvents(stub).length).toBeGreaterThan(0);
+	expect(point).toEqual({ x: RECT.x, y: RECT.y });
+});
+
+it("AC4: 激活后仍不可见时抛错并说原因，不发鼠标事件", async () => {
+	const stub = stubPointer({
+		visibility: "hidden",
+		tabActive: true,
+		windowState: "minimized",
+	});
+
+	await expect(click({ tabId: 204, selector: "#a" })).rejects.toThrow(
+		"is hidden because its window is minimized",
+	);
 
 	expect(mouseEvents(stub)).toHaveLength(0);
-	expect(stub.tabs.update).not.toHaveBeenCalled();
+	expect(stub.tabs.update).toHaveBeenCalledTimes(1);
+});
+
+it("AC4: 标签不是活动标签时，报错说明是这一点", async () => {
+	const stub = stubPointer({ visibility: "hidden" });
+
+	await expect(click({ tabId: 205, selector: "#a" })).rejects.toThrow(
+		"is hidden because it is an inactive tab",
+	);
+
+	expect(mouseEvents(stub)).toHaveLength(0);
 });
 
 it("AC5: dragSteps 为 3 时发出 3 次中间 mouseMoved", async () => {
@@ -210,7 +250,7 @@ it("交付物: hover 只发一次 mouseMoved，落在元素中心", async () => 
 	expect(point).toEqual({ x: RECT.x, y: RECT.y });
 });
 
-it("质量: moveMouse 也查可见性，不可见时不发事件", async () => {
+it("质量: moveMouse 也走可见性自救，仍不可见时不发事件", async () => {
 	const stub = stubPointer({ visibility: "hidden" });
 
 	await expect(moveMouse({ tabId: 601, x: 1, y: 2 })).rejects.toThrow(
@@ -218,6 +258,7 @@ it("质量: moveMouse 也查可见性，不可见时不发事件", async () => {
 	);
 
 	expect(mouseEvents(stub)).toHaveLength(0);
+	expect(stub.tabs.update).toHaveBeenCalledTimes(1);
 });
 
 it("质量: 可见性读不到时抛 page_error，不当作可见", async () => {
@@ -226,6 +267,7 @@ it("质量: 可见性读不到时抛 page_error，不当作可见", async () => 
 	await expect(click({ tabId: 602, x: 1, y: 2 })).rejects.toThrow("page_error");
 
 	expect(mouseEvents(stub)).toHaveLength(0);
+	expect(stub.tabs.update).not.toHaveBeenCalled();
 });
 
 it("质量: 非有限坐标抛 bad_args 且不发 CDP", async () => {

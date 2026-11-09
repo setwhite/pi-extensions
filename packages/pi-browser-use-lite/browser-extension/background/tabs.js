@@ -23,17 +23,17 @@ export async function listTabs({ sessionKey } = {}) {
  * @param {object} params
  * @param {string} params.sessionKey 会话标识
  * @param {string} [params.url] 要打开的地址，缺省 about:blank
- * @param {boolean} [params.background] 为 true 时新标签不在本会话窗口里激活
  * @returns {Promise<{ id: number, active: boolean, title: string, url: string }>}
  */
-export async function newTab({ sessionKey, url, background = false } = {}) {
+export async function newTab({ sessionKey, url } = {}) {
 	requireSessionKey(sessionKey);
 	const windowId = await liveWindowId(sessionKey);
 	if (windowId !== undefined) {
+		// 新标签在自己的窗口里就是活动标签。激活标签不改变窗口焦点，不会打扰用户。
 		const tab = await chrome.tabs.create({
 			windowId,
 			url: url ?? "about:blank",
-			active: !background,
+			active: true,
 		});
 		return formatTab(await chrome.tabs.get(tab.id));
 	}
@@ -47,14 +47,12 @@ export async function newTab({ sessionKey, url, background = false } = {}) {
 }
 
 /**
- * 激活标签，并把它所在的窗口带到前台。后台模式是硬策略：直接抛错，不碰 chrome.tabs.update。
+ * 激活标签，并把它所在的窗口带到前台。
  * @param {object} params
  * @param {number} params.tabId 标签 id
- * @param {boolean} [params.background] 为 true 时拒绝激活
  * @returns {Promise<{ id: number, active: boolean, title: string, url: string }>}
  */
-export async function activateTab({ tabId, background = false } = {}) {
-	if (background) throw new Error("background mode blocks tab.activate");
+export async function activateTab({ tabId } = {}) {
 	const tab = await chrome.tabs.update(tabId, { active: true });
 	await chrome.windows.update(tab.windowId, { focused: true });
 	return formatTab(tab);

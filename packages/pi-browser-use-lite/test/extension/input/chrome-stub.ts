@@ -26,7 +26,8 @@ export interface ChromeStub {
 		onEvent: { addListener: Mock; removeListener: Mock };
 		onDetach: { addListener: Mock; removeListener: Mock };
 	};
-	tabs: { update: Mock };
+	tabs: { get: Mock; update: Mock };
+	windows: { get: Mock; update: Mock };
 	scripting: { executeScript: Mock };
 	runtime: {
 		getURL: Mock;
@@ -73,6 +74,10 @@ export interface StubOptions {
 	scriptingError?: Error;
 	/** executeScript 的应答。不给就返回 `[{ result: 1 }]`。 */
 	executeScript?: (spec: Record<string, unknown>) => unknown;
+	/** `chrome.windows.get` 报的窗口状态，默认 `normal`。 */
+	windowState?: string;
+	/** `chrome.tabs.get` 报的目标标签是否活动，默认 `false`。 */
+	tabActive?: boolean;
 }
 
 /** 扩展侧的 JS 没有类型声明，用文件 URL 动态载入。 */
@@ -149,7 +154,21 @@ export function stubChrome(options: StubOptions = {}): ChromeStub {
 			return [{ result: 1 }] as unknown;
 		}),
 	};
-	const tabs = { update: vi.fn(async () => ({})) };
+	const windows = {
+		get: vi.fn(async (id: number) => ({
+			id,
+			state: options.windowState ?? "normal",
+		})),
+		update: vi.fn(async () => ({})),
+	};
+	const tabs = {
+		get: vi.fn(async (id: number) => ({
+			id,
+			windowId: 1,
+			active: options.tabActive ?? false,
+		})),
+		update: vi.fn(async (id: number) => ({ id, windowId: 1, active: true })),
+	};
 	const runtime = {
 		getURL: vi.fn((path: string) => `chrome-extension://test/${path}`),
 		getManifest: vi.fn(() => ({ version: options.version ?? "0.0.0" })),
@@ -186,6 +205,7 @@ export function stubChrome(options: StubOptions = {}): ChromeStub {
 		scripting,
 		storage,
 		tabs,
+		windows,
 		runtime,
 		alarms,
 		webNavigation,
@@ -195,6 +215,7 @@ export function stubChrome(options: StubOptions = {}): ChromeStub {
 		methods,
 		debugger: debuggerStub,
 		tabs,
+		windows,
 		scripting,
 		runtime,
 		alarms,

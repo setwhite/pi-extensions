@@ -268,6 +268,9 @@ export const TOOL_SPECS = {
 			),
 		}),
 		promptGuidelines: [
+			"chrome_act: this is the user's real browser; confirm before destructive actions.",
+			"chrome_act: pass see: refs on navigate, then click the refs from that snapshot; a ref from an older page fails.",
+			"chrome_act: passing see adds a snapshot to the reply and costs extra tokens; ask for it only when the page just changed.",
 			"chrome_act: name the action first, then send only the parameters that action reads.",
 			"chrome_act: batch runs steps in order and stops at the first failure unless the step is optional.",
 		],

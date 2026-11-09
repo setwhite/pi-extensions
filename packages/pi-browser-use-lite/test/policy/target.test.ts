@@ -10,12 +10,10 @@ interface TargetModule {
 	createTarget: (params: {
 		sessionKey?: string;
 		url?: string;
-		background?: boolean;
 	}) => Promise<number>;
 	targetFor: (params: {
 		sessionKey?: string;
 		action?: string;
-		background?: boolean;
 	}) => Promise<number>;
 	cleanupAutomation: (params: {
 		sessionKey?: string;

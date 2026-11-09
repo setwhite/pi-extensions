@@ -203,10 +203,10 @@ it("缺定位方式时报 bad_args", async () => {
 	expect(sent).toStrictEqual([]);
 });
 
-it("AC10: 默认全局规则里有一条讲 see 多花 token", async () => {
-	const { DEFAULTS } = await import("../../../src/config/index.ts");
+it("AC10: chrome_act 的默认规则里有一条讲 see 多花 token", async () => {
+	const { TOOL_SPECS } = await import("../../../src/tools/index.ts");
 
-	const rule = DEFAULTS.prompt.guidelines.find(
+	const rule = TOOL_SPECS.chrome_act.promptGuidelines.find(
 		(line) =>
 			line.includes("chrome_act") &&
 			line.includes("see") &&

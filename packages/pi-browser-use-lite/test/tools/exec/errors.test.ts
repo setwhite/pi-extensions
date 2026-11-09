@@ -50,11 +50,9 @@ it("AC12: 扩展回报的 <class>: 前缀被认出来", () => {
 });
 
 it("AC12: 没写类别的错误归 page_error", () => {
-	expect(
-		classify(new Error("background mode blocks tab.activate")),
-	).toMatchObject({
+	expect(classify(new Error("the tab never loaded"))).toMatchObject({
 		class: "page_error",
-		message: "background mode blocks tab.activate",
+		message: "the tab never loaded",
 	});
 });
 

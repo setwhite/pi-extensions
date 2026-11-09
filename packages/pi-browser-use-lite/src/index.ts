@@ -8,7 +8,10 @@ import type {
 	ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import { Bridge } from "./bridge/index.ts";
-import { createChromeCommand } from "./commands/index.ts";
+import {
+	completeChromeArgument,
+	createChromeCommand,
+} from "./commands/index.ts";
 import { agentDir, HOST_VERSION, loadConfig } from "./config/index.ts";
 import { createSessionPolicy, type SessionPolicy } from "./policy/index.ts";
 import {
@@ -41,7 +44,8 @@ export default function piBrowserUseLite(pi: ExtensionAPI): void {
 	}
 
 	pi.registerCommand("chrome", {
-		description: "authorize, background, or report the bridge state",
+		description: "authorize the tools, or report the bridge state",
+		getArgumentCompletions: completeChromeArgument,
 		handler: async (args, ctx) => {
 			ctx.ui.notify(await chrome.run(args));
 		},
@@ -67,13 +71,6 @@ export default function piBrowserUseLite(pi: ExtensionAPI): void {
 		policy.endSession();
 		await bridge.stop();
 	});
-
-	pi.on("before_agent_start", (event) => {
-		event.systemPromptOptions.promptGuidelines = [
-			...event.systemPromptOptions.promptGuidelines,
-			...config.prompt.guidelines,
-		];
-	});
 }
 
 /**
@@ -88,7 +85,7 @@ function registerable(
 	return {
 		...tool,
 		execute: async (_toolCallId, params, signal, _onUpdate, ctx) => {
-			const denial = policy.check(actionOf(params));
+			const denial = policy.check();
 			if (denial) return errorResult(denial);
 			return await executors.execute(
 				tool.id,
@@ -119,7 +116,3 @@ function createTargetHolder(): SessionTarget {
 }
 
 /** 参数里的动作名。只有 chrome_act 与 chrome_tab 带 action，别的工具给空串。 */
-function actionOf(params: unknown): string {
-	const action = (params as { action?: unknown } | null | undefined)?.action;
-	return typeof action === "string" ? action : "";
-}

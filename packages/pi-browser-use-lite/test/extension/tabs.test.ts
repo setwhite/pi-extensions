@@ -3,15 +3,8 @@ import { stubTabsChrome, type Tab } from "./tabs-stub.ts";
 
 interface TabsModule {
 	listTabs: (params: { sessionKey: string }) => Promise<Tab[]>;
-	newTab: (params: {
-		sessionKey: string;
-		url?: string;
-		background?: boolean;
-	}) => Promise<Tab>;
-	activateTab: (params: {
-		tabId: number;
-		background?: boolean;
-	}) => Promise<Tab>;
+	newTab: (params: { sessionKey: string; url?: string }) => Promise<Tab>;
+	activateTab: (params: { tabId: number }) => Promise<Tab>;
 	navigateTab: (params: {
 		tabId: number;
 		url: string;
@@ -102,18 +95,19 @@ it("AC2: 已有会话窗口时新标签进同一个窗口", async () => {
 	stub.tabs.create.mockResolvedValueOnce({ id: 22, windowId: 9 } as Tab);
 	stub.tabs.get.mockResolvedValueOnce({
 		id: 22,
-		active: false,
+		active: true,
 		windowId: 9,
 		title: "b",
 		url: "https://b/",
 	} as Tab);
 
-	await newTab({ sessionKey: "s1", url: "https://b/", background: true });
+	await newTab({ sessionKey: "s1", url: "https://b/" });
 
+	// 新标签在自己的窗口里就是活动标签：不可见的标签收不到可信输入。
 	expect(stub.tabs.create).toHaveBeenCalledWith({
 		windowId: 9,
 		url: "https://b/",
-		active: false,
+		active: true,
 	});
 	expect(stub.windows.create).not.toHaveBeenCalled();
 });
@@ -160,18 +154,7 @@ it("质量: 两个 sessionKey 各用各的窗口", async () => {
 	expect(stub.store["tabs.windowId.s2"]).toBe(10);
 });
 
-it("AC4: 后台模式 tab.activate 抛错且不调用 tabs.update", async () => {
-	const stub = stubTabsChrome();
-
-	await expect(activateTab({ tabId: 5, background: true })).rejects.toThrow(
-		"background mode",
-	);
-
-	expect(stub.tabs.update).not.toHaveBeenCalled();
-	expect(stub.windows.update).not.toHaveBeenCalled();
-});
-
-it("AC4: 前台模式激活标签，并把它的窗口带到前台", async () => {
+it("AC4: 激活标签，并把它的窗口带到前台", async () => {
 	const stub = stubTabsChrome();
 	stub.tabs.update.mockResolvedValueOnce({
 		id: 5,
@@ -181,7 +164,7 @@ it("AC4: 前台模式激活标签，并把它的窗口带到前台", async () =>
 		url: "https://a/",
 	} as Tab);
 
-	const tab = await activateTab({ tabId: 5, background: false });
+	const tab = await activateTab({ tabId: 5 });
 
 	expect(stub.tabs.update).toHaveBeenCalledWith(5, { active: true });
 	expect(stub.windows.update).toHaveBeenCalledWith(9, { focused: true });

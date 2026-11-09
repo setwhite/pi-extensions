@@ -166,13 +166,11 @@ it("AC8: tab.new 走 createTarget，回标签 id", async () => {
 	const result = await dispatch("tab.new", {
 		sessionKey: "s1",
 		url: "https://a",
-		background: true,
 	});
 
 	expect(target.createTarget).toHaveBeenCalledWith({
 		sessionKey: "s1",
 		url: "https://a",
-		background: true,
 	});
 	expect(result).toEqual({ id: 21 });
 });
@@ -200,7 +198,6 @@ it("AC3: 不带 tabId 时按 targetFor 取 target", async () => {
 	expect(target.targetFor).toHaveBeenCalledWith({
 		sessionKey: "s1",
 		action: "page.snapshot",
-		background: true,
 	});
 	expect(snapshot.snapshotPage).toHaveBeenCalledWith({
 		tabId: 7,
@@ -416,7 +413,7 @@ it("AC4: 其余动作的参数按 wire 表转发", async () => {
 		to: { selector: "#drop" },
 		steps: 10,
 	});
-	await dispatch("tab.activate", { tabId: 9, background: false });
+	await dispatch("tab.activate", { tabId: 9 });
 	await dispatch("tab.close", { tabId: 9 });
 	await dispatch("page.inspect", { sessionKey: "s1", ref: "e12" });
 
@@ -431,10 +428,7 @@ it("AC4: 其余动作的参数按 wire 表转发", async () => {
 		to: { selector: "#drop", x: undefined, y: undefined },
 		steps: 10,
 	});
-	expect(tabs.activateTab).toHaveBeenCalledWith({
-		tabId: 9,
-		background: false,
-	});
+	expect(tabs.activateTab).toHaveBeenCalledWith({ tabId: 9 });
 	expect(tabs.closeTab).toHaveBeenCalledWith({ tabId: 9 });
 	expect(snapshot.elementAt).toHaveBeenCalledWith(7, {
 		ref: "e12",
@@ -448,7 +442,6 @@ it("AC8: tab.new 之后同一会话的 page.snapshot 只问 target，不再建�
 	await dispatch("tab.new", {
 		sessionKey: "s1",
 		url: "https://a",
-		background: true,
 	});
 	await dispatch("page.snapshot", {
 		sessionKey: "s1",

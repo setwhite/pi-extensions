@@ -71,14 +71,11 @@ export const routes = new Map([
 	],
 	[
 		"tab.new",
-		async ({ sessionKey, url, background } = {}) => ({
-			id: await createTarget({ sessionKey, url, background }),
+		async ({ sessionKey, url } = {}) => ({
+			id: await createTarget({ sessionKey, url }),
 		}),
 	],
-	[
-		"tab.activate",
-		({ tabId, background } = {}) => activateTab({ tabId, background }),
-	],
+	["tab.activate", ({ tabId } = {}) => activateTab({ tabId })],
 	["tab.close", ({ tabId } = {}) => closeTab({ tabId })],
 	[
 		"page.navigate",
@@ -205,11 +202,7 @@ function requireTabId(tabId) {
  */
 async function tabIdOf(action, params) {
 	if (params.tabId !== undefined) return requireTabId(params.tabId);
-	return targetFor({
-		sessionKey: params.sessionKey,
-		action,
-		background: true,
-	});
+	return targetFor({ sessionKey: params.sessionKey, action });
 }
 
 /** 指针层的入参：ref 换成元素中心的视口坐标，其余原样。 */

@@ -29,7 +29,6 @@ const TOP_KEYS = [
 	"timing",
 	"output",
 	"screenshot",
-	"prompt",
 	"tools",
 	"guidance",
 ];
@@ -45,7 +44,7 @@ export function buildConfig(
 	const policy = asObject(raw.policy, "policy", errors);
 	checkUnknownKeys(
 		policy,
-		["authorizeOnStart", "background", "closeOwnTabsOnExit"],
+		["authorizeOnStart", "closeOwnTabsOnExit"],
 		"policy",
 		errors,
 	);
@@ -77,12 +76,6 @@ export function buildConfig(
 				policy.authorizeOnStart,
 				DEFAULTS.policy.authorizeOnStart,
 				"policy.authorizeOnStart",
-				errors,
-			),
-			background: readBoolean(
-				policy.background,
-				DEFAULTS.policy.background,
-				"policy.background",
 				errors,
 			),
 			closeOwnTabsOnExit: readBoolean(
@@ -155,7 +148,6 @@ export function buildConfig(
 				RANGES.keepNewest,
 			),
 		},
-		prompt: readPrompt(raw.prompt, errors),
 		tools: readTools(raw.tools, errors),
 		guidance: readGuidance(raw.guidance, errors),
 	};
@@ -220,16 +212,6 @@ function checkUnknownKeys(
 		if (!allowed.includes(key))
 			errors.push(`${path === "" ? key : `${path}.${key}`}: unknown key`);
 	}
-}
-
-function readPrompt(value: unknown, errors: Errors): { guidelines: string[] } {
-	const raw = asObject(value, "prompt", errors);
-	checkUnknownKeys(raw, ["guidelines"], "prompt", errors);
-	const guidelines =
-		raw.guidelines === undefined
-			? [...DEFAULTS.prompt.guidelines]
-			: readStringArray(raw.guidelines, "prompt.guidelines", errors);
-	return { guidelines };
 }
 
 function readGuidance(

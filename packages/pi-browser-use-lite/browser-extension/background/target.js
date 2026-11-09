@@ -18,17 +18,12 @@ export const OWNED_KEY_PREFIX = "target.owned.";
  * @param {object} params
  * @param {string} params.sessionKey 会话标识
  * @param {string} [params.url] 新标签的地址
- * @param {boolean} [params.background] 为 true 时新标签不激活
  * @returns {Promise<number>} 新 target 的标签 id
  */
-export async function createTarget({
-	sessionKey,
-	url,
-	background = false,
-} = {}) {
+export async function createTarget({ sessionKey, url } = {}) {
 	requireSessionKey(sessionKey);
 
-	const tab = await newTab({ sessionKey, url, background });
+	const tab = await newTab({ sessionKey, url });
 	await writeRecord(TARGET_KEY_PREFIX + sessionKey, tab.id);
 	const owned = await readOwned(sessionKey);
 	await writeRecord(OWNED_KEY_PREFIX + sessionKey, [...owned, tab.id]);
@@ -41,14 +36,9 @@ export async function createTarget({
  * @param {string} params.sessionKey 会话标识
  * @param {string} params.action 动作名，决定能不能顺手建 target
  * @param {string} [params.url] 建新标签时的地址
- * @param {boolean} [params.background] 为 true 时新建的标签不激活
  * @returns {Promise<number>} target 标签 id
  */
-export async function targetFor({
-	sessionKey,
-	action,
-	background = false,
-} = {}) {
+export async function targetFor({ sessionKey, action } = {}) {
 	requireSessionKey(sessionKey);
 	if (!action) throw new Error("action is required");
 
@@ -59,7 +49,7 @@ export async function targetFor({
 			`no_target: no automation target for session ${sessionKey}`,
 		);
 
-	return createTarget({ sessionKey, background });
+	return createTarget({ sessionKey });
 }
 
 /**

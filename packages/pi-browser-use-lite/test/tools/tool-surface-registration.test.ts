@@ -1,8 +1,6 @@
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { afterEach, expect, it } from "vitest";
-import { DEFAULTS } from "../../src/config/index.ts";
 import piBrowserUseLite from "../../src/index.ts";
-import { TOOL_SPECS } from "../../src/tools/index.ts";
 import { cleanupConfig, fakeApi, useConfig } from "../helpers/extension-api.ts";
 
 function toolNames(registered: ToolDefinition[]): string[] {
@@ -11,43 +9,19 @@ function toolNames(registered: ToolDefinition[]): string[] {
 
 afterEach(cleanupConfig);
 
-it("AC11: before_agent_start 后 promptGuidelines 等于默认全局规则", () => {
-	useConfig();
-	const { api, startRun } = fakeApi();
-	piBrowserUseLite(api);
-
-	const options = startRun([]);
-	expect(options.promptGuidelines).toStrictEqual(DEFAULTS.prompt.guidelines);
-});
-
-it("AC12: prompt.guidelines 覆盖后只剩它，工具自身规则不受影响", () => {
-	useConfig({ prompt: { guidelines: ["x"] } });
-	const { api, registered, startRun } = fakeApi();
-	piBrowserUseLite(api);
-
-	expect(startRun([]).promptGuidelines).toStrictEqual(["x"]);
-	const act = registered.find((tool) => tool.name === "chrome_act");
-	expect(act?.promptGuidelines).toStrictEqual(
-		TOOL_SPECS.chrome_act.promptGuidelines,
-	);
-});
-
 it("关掉某个工具后，系统提示里不再有点名它的规则", () => {
-	// chrome_act 例外：它是分派器，全局内置规则全部点名它。
 	for (const id of [
+		"chrome_act",
 		"chrome_see",
 		"chrome_tab",
 		"chrome_vision",
 		"chrome_cdp",
 	]) {
 		useConfig({ tools: { [id]: { enabled: false } } });
-		const { api, registered, startRun } = fakeApi();
+		const { api, registered } = fakeApi();
 		piBrowserUseLite(api);
 
-		const rules = [
-			...startRun([]).promptGuidelines,
-			...registered.flatMap((tool) => tool.promptGuidelines ?? []),
-		];
+		const rules = registered.flatMap((tool) => tool.promptGuidelines ?? []);
 		expect(rules.filter((rule) => rule.startsWith(`${id}: `))).toStrictEqual(
 			[],
 		);
