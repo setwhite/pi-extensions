@@ -50,7 +50,8 @@ export interface BridgeResult {
 	id: string;
 	ok: boolean;
 	result?: unknown;
-	error?: string;
+	/** 失败的类别与原因。类别认不出时桥归 `page_error`，原因原样保留。 */
+	error?: { class: ErrorClass; message: string };
 }
 
 /** `POST /command` 的请求体：另一个 Pi 进程把命令转给 owner。 */
@@ -63,7 +64,7 @@ export interface ForwardRequest {
 /** `POST /command` 的响应。失败带类别与消息，转发方据此还原 {@link BridgeError}。 */
 export type ForwardResponse =
 	| { ok: true; result: unknown }
-	| { ok: false; error: { class: BridgeErrorClass; message: string } };
+	| { ok: false; error: { class: ErrorClass; message: string } };
 
 /** `GET /next` 的响应。一次只给一条命令，没有就给 `none`。 */
 export type NextResponse =
@@ -88,35 +89,56 @@ export interface BridgeStatus {
 	extensionVersion?: string;
 }
 
-/** 桥自己会发出的错误类别，取自 SPEC-0001 错误表。 */
-export type BridgeErrorClass =
-	| "bridge_unreachable"
-	| "extension_version"
-	| "timeout"
-	| "page_error"
-	| "aborted";
+/** SPEC-0001 错误表的 12 个类别。命令与结果跨桥时只认这一份。 */
+export const ERROR_CLASSES = [
+	"locked",
+	"bridge_unreachable",
+	"extension_missing",
+	"extension_version",
+	"no_target",
+	"tab_not_found",
+	"tab_ambiguous",
+	"bad_args",
+	"timeout",
+	"cdp_unavailable",
+	"page_error",
+	"aborted",
+] as const;
 
-/**
- * 桥会发出的 5 类错误的下一步动作，取自 SPEC-0001 错误表。
- * 工具层补齐其余 7 类时从这里展开，别抄第二份。
- */
-export const ERROR_HINTS: Record<BridgeErrorClass, string> = {
+export type ErrorClass = (typeof ERROR_CLASSES)[number];
+
+/** 每类的下一步动作，取自 SPEC-0001 错误表。 */
+export const ERROR_HINTS: Record<ErrorClass, string> = {
+	locked: "Run /chrome authorize on",
 	bridge_unreachable: "Run /chrome status, or change bridge.port",
+	extension_missing: "load the unpacked extension, then run /chrome status",
 	extension_version:
 		"wait a second: the extension reloads itself when the versions differ; if it keeps failing, the copy on disk is old",
+	no_target: "run chrome_act navigate or chrome_tab new first",
+	tab_not_found: "run chrome_tab list to see the tab ids",
+	tab_ambiguous: "pass a longer match or a tab id from chrome_tab list",
+	bad_args: "add the missing argument and retry",
 	timeout: "Run /chrome status",
+	cdp_unavailable: "close DevTools or the other debugger on that tab",
 	page_error:
 		"read the first line of the error, then retry or fix the arguments",
 	aborted: "retry if you still need the result",
 };
 
+const ERROR_CLASS_SET: ReadonlySet<string> = new Set(ERROR_CLASSES);
+
+/** 认一个值是不是错误类别。查 Set：原型链上的名字不算。 */
+export function isErrorClass(value: unknown): value is ErrorClass {
+	return typeof value === "string" && ERROR_CLASS_SET.has(value);
+}
+
 /** 一条命令的失败。`details.error` 与工具结果信封里的同名字段形状一致。 */
 export class BridgeError extends Error {
 	readonly details: {
-		error: { class: BridgeErrorClass; message: string; hint: string };
+		error: { class: ErrorClass; message: string; hint: string };
 	};
 
-	constructor(errorClass: BridgeErrorClass, message: string) {
+	constructor(errorClass: ErrorClass, message: string) {
 		super(message);
 		this.name = "BridgeError";
 		this.details = {

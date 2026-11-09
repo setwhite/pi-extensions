@@ -109,7 +109,10 @@ export function startTransport({
 			return {
 				id: command.id,
 				ok: false,
-				error: "timeout: the command expired before the extension started it",
+				error: {
+					class: "timeout",
+					message: "the command expired before the extension started it",
+				},
 			};
 		// 先把同步抛出的错误也变成 rejection，下面统一按一条路径收尾。
 		const work = (async () => dispatch(command.action, command.params))();
@@ -126,13 +129,18 @@ export function startTransport({
 				return {
 					id: command.id,
 					ok: false,
-					error: error instanceof Error ? error.message : String(error),
+					error: failure(
+						error instanceof Error ? error.message : String(error),
+					),
 				};
 			await releaseAll();
 			return {
 				id: command.id,
 				ok: false,
-				error: `timeout: ${command.action} did not finish within ${limit}ms; the debugger was detached, so the page may be half changed`,
+				error: {
+					class: "timeout",
+					message: `${command.action} did not finish within ${limit}ms; the debugger was detached, so the page may be half changed`,
+				},
 			};
 		}
 	}
@@ -166,6 +174,19 @@ export function startTransport({
 
 function sleep(ms) {
 	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * 把一次失败折成桥要的 `{ class, message }`。
+ * 扩展内部沿用 `<class>: ` 前缀（与 src/ 一致），只在这里解析一次；没有前缀就当 page_error 的原因。
+ * 类别表在 src/protocol，桥还会再校验一次：这里认错的类别不会漏到模型手里。
+ * @param {string} message 抛出的消息
+ * @returns {{ class: string, message: string }}
+ */
+function failure(message) {
+	const match = /^([a-z_]+): (.*)$/s.exec(message);
+	if (match === null) return { class: "page_error", message };
+	return { class: match[1], message: match[2] };
 }
 
 /** 到期的标记。用同一个对象比字符串可靠：命令自己也可能抛 "timeout:"。 */

@@ -162,6 +162,8 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 | `POST /command` | 其它 Pi 进程转发命令给 owner |
 | `GET /status` | 报告 owner 的连接状态 |
 
+`POST /result` 的请求体是 `{ id, ok, result?, error? }`。失败时 `error` 是 `{ class, message }`，`class` 取错误表的 12 个之一。桥认不出类别就归 `page_error`，原因原样保留。类别是信封里的数据，不靠解析消息前缀。
+
 串行。同一进程内的命令按发起顺序入队。一次只投递一条：扩展一次 `GET /next` 只取一条。不做并发。`/status` 的在途命令数就是队列长度。超时从入队时刻算，不从扩展取走时刻算。
 
 时限跟着命令走：`/next` 里带 `remainingMs`，等于剩余预算减去 500 毫秒的回传余量。扩展超过这个数就放弃：先摘掉调试器，再回 `timeout:`，轮询接着转。没有它，一次卡住的 CDP 调用能把整个扩展钉死。

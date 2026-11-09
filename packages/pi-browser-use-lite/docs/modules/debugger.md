@@ -4,7 +4,7 @@
 
 ## 取舍
 
-- attach 失败一律加 `cdp_unavailable: ` 前缀：宿主按前缀分类，不加就会归成 `page_error`，而模型该做的是关掉占着调试器的那一方。
+- attach 失败一律加 `cdp_unavailable: ` 前缀：transport 按前缀折进信封，不加就会归成 `page_error`，而模型该做的是关掉占着调试器的那一方。
 
 - attach 缓存只存标签 id。标签 id 在浏览器会话内唯一，不持有 tab 对象。
 - attach 前先看 `chrome.debugger.getTargets`：这个标签上还有残留 target 就先摘掉，再挂。扩展重载后 Chrome 偶尔留着半死的会话，直接挂会报 `Cannot access a chrome-extension:// URL of different extension`。这类失败重试一次（等 180ms），第二次仍失败才抛 `cdp_unavailable`。

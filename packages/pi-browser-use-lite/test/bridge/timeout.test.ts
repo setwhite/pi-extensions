@@ -125,11 +125,32 @@ it("AC6: aborted 的 class 为 aborted，hint 指出可以重试", async () => {
 	expect(error.details.error.hint).toBe("retry if you still need the result");
 });
 
-it("AC6: 扩展回传 ok 为 false 时原样抛出扩展的消息，类别留给 classify 认", async () => {
+it("AC6: 扩展回传 ok 为 false 时原样抛出类别、原因与 hint", async () => {
 	const bridge = await startBridge(1_000);
 	const rejection = catchError(bridge.send("page.evaluate", { js: "boom" }));
 	const { command } = await next(bridge);
 
+	await postResult(bridge, {
+		id: command?.id,
+		ok: false,
+		error: { class: "bad_args", message: "js is required" },
+	});
+
+	const error = await rejection;
+
+	expect(error.details.error).toStrictEqual({
+		class: "bad_args",
+		message: "js is required",
+		hint: "add the missing argument and retry",
+	});
+});
+
+it("AC6: 旧版扩展回字符串时原样抛出，交给前缀解析", async () => {
+	const bridge = await startBridge(1_000);
+	const rejection = catchError(bridge.send("page.evaluate", { js: "boom" }));
+	const { command } = await next(bridge);
+
+	// 升级期间版本号没变时，磁盘上还是旧扩展：它的信封是 `error: "<class>: …"`。
 	await postResult(bridge, {
 		id: command?.id,
 		ok: false,
@@ -138,9 +159,38 @@ it("AC6: 扩展回传 ok 为 false 时原样抛出扩展的消息，类别留给
 
 	const error = await rejection;
 
-	// 桥不加类别，只有原样消息：否则 tools/ 的 classify 会把 bad_args 认成 page_error，还出现双层前缀。
-	expect(error.message).toBe("bad_args: js is required");
 	expect(error instanceof BridgeError).toBe(false);
+	expect(error.message).toBe("bad_args: js is required");
+});
+
+it("AC6: 扩展给的类别认不出时归 page_error", async () => {
+	const bridge = await startBridge(1_000);
+	const rejection = catchError(bridge.send("page.evaluate", { js: "boom" }));
+	const { command } = await next(bridge);
+
+	// 原型链上的名字不算类别：JSON 里的 class 是字符串，不能因此查出个 hint。
+	await postResult(bridge, {
+		id: command?.id,
+		ok: false,
+		error: { class: "toString", message: "boom" },
+	});
+
+	expect((await rejection).details.error.class).toBe("page_error");
+});
+
+it("AC6: 扩展没给原因时给一句兜底，类别仍是 page_error", async () => {
+	const bridge = await startBridge(1_000);
+	const rejection = catchError(bridge.send("page.evaluate", { js: "boom" }));
+	const { command } = await next(bridge);
+
+	await postResult(bridge, { id: command?.id, ok: false });
+
+	const error = await rejection;
+
+	expect(error.details.error.class).toBe("page_error");
+	expect(error.message).toBe(
+		"the extension reported a failure without a message",
+	);
 });
 
 it("超时从入队时刻算，不从扩展取走时刻算", async () => {

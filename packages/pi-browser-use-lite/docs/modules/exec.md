@@ -7,7 +7,7 @@
 - 宿主每条命令都带 `sessionKey`，取 `ctx.sessionManager.getSessionId()`：target 台账在扩展侧、按会话分，宿主没有第二个 id 可用。换会话就换 key，所以 target 自然隔离。
 - `tab` 参数（id、URL 子串、标题子串）在宿主解析成 `tabId`：`tab_not_found` 与 `tab_ambiguous` 的候选文案是模型可见文本，按 ARCHITECTURE §2 只能由 `tools/` 组装。代价是带 `tab` 的一次调用多一条 `tab.list`。
 - 变更量由扩展在同一次动作里给（`changed: { added, removed, updated }`）：diff 与基线都在扩展侧，宿主再发一次快照会把「一次交互」拆成两条命令，且两次快照之间的变化归属不清。
-- 错误分类收在一个 `classify()`：桥抛的 `BridgeError` 认自己的类别，扩展抛的 `<class>: …` 认前缀，其余归 `page_error`。5 类 hint 从 `protocol/` 展开，不抄第二份。
+- 错误分类收在一个 `classify()`：桥抛的 `BridgeError` 认自己的类别，本包里 `fs/` 这类叶子模块抛的 `<class>: …` 认前缀，其余归 `page_error`。12 类类别与 hint 都从 `protocol/` 取，不抄第二份。
 - 从未见过的扩展给 2 秒首次轮询宽限；2 秒后仍没连上就报 `extension_missing`，不等到 30 秒超时。见过但过期的扩展立即报，不白等。
 - `batch` 用一次调用的预算（30 秒）分给各步：每步的超时取剩余时间，超预算就停在当时那一步并报 `timeout`。
 - 截图的落盘函数可注入，默认 `src/fs/` 的实现：扩展只回 base64，写盘与修剪归宿主，测试因此不用碰磁盘。

@@ -221,7 +221,7 @@ it("AC4: dispatch 抛错时回传 ok 为 false 与错误消息", async () => {
 	expect(posted?.body).toEqual({
 		id: "c2",
 		ok: false,
-		error: "injected failure",
+		error: { class: "page_error", message: "injected failure" },
 	});
 });
 
@@ -247,8 +247,11 @@ it("命令到期就不再等它：回 timeout，轮询接着问桥", async () =>
 	expect(posted?.body).toMatchObject({
 		id: "c3",
 		ok: false,
-		error:
-			"timeout: page.navigate did not finish within 20ms; the debugger was detached, so the page may be half changed",
+		error: {
+			class: "timeout",
+			message:
+				"page.navigate did not finish within 20ms; the debugger was detached, so the page may be half changed",
+		},
 	});
 	// 放弃之后循环必须接着转：再问一次桥，而不是卡在放弃的那条命令上。
 	await waitFor(
@@ -278,7 +281,10 @@ it("命令到手时预算已经用完就立刻放弃，不跑 dispatch", async (
 	expect(stub.requests.find((item) => item.path === "/result")?.body).toEqual({
 		id: "c4",
 		ok: false,
-		error: "timeout: the command expired before the extension started it",
+		error: {
+			class: "timeout",
+			message: "the command expired before the extension started it",
+		},
 	});
 });
 

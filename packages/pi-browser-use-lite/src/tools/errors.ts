@@ -1,24 +1,16 @@
 /**
- * 错误类别的唯一来源：SPEC-0001 错误表的 12 类、每类的 hint、以及从异常认出类别。
- * 桥会发出的 5 类 hint 取自 protocol/，这里只补其余 7 类。
+ * 从异常认出错误类别。类别表与 hint 在 protocol/，这里只做识别。
+ * 消息前缀 `<class>: ` 是本包内部的约定：fs/ 这类叶子模块抛不出带类型的错误。
  */
 
-import { BridgeError, ERROR_HINTS } from "../protocol/index.ts";
+import {
+	BridgeError,
+	ERROR_HINTS,
+	type ErrorClass,
+	isErrorClass,
+} from "../protocol/index.ts";
 
-/** SPEC-0001 错误表的 12 个类别。 */
-export type ErrorClass =
-	| "locked"
-	| "bridge_unreachable"
-	| "extension_missing"
-	| "extension_version"
-	| "no_target"
-	| "tab_not_found"
-	| "tab_ambiguous"
-	| "bad_args"
-	| "timeout"
-	| "cdp_unavailable"
-	| "page_error"
-	| "aborted";
+export type { ErrorClass };
 
 /** 一次失败的形状，与工具结果的 `details.error` 一致。 */
 export interface ErrorInfo {
@@ -27,21 +19,9 @@ export interface ErrorInfo {
 	hint: string;
 }
 
-/** 每类的下一步。桥那 5 类来自 protocol/，其余 7 类在这里。 */
-const HINTS: Record<ErrorClass, string> = {
-	...ERROR_HINTS,
-	locked: "Run /chrome authorize on",
-	extension_missing: "load the unpacked extension, then run /chrome status",
-	no_target: "run chrome_act navigate or chrome_tab new first",
-	tab_not_found: "run chrome_tab list to see the tab ids",
-	tab_ambiguous: "pass a longer match or a tab id from chrome_tab list",
-	bad_args: "add the missing argument and retry",
-	cdp_unavailable: "close DevTools or the other debugger on that tab",
-};
-
 /** 用类别与原因造一条失败，hint 从表里取。 */
 export function errorInfo(errorClass: ErrorClass, message: string): ErrorInfo {
-	return { class: errorClass, message, hint: HINTS[errorClass] };
+	return { class: errorClass, message, hint: ERROR_HINTS[errorClass] };
 }
 
 /**
@@ -59,9 +39,4 @@ export function classify(cause: unknown): ErrorInfo {
 		return errorInfo(match[1], match[2]);
 	}
 	return errorInfo("page_error", message);
-}
-
-function isErrorClass(value: string): value is ErrorClass {
-	// in 会命中原型链：constructor、__proto__ 会被当成类别。
-	return Object.hasOwn(HINTS, value);
 }

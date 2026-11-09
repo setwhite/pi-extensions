@@ -9,4 +9,4 @@
 - 哪些动作算「改了页面」由代码里的 `CHANGED_ACTIONS` 定，这一层只负责在动作前后各拍一次快照；两边各写一遍名单只会漂。
 - `OPENING_ACTIONS` 里的四个动作（点、输入、填、按键）在前后各查一次目标窗口的标签 id：点链接与回车提交都可能走 `target=_blank`，此时目标标签自己的 URL 不变，不比就只剩「动作没生效」这一种解释。没多出标签就不带 `opened` 字段。
 - `ref` 换成坐标也在这一层（`page.click`、`page.hover`、`page.drag` 与 `page.fill` 的每个字段）：指针层只认 `selector` 或 `x`+`y`，rect 只有快照拿得到。折叠线外的元素先滚到视口中心再读 rect，所以 `page.fill` 的字段挂一个 `locate`，在每次点击前才解坐标：批量解完会让先解析的坐标因滚动而失效。
-- 报错原样上抛，不包 `{ ok: false }`：信封归 `transport.js`，分类归宿主的 `classify()`。这一层只保留 `<class>: ` 前缀。
+- 报错原样上抛，不包 `{ ok: false }`：信封归 `transport.js`。这一层只保留 `<class>: ` 前缀，类别由 transport 折进信封。
