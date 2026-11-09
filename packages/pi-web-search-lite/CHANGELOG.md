@@ -2,6 +2,10 @@
 
 本文件记录已发布版本的用户可见变更。更细的过程见 git log。0.x 期间破坏性变更走 minor 号，条目里标 **BREAKING**。
 
+## 0.12.0 — 2026-11-09
+
+- **BREAKING**：`promptSnippet` 默认不再发送。工具列表里的一行不再出现。此前默认发 `Search the web` 与 `Extract URL text`。这一行与 `promptGuidelines` 重复。另三个扩展本就不发。需要时用 `guidance.<tool>.promptSnippet` 覆盖。
+
 ## 0.11.1 — 2026-11-03
 
 - 发布：`CHANGELOG.md` 进 `files`。此前 tarball 里没有它，pi 更新扩展后看不到变更。本版起补上。首次更新到本版时，"Extension Updates" 下只有这一条。
