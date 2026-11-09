@@ -37,6 +37,8 @@ export function cleanupConfig(): void {
 export interface FakeApi {
 	api: ExtensionAPI;
 	registered: ToolDefinition[];
+	/** 当前活动集：注册时按 `defaultActive` 初始化，之后跟着 `setActiveTools` 变。 */
+	activeTools: string[];
 	/** 一条已注册命令的注册项，用来读 `getArgumentCompletions`。 */
 	commandOptions: (
 		name: string,
@@ -50,6 +52,7 @@ export interface FakeApi {
 /** 只记注册项、命令与 `session_shutdown` 的假 `ExtensionAPI`。 */
 export function fakeApi(): FakeApi {
 	const registered: ToolDefinition[] = [];
+	const activeTools: string[] = [];
 	const commands = new Map<string, (args: string) => Promise<string>>();
 	const commandOptions = new Map<
 		string,
@@ -57,7 +60,14 @@ export function fakeApi(): FakeApi {
 	>();
 	const shutdowns: Array<(...args: unknown[]) => unknown> = [];
 	const api = {
-		registerTool: (tool: ToolDefinition) => void registered.push(tool),
+		registerTool: (tool: ToolDefinition) => {
+			registered.push(tool);
+			if (tool.defaultActive !== false) activeTools.push(tool.name);
+		},
+		getActiveTools: () => [...activeTools],
+		setActiveTools: (names: string[]) => {
+			activeTools.splice(0, activeTools.length, ...names);
+		},
 		// 签名取自 SDK：它改了这里就跟着红，不用手抄。
 		registerCommand: (
 			name: string,
@@ -83,6 +93,7 @@ export function fakeApi(): FakeApi {
 	return {
 		api: api as unknown as ExtensionAPI,
 		registered,
+		activeTools,
 		commandOptions: (name) => commandOptions.get(name),
 		runCommand: async (name, args) => {
 			const run = commands.get(name);

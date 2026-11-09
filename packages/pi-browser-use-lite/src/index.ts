@@ -39,8 +39,14 @@ export default function piBrowserUseLite(pi: ExtensionAPI): void {
 	});
 	const executors = createExecutors({ bridge, config, target });
 
-	for (const tool of buildSurface(config.tools, config.guidance)) {
-		pi.registerTool(registerable(tool, policy, executors));
+	const surface = buildSurface(config.tools, config.guidance);
+	const toolNames = surface.map((tool) => tool.name);
+	for (const tool of surface) {
+		// 未授权时不注册为活动工具：模型工具表与 codemode 的 ALL_TOOLS 里都不会出现。
+		pi.registerTool({
+			...registerable(tool, policy, executors),
+			defaultActive: config.policy.authorizeOnStart,
+		});
 	}
 
 	pi.registerCommand("chrome", {
@@ -48,6 +54,7 @@ export default function piBrowserUseLite(pi: ExtensionAPI): void {
 		getArgumentCompletions: completeChromeArgument,
 		handler: async (args, ctx) => {
 			ctx.ui.notify(await chrome.run(args));
+			syncToolVisibility(pi, policy, toolNames);
 		},
 	});
 
@@ -71,6 +78,23 @@ export default function piBrowserUseLite(pi: ExtensionAPI): void {
 		policy.endSession();
 		await bridge.stop();
 	});
+}
+
+/**
+ * 授权状态决定工具是否可见。off 时把本包的工具摘出活动集，
+ * 模型工具表、codemode 描述与 `ALL_TOOLS` 一起消失；on 时挂回去。
+ */
+function syncToolVisibility(
+	pi: ExtensionAPI,
+	policy: SessionPolicy,
+	names: readonly string[],
+): void {
+	const active = new Set(pi.getActiveTools());
+	for (const name of names) {
+		if (policy.authorized) active.add(name);
+		else active.delete(name);
+	}
+	pi.setActiveTools([...active]);
 }
 
 /**
