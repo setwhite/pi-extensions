@@ -144,9 +144,10 @@ Both projects are open source. Thank you for the code.
 
 | Document | Content |
 |---|---|
-| [docs/adr/](docs/adr/) | Choices and what the extension does not do |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Modules and dependency direction |
-| [docs/GLOSSARY.md](docs/GLOSSARY.md) | Terms |
+| [ARCHITECTURE](docs/ARCHITECTURE.md) | Modules and dependency direction |
+| [GLOSSARY](docs/GLOSSARY.md) | Terms |
+| [Modules](docs/modules/) | Trade-offs and traps per module |
+| [ADR](docs/adr/) | Choices and what the extension does not do |
 | [CHANGELOG.md](CHANGELOG.md) | Release notes |
 
 ## License

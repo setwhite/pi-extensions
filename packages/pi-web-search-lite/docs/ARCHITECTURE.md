@@ -1,4 +1,4 @@
-# pi-web-search-lite — ARCHITECTURE
+# 架构 · pi-web-search-lite
 
 本文件写模块职责与对外契约边界。模块内部的签名、字段、异常以代码与测试为准，本文不复述。
 
@@ -64,7 +64,6 @@ tools/{search,fetch}.ts ─→ tools/result.ts（宿主截断工具） / tools/r
 |---|---|---|
 | 根 `README.md`（英文）/ `README.zh-CN.md`（中文镜像） | 是什么、功能、安装、配置、用法、参考项目、文档指针 | 选型理由、模块签名、开发命令 |
 | `CHANGELOG.md` | 各发布版本的用户可见变更 | 契约与理由 |
-| `docs/todos/` | 任务台账与阶段表：规则、状态、验收证据 | 契约与理由 |
 | `docs/adr/`（一条一文件） | 背景、决定了什么、为什么、不做什么 | 字段表、契约细节 |
 | `docs/ARCHITECTURE.md` | 模块划分、依赖方向、目录 / 测试 / 文档约定 | 模块内部签名与字段 |
 | `docs/GLOSSARY.md` | 本扩展特有术语的唯一命名来源 | 实现细节 |

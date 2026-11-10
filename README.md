@@ -1,19 +1,22 @@
 # pi-extensions
 
-四个独立发布的 pi 扩展。
+四个独立发布的 pi 扩展。装哪个都行，互不依赖。
 
-| 包 | 做什么 |
-|---|---|
-| [`pi-web-search-lite`](packages/pi-web-search-lite) | `web_search` + `web_fetch`，可配 provider 与抓取链 |
-| [`pi-todo-lite`](packages/pi-todo-lite) | 编辑器上方一张有序任务表 |
-| [`pi-herdr-subagents-lite`](packages/pi-herdr-subagents-lite) | 在 herdr 分格里跑 pi 子代理 |
-| [`pi-browser-use-lite`](packages/pi-browser-use-lite) | 5 个 `chrome_*` 工具，经本地桥驱动你已登录的真实浏览器 |
+| 包 | 做什么 | 额外要求 |
+|---|---|---|
+| [`pi-web-search-lite`](packages/pi-web-search-lite) | `web_search` + `web_fetch`，可配 provider 与抓取链 | 一个搜索源的 key |
+| [`pi-todo-lite`](packages/pi-todo-lite) | 输入框上方一张有序任务表 | 无 |
+| [`pi-herdr-subagents-lite`](packages/pi-herdr-subagents-lite) | 在 herdr 分格里跑 pi 子代理 | herdr，父会话跑在 pane 里 |
+| [`pi-browser-use-lite`](packages/pi-browser-use-lite) | 5 个 `chrome_*` 工具，经本地桥驱动你已登录的真实浏览器 | Chromium 系浏览器，手动加载扩展 |
 
 ## 安装
 
-四个包都用 `pi install npm:<包名>` 安装。包名见上表。
+```sh
+pi install npm:<包名>              # 包名见上表
+pi install ./packages/pi-todo-lite # 从工作区装，不经过 npm
+```
 
-只能从 npm 安装。pi 的 git 安装只认仓库根，指不到子目录。
+pi 的 git 安装只认仓库根，指不到子目录。所以发布版只能从 npm 装。
 
 ## 开发
 
@@ -59,8 +62,6 @@ export PI_E2E_MODEL=<model> # herdr e2e 换模型
 export PI_E2E_KEEP=1        # 保留 e2e 临时目录
 ```
 
-从工作区直接安装扩展，不经过 npm：`pi install ./packages/pi-todo-lite`。
-
 ### 钩子与 CI
 
 CI 在 Linux（Node 22 / 24）与 Windows（Node 22）上跑同样四条，见 [ci.yml](.github/workflows/ci.yml)。
@@ -75,7 +76,17 @@ git config core.hooksPath .githooks # 启用提交钩子，钩子跑同样四条
 
 ## 文档
 
-| 位置 | 内容 |
-|---|---|
-| `packages/<包名>/docs/` | 该包的架构、术语、模块与 ADR。不在 npm 包里，只在 GitHub 可读。 |
-| [docs/adr/](docs/adr/) | 仓库级决策：为什么合并，为什么不抽共享包。 |
+每个包的 `docs/` 跟代码同仓，不进 npm 包，只在 GitHub 读。
+
+| 位置 | 写什么 | web-search | todo | herdr | browser-use |
+|---|---|---|---|---|---|
+| `docs/ARCHITECTURE.md` | 模块、依赖方向、测试 seam | ✓ | ✓ | ✓ | ✓ |
+| `docs/GLOSSARY.md` | 术语的唯一命名来源 | ✓ | ✓ | ✓ | ✓ |
+| `docs/modules/` | 单模块的取舍与坑 | ✓ | — | ✓ | ✓ |
+| `docs/adr/` 或 `docs/decisions/` | 一条决策一份文件 | `adr/` | ✓ | ✓ | ✓ |
+| `docs/specs/` | 对外契约 | — | ✓ | ✓ | ✓ |
+| `docs/research/` | 外部实测记录 | — | — | ✓ | ✓ |
+
+仓库级决策在 [docs/adr/](docs/adr/)：为什么合并成一个仓库。
+
+约定：README 有中英两版。`docs/` 用中文。模型可见文案用英文。

@@ -144,9 +144,10 @@ key 也可以放在环境变量中：`TAVILY_API_KEY` / `BRAVE_API_KEY` / `EXA_A
 
 | 文档 | 内容 |
 |---|---|
-| [docs/adr/](docs/adr/) | 选型与「不做什么」 |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 模块划分与依赖方向 |
-| [docs/GLOSSARY.md](docs/GLOSSARY.md) | 术语表 |
+| [ARCHITECTURE](docs/ARCHITECTURE.md) | 模块划分与依赖方向 |
+| [GLOSSARY](docs/GLOSSARY.md) | 术语表 |
+| [Modules](docs/modules/) | 每个模块的取舍与坑 |
+| [ADR](docs/adr/) | 选型与「不做什么」 |
 | [CHANGELOG.md](CHANGELOG.md) | 发布记录 |
 
 ## License

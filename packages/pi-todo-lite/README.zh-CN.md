@@ -23,7 +23,7 @@ pi install npm:pi-todo-lite
 
 ## 配置
 
-配置文件是 `<agent dir>/pi-todo/config.json`。`<agent dir>` 取 `$PI_CODING_AGENT_DIR`。变量未设置时，取 `~/.pi/agent`。
+配置文件是 `<agent dir>/pi-todo/config.json`。`<agent dir>` 取 `$PI_CODING_AGENT_DIR`。变量未设置时，取 `~/.pi/agent`。目录名是 `pi-todo`，不是包名。
 
 扩展只读这个文件。扩展从不写这个文件。文件不存在时，全部用默认值。
 
@@ -87,13 +87,16 @@ pi install npm:pi-todo-lite
 
 `/todos` 有参数补全。开始输入 `clear`、`export` 或 `import` 时列表弹出。Tab 收下当前项。`/todos import ` 之后列会话目录下的文件与目录。目录带 `/`。带空格的路径自动加引号。
 
+别的扩展也可能注册 `/todos`，例如 `@ssk_dev/rpiv-todo-lean`。两个都装时先卸一个。工具名可改，命令名不可改。
+
 ## 文档
 
 | 文档 | 内容 |
 |---|---|
-| [docs/specs/0001-pi-todo-lite.md](docs/specs/0001-pi-todo-lite.md) | 契约与验收 |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 模块与依赖方向 |
-| [docs/GLOSSARY.md](docs/GLOSSARY.md) | 术语表 |
+| [ARCHITECTURE](docs/ARCHITECTURE.md) | 模块与依赖方向 |
+| [GLOSSARY](docs/GLOSSARY.md) | 术语表 |
+| [Spec](docs/specs/0001-pi-todo-lite.md) | 契约与验收 |
+| [Decisions](docs/decisions/) | 一条决策一份文件 |
 | [CHANGELOG.md](CHANGELOG.md) | 发布记录 |
 
 ## License

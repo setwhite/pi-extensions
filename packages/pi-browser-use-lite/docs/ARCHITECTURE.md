@@ -1,4 +1,4 @@
-# pi-browser-use-lite — ARCHITECTURE
+# 架构 · pi-browser-use-lite
 
 本文件写模块职责、允许的依赖方向与测试 seam。模块内部签名与字段以代码与测试为准。
 
@@ -89,7 +89,6 @@
 | `docs/ARCHITECTURE.md` | 模块职责、依赖方向、目录与测试约定、seam 清单、本表 | 模块内部签名与字段 |
 | `docs/GLOSSARY.md` | 术语的唯一命名来源 | 实现细节 |
 | `docs/decisions/` | 背景、决定了什么、为什么、砍了什么 | 字段表、契约细节 |
-| `docs/rfc/` | 架构变更提案：问题、选项、迁移步骤、验收与风险 | 已批准的决策理由（写在 `decisions/`） |
 | `docs/research/` | 外部世界的实测数据 | 本包的契约与决策 |
 | `docs/modules/<module>.md` | 该模块的取舍、坑与指针 | 其它模块的内容；代码或测试已表达的 API、契约、默认值 |
 | `CHANGELOG.md` | 各版本的用户可见变更 | 契约与理由 |

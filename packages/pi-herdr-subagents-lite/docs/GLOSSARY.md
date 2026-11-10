@@ -1,4 +1,4 @@
-# GLOSSARY
+# 术语 · pi-herdr-subagents-lite
 
 | 术语 | 指什么 | 不是什么 |
 |---|---|---|

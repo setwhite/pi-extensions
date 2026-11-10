@@ -167,10 +167,12 @@ Thank you for the code.
 
 | Document | Content |
 |---|---|
-| [docs/specs/0001-v1-contract.md](docs/specs/0001-v1-contract.md) | The v1 contract |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Module boundaries, dependency direction, test seams |
-| [docs/modules/](docs/modules/) | Usage and trade-offs per module |
-| [docs/GLOSSARY.md](docs/GLOSSARY.md) | The only source for terms |
+| [ARCHITECTURE](docs/ARCHITECTURE.md) | Module boundaries, dependency direction, test seams |
+| [GLOSSARY](docs/GLOSSARY.md) | The only source for terms |
+| [Modules](docs/modules/) | Usage and trade-offs per module |
+| [Decisions](docs/decisions/) | One file per decision |
+| [Spec](docs/specs/0001-v1-contract.md) | The v1 contract |
+| [Research](docs/research/) | Measurements of herdr and pi |
 | [CHANGELOG.md](CHANGELOG.md) | Release notes |
 
 ## License

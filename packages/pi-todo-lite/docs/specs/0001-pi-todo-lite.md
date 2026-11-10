@@ -77,7 +77,7 @@
 
 ## 不做的
 
-- 项目级持久化（跨会话、跨 cwd 的存储）。跨天的清单归 `docs/todos/`。
+- 项目级持久化（跨会话、跨 cwd 的存储）。
 - nudge 与 steer（理由见 [`D03`](../decisions/D03-no-nudge.md)）、status line。
 - 自定义 `renderCall` / `renderResult`、`prepareArguments` 容错层、日志与调试开关。
 - 子代理看板、`key` / `baseVersion`、i18n。
@@ -93,6 +93,6 @@
 - **交付形态**：npm 包 `pi-todo-lite`，MIT 许可，作者 setwhite。包内有什么由 `package.json` 的 `files` 决定。`test/package.test.ts` 守住。
 - **已知偏差与口径**：
   - markdown 只有两态：`in_progress` 导出成 `- [ ]`，读回变 `pending`（`Todo 0/3 · 1 doing` → `Todo 0/3`）。
-  - `/todos` 与本机的 `@ssk_dev/rpiv-todo-lean` 撞名。改命令名要动 `src/index.ts` 与 README 的用法说明。待办登记在 `docs/todos/`。
+  - `/todos` 与别的扩展同名的命令撞名（例如 `@ssk_dev/rpiv-todo-lean`）。两个都装时先卸一个。改命令名要动 `src/index.ts` 与 README 的用法说明。
   - headless（`-p`）下 `ctx.hasUI` 为 false。widget 只能真 TUI 验。winpty 退出码 58 是 `/exit` 之后 pi 的退出码，不是扩展报错。宿主另有 `MAX_WIDGET_LINES = 10`。
   - 真机 TUI 抓包里样式序列计数为 0。pi 的样式走 chalk，抓包时 stdout 是管道、chalk level 0。不是没生效。可见效果要在真人终端看。

@@ -131,6 +131,8 @@ Both projects are open source. Thank you for the code.
 | [ARCHITECTURE](docs/ARCHITECTURE.md) | Module boundaries and seams; read it before changing the structure |
 | [GLOSSARY](docs/GLOSSARY.md) | One name per concept |
 | [Modules](docs/modules/) | Trade-offs and traps per module |
+| [Spec](docs/specs/0001-tool-surface.md) | Tools, params, error classes, result envelope |
+| [Research](docs/research/) | Tool-surface cost measurements |
 | [Decisions](docs/decisions/) | Why the shape is what it is |
 
 ## Development

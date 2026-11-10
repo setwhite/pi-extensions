@@ -46,3 +46,16 @@
 `formatTasks` 的进度行与 widget 表头各一份模板。`describe` / `echo` 在 `config.ts` 与 `plan.ts` 各一份。重复到第三次再抽。
 
 README 的配置示例故意抄一份 `DEFAULTS`。`test/docs.test.ts` 逐字对账。用户不读源码，漂移靠测试拦（见 [`D04`](decisions/D04-config-read-only.md)）。
+
+## 文档职责
+
+| 文件 | 只写 | 不写 |
+|---|---|---|
+| `README.md` / `README.zh-CN.md` | 是什么、功能、安装、配置、用法 | 模块签名、决策理由 |
+| `docs/specs/0001-pi-todo-lite.md` | 契约：用户故事、协议、验收表、不做的清单 | 字段表、模块划分 |
+| `docs/ARCHITECTURE.md` | 模块、依赖方向、放置规则、不变量、本表 | 字段表、决策理由 |
+| `docs/decisions/` | 背景、定成什么、为什么、代价 | 字段表、契约细节 |
+| `docs/GLOSSARY.md` | 术语的唯一命名来源 | 实现细节 |
+| `CHANGELOG.md` | 各版本的用户可见变更 | 契约与理由 |
+
+内容归属冲突时以本表裁决。跨文档只允许指针，不允许复述。

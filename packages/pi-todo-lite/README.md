@@ -23,7 +23,7 @@ The old repository moved into this monorepo. Install from npm.
 
 ## Configuration
 
-The config file is `<agent dir>/pi-todo/config.json`. `<agent dir>` is `$PI_CODING_AGENT_DIR`. If `$PI_CODING_AGENT_DIR` is unset, the agent dir is `~/.pi/agent`.
+The config file is `<agent dir>/pi-todo/config.json`. `<agent dir>` is `$PI_CODING_AGENT_DIR`. If `$PI_CODING_AGENT_DIR` is unset, the agent dir is `~/.pi/agent`. The directory is `pi-todo`, not the package name.
 
 The extension only reads this file. The extension never writes this file. Without the file, all values are defaults.
 
@@ -87,13 +87,16 @@ A completed table stays on screen. The table clears when you send the next messa
 
 `/todos` completes its arguments. Start typing `clear`, `export` or `import` and the list pops up. Press Tab to take the entry. After `/todos import `, the list shows the files and directories in the session directory. A directory ends with `/`. A path with spaces gets quotes.
 
+Another extension may register `/todos` too, for example `@ssk_dev/rpiv-todo-lean`. Remove one of them. The tool name is configurable; the command name is not.
+
 ## Docs
 
 | Document | Content |
 |---|---|
-| [docs/specs/0001-pi-todo-lite.md](docs/specs/0001-pi-todo-lite.md) | Contract and acceptance criteria |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Modules and dependency direction |
-| [docs/GLOSSARY.md](docs/GLOSSARY.md) | Terms |
+| [ARCHITECTURE](docs/ARCHITECTURE.md) | Modules and dependency direction |
+| [GLOSSARY](docs/GLOSSARY.md) | Terms |
+| [Spec](docs/specs/0001-pi-todo-lite.md) | Contract and acceptance criteria |
+| [Decisions](docs/decisions/) | One file per decision |
 | [CHANGELOG.md](CHANGELOG.md) | Release notes |
 
 ## License

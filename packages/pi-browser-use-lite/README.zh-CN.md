@@ -131,6 +131,8 @@ pi install npm:pi-browser-use-lite
 | [ARCHITECTURE](docs/ARCHITECTURE.md) | 模块边界与 seam；改结构之前先读它 |
 | [GLOSSARY](docs/GLOSSARY.md) | 一个概念只用一个词 |
 | [Modules](docs/modules/) | 每个模块的取舍与坑 |
+| [Spec](docs/specs/0001-tool-surface.md) | 工具、参数、错误类别、结果信封 |
+| [Research](docs/research/) | 工具面成本实测 |
 | [Decisions](docs/decisions/) | 为什么是这个形状 |
 
 ## 开发

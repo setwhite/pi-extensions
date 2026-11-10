@@ -1,4 +1,4 @@
-# 架构
+# 架构 · pi-herdr-subagents-lite
 
 本包是最小 package：package 根就是仓库工作目录，`src/` 放模块，`test/` 放测试，`docs/` 放文档。只做 herdr。按职责分模块，不按 controller / service / adapter 分层。
 

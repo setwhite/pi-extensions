@@ -1,4 +1,4 @@
-# pi-web-search-lite 术语表
+# 术语 · pi-web-search-lite
 
 本文件是本扩展特有概念的唯一命名来源。通用词（timeout、HTTP 状态码）不收。这里只说是什么。怎么做看代码与测试。取舍与坑看 `docs/modules/`。
 

@@ -167,10 +167,12 @@ cd <agent-dir>/pi-herdr-subagents-lite/profiles && cp examples/worker.md worker.
 
 | 文档 | 内容 |
 |---|---|
-| [docs/specs/0001-v1-contract.md](docs/specs/0001-v1-contract.md) | v1 契约 |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 模块边界、依赖方向、测试 seam |
-| [docs/modules/](docs/modules/) | 各模块的用法与取舍 |
-| [docs/GLOSSARY.md](docs/GLOSSARY.md) | 术语唯一来源 |
+| [ARCHITECTURE](docs/ARCHITECTURE.md) | 模块边界、依赖方向、测试 seam |
+| [GLOSSARY](docs/GLOSSARY.md) | 术语唯一来源 |
+| [Modules](docs/modules/) | 各模块的用法与取舍 |
+| [Decisions](docs/decisions/) | 一条决策一份文件 |
+| [Spec](docs/specs/0001-v1-contract.md) | v1 契约 |
+| [Research](docs/research/) | herdr 与 pi 的实测记录 |
 | [CHANGELOG.md](CHANGELOG.md) | 发布记录 |
 
 ## License
