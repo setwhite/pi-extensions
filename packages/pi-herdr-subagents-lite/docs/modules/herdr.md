@@ -5,10 +5,10 @@
 ## 调用
 
 - `workspace create` 返回 workspace、初始 tab 与 root pane。跨 cwd 的 run 直接复用这套结果，再 `tab rename` 把初始 tab 的 label 从序号改成 `name`。不追加第二个 tab（[实测](../research/0004-herdr-workspace-create.md)）。关掉 workspace 的最后一个 tab 后，herdr 移除该 workspace。
-- `workspace create` 与 `tab create` 都收 `--env`。每个 run 显式传 `PI_SUBAGENT_AUTO_EXIT`，不靠继承（DEC-0056）。
+- `workspace create` 与 `tab create` 不传 `--env`。子代理用自己的 session 主名拼 run 基名，不靠环境变量找（DEC-0062）。
 - 启动只有 `agent start` 一步。它在子代理 idle 时才算就绪，命令自身 30s 上限。brief 不放进启动 argv，也不打字进输入框。它是 inbox 的第一条消息，且在 `agent start` 返回后才入队（DEC-0023、DEC-0026）。
 - 关闭只发 `pane close <paneId>`，不先读 tab 快照。`pane_not_found` 视为已关掉。关掉 tab 的最后一个 pane 时 herdr 自己移除 tab（DEC-0060，[实测](../research/0006-herdr-pane-close.md)）。
-- `listAgents` 一拍一次调用覆盖所有 agent，比按 run 逐个查省掉 N-1 次进程启动。字段依据见 [agent list 实测](../research/0002-herdr-agent-list.md)。
+- `listAgents` 一次调用覆盖所有 agent。父侧只在存活对账与 send 前查它，不再当结果来源。字段依据见 [agent list 实测](../research/0002-herdr-agent-list.md)。
 
 ## 错误
 

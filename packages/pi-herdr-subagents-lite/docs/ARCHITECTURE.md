@@ -18,11 +18,12 @@
 |---|---|---|---|
 | `index.ts` | composition root：构造真实依赖、写入示例 profile、导出扩展 | `default` | — |
 | [`error`](modules/error.md) | 把 `unknown` 错误转成文本 | `errorText` | `index.ts` |
-| [`extension`](modules/extension.md) | pi 装配：注册工具，挂 `session_start` / `session_shutdown`，子侧 inbox 泵，退出回执，父会话收尾 | `createExtension`、`ExtensionDeps`、`ExtensionRegistrar`、`SessionContext`、`SubagentTool` | `index.ts` `auto-exit.ts` `shutdown.ts` |
+| [`extension`](modules/extension.md) | pi 装配：注册工具，挂 `session_start` / `session_shutdown`，子侧 inbox 泵与回合上报，父会话收尾 | `createExtension`、`ExtensionDeps`、`ExtensionRegistrar`、`SessionContext`、`SubagentTool` | `index.ts` `report.ts` `shutdown.ts` |
 | [`tool`](modules/tool.md) | 模型面：参数 schema、文案、错误渲染、结果消息信封 | `createTool`、`SubagentTool`、`sendResults`、`ResultMessage` | `index.ts` `schema.ts` `text.ts` `errors.ts` `message.ts` |
-| [`run`](modules/run.md) | run 生命周期：槽位、命名、启动、轮询、结果、聚合、send、关闭 | `createRunService`、`ToolError`、`profileLabel`、`RunService`、`RunServiceDeps`、`RunStarted`、`SendResult`、`RunResult`、`UnknownReason`、`ResultHandler`、`CloseChildrenResult`、`AUTO_EXIT_ENV`、`runBaseOf`、`runsDir`、`childSessionsDir` | `index.ts` `start.ts` `slot.ts` `naming.ts` `resolve.ts` `truncate.ts` `spawn-args.ts` `paths.ts` `pane.ts` `poll.ts` `poll-result.ts` `result.ts` `send.ts` `state.ts` `errors.ts` `close.ts` `find.ts` `aggregate.ts` `artifact.ts` |
+| [`run`](modules/run.md) | run 生命周期：槽位、命名、启动、回合结算、存活、send、关闭 | `createRunService`、`ToolError`、`profileLabel`、`RunService`、`RunServiceDeps`、`RunStarted`、`SendResult`、`RunResult`、`ResultHandler`、`CloseChildrenResult`、`runBaseOf`、`runsDir`、`childSessionsDir` | `index.ts` `start.ts` `slot.ts` `naming.ts` `resolve.ts` `truncate.ts` `spawn-args.ts` `paths.ts` `pane.ts` `settle.ts` `watch.ts` `result.ts` `send.ts` `state.ts` `errors.ts` `close.ts` `find.ts` `aggregate.ts` `artifact.ts` |
 | [`herdr`](modules/herdr.md) | herdr CLI 端口 | `HerdrHost`、`createHerdrHost`、`HerdrHostError`、`AgentSnapshot`、`AgentEntry`、`StartAgentInput` | `index.ts` `cli.ts` `agent.ts` `pane.ts` |
-| [`session-file`](modules/session-file.md) | session 与 run 基名上的文件：最后一条 assistant、`.exit` 回执 | `readLastAssistant`、`SessionReader`、`SessionRead`、`readExitReceipt`、`ExitReceiptReader`、`writeExitReceipt`、`ExitReceiptWriter`、`ExitReceipt` | `index.ts` `jsonl.ts` `tail.ts` `receipt.ts` |
+| [`turn`](modules/turn.md) | 回合事件：判定、原子读写、消费 | `classifyTurn`、`lastTurnOf`、`nextTurn`、`writeTurn`、`readTurn`、`listTurns`、`removeTurn`、`turnsDir`、`Turn`、`TurnOutcome`、`TurnEntry`、`TurnSlice` | `index.ts` |
+| [`session-file`](modules/session-file.md) | 读子 session 尾部，只判断 send 前有没有未完成的工具调用 | `readSessionTail`、`SessionTail`、`SessionTailReader` | `index.ts` `jsonl.ts` `tail.ts` |
 | [`inbox`](modules/inbox.md) | `<runBase>.inbox/` 文件协议与子侧泵 | `createInbox`、`enqueue`、`drain`、`hasInbox`、`inboxCount`、`removeInbox`、`pumpInbox` | `index.ts` `pump.ts` |
 | [`config`](modules/config.md) | 全局配置读取与严格校验 | `loadConfig`、`dataDir`、`Config`、`BlockedKind`、`ShutdownReason`、`isRaw`、`Raw` | `index.ts` `schema.ts` |
 | [`profile`](modules/profile.md) | profile 读取、校验、分层、示例落盘 | `loadProfiles`、`seedExampleProfile`、`globalProfilesDir`、`agentDir`、`resolveSkillPaths`、`Profile`、`ProfileCatalog`、`ProfileSources`、`EXAMPLE_PROFILE`、`EXAMPLE_PROFILE_FILE` | `index.ts` `frontmatter.ts` `layers.ts` `examples.ts` `seed.ts` `skills.ts` |
@@ -50,6 +51,8 @@ extension ..> session-file (type-only)
 tool -> run
 tool ..> config       (type-only)
 tool ..> profile      (type-only)
+run -> turn
+extension -> turn
 run -> herdr
 run -> profile
 run ..> session-file
@@ -82,7 +85,8 @@ profile -> error
 | pi 扩展 API + 注入 HerdrHost | fake pi、fake host、fake timers、临时 session JSONL。`PI_CODING_AGENT_DIR` 指向临时目录 | 工具契约、run 生命周期、profile argv、身份文件、并发、send 续聊与重启、结果消息、关闭 |
 | `loadConfig` | 临时 agent 目录 + 真实 fs | 默认值、clamp、严格校验 |
 | `loadProfiles` | 临时 agent 目录、临时项目目录 + 真实 fs | frontmatter、`name` 必填、字段校验、坏字段、同层同名、受信项目覆盖。示例目录每次加载对齐到包内 |
-| `readLastAssistant` | 表驱动 + 临时 JSONL | JSONL 解析边界、空文件、不可读 |
+| `readSessionTail` | 表驱动 + 临时 JSONL | 工具调用尾部、坏行、缺文件 |
+| `turn` | 临时目录 + 真实 fs | 判定、原子写、坏文件、消费后删除、计数 |
 | `inbox` | 临时 session 路径 + 真实 fs。子侧泵经 fake pi + fake timers | 建目录、入队顺序、按序投递、投递后删除、失败保留 |
 | bridge | fake pi events | `ui_prompt_*` → `herdr:blocked`、`blockedOn` 过滤 |
 | 真实 HerdrHost + 真实 pi | `pnpm test:e2e`（`test/e2e/`，不进 `pnpm check`） | CLI argv/JSON、tab/agent/pane、真实 child、结果回投、续聊、关 pane |

@@ -3,30 +3,36 @@ import { writeArtifact } from "./artifact.ts";
 import type { RunRecord } from "./state.ts";
 import { leadingChars } from "./truncate.ts";
 
-export interface DoneResult {
-  state: "done";
+export type RunOutcome = "done" | "error" | "aborted" | "quit" | "lost";
+
+export interface RunResult {
+  state: RunOutcome;
   name: string;
-  text: string;
+  text?: string;
+  errorMessage?: string;
   artifact?: string;
   warning?: string;
 }
 
-export type UnknownReason = "poll_failed" | "no_result" | "close_failed" | "quitted" | "pane_exited";
-
-export interface UnknownResult {
-  state: "unknown";
-  name: string;
-  reason: UnknownReason;
-}
-
-export type RunResult = DoneResult | UnknownResult;
-
 export type ResultHandler = (results: RunResult[]) => void | Promise<void>;
 
-export async function doneResult(run: RunRecord, text: string, limit: number): Promise<DoneResult> {
-  const base = { state: "done" as const, name: run.name };
-  if (text.length <= limit) {
-    return { ...base, text };
+export interface ResultInput {
+  state: RunOutcome;
+  text?: string | null;
+  errorMessage?: string;
+}
+
+export async function makeResult(run: RunRecord, input: ResultInput, limit: number): Promise<RunResult> {
+  const base: RunResult = { state: input.state, name: run.name };
+  if (input.errorMessage !== undefined) {
+    base.errorMessage = input.errorMessage;
+  }
+  const text = input.text ?? undefined;
+  if (text === undefined || text.length <= limit) {
+    if (text !== undefined) {
+      base.text = text;
+    }
+    return base;
   }
   const head = leadingChars(text, limit);
   const seq = run.artifactSeq + 1;
@@ -37,12 +43,4 @@ export async function doneResult(run: RunRecord, text: string, limit: number): P
   } catch (error) {
     return { ...base, text: head, warning: `[artifact write failed: ${errorText(error)}]` };
   }
-}
-
-export function unknownResult(run: RunRecord, reason: UnknownReason): UnknownResult {
-  return {
-    state: "unknown",
-    name: run.name,
-    reason,
-  };
 }

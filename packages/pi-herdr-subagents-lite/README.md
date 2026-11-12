@@ -54,20 +54,20 @@ The block below lists every key. Each value is the default.
   "toolName": "subagent",
   // Default "herdr". A plain name resolves from PATH; an absolute path pins a version.
   "herdrBin": "herdr",
-  // Default 16, range 1 and up. At the limit run returns max_concurrent. A child with auto-exit: false keeps its slot after it settles.
+  // Default 16, range 1 and up. At the limit run returns max_concurrent. Only a running turn holds a slot.
   "maxConcurrent": 16,
   // Default 16384, range 1024 to 1048576. A longer text goes to an artifact file. The message keeps a truncated head and the path.
   "maxResultChars": 16384,
   // Default 500, range 0 to 10000 milliseconds. 0 = deliver each result at once. A larger value merges more results.
   "aggregateWindowMs": 500,
-  // Default empty = never close. Values: new, resume, fork, quit, reload. A listed reason closes the child tabs on parent shutdown.
-  "closeChildrenOn": [],
+  // Default ["quit", "reload"]. Values: new, resume, fork, quit, reload. A listed reason closes the child panes on parent shutdown.
+  "closeChildrenOn": ["quit", "reload"],
+  // Default false. true = close the pane after a failed or interrupted turn. false keeps it so send can resume.
+  "closeOnFailure": false,
   // Default 250, range 50 to 5000 milliseconds. A larger value wakes less often and delivers later.
   "inboxPollMs": 250,
-  // Default 1000, range 100 to 60000 milliseconds. Use while a child works or blocks, or within 30 s of run or send.
-  "pollIntervalMs": 1000,
-  // Default 8000, range 100 to 60000 milliseconds. Use when every live child only waits for send. A larger value notices a dead pane later.
-  "idlePollIntervalMs": 8000,
+  // Default 15000, range 1000 to 300000 milliseconds. How often a running child is checked for liveness. Three absences in a row mark it lost.
+  "livenessPollMs": 15000,
   // Tool text overrides. Each key defaults to unset, which keeps the built-in text shown below.
   "prompts": {
     // Replaces the built-in description.
@@ -134,7 +134,7 @@ skills: ""
 # task: body is the task text, no identity file
 system-prompt: append
 
-# Shut down and close the tab when settled. It waits while a prompt is open or the inbox has messages
+# Close the pane after this run's done turn. Leave it false to keep the child resumable with send
 auto-exit: true
 
 # true = hidden from the guidelines; an explicit run still works

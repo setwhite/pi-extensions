@@ -14,7 +14,7 @@ it("re-arms a finished child that is still alive", async () => {
   process.env.HERDR_ENV = "1";
   writeProfile("explore.md", "---\nmodel: old/model\n---\n\nExplore body.\n");
   const fake = fakeHost();
-  fake.setAgents(async () => ({ status: "idle", completionSeq: 1 }));
+  fake.setAgents(async () => ({ status: "idle" }));
   const { tool } = loadSession(fake.host);
   const started = parseStarted(await runTask(tool, "inspect the repo", "explore"));
   writeFileSync(started.sessionFile, `${assistantLine("old result")}\n`);

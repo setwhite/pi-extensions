@@ -1,11 +1,12 @@
+import { errorText } from "../error/index.ts";
 import { createAggregator } from "./aggregate.ts";
 import { type CloseChildrenResult, closeRuns } from "./close.ts";
 import { createNamer } from "./naming.ts";
-import { stopPoll } from "./poll.ts";
 import type { ResultHandler, RunResult } from "./result.ts";
 import { type SendResult, send } from "./send.ts";
 import { type RunStarted, start } from "./start.ts";
 import type { RunRecord, RunServiceDeps, RunState } from "./state.ts";
+import { startWatch, stopWatch } from "./watch.ts";
 
 export interface RunService {
   run(profile: string, task: string, cwd?: string): Promise<RunStarted>;
@@ -16,17 +17,11 @@ export interface RunService {
   active(): string[];
 }
 
-function stopService(state: RunState): void {
-  stopPoll(state);
-  state.results?.stop();
-}
-
 function takeRuns(state: RunState): RunRecord[] {
   const runs = [...state.runs];
   for (const run of runs) {
-    state.settle(run);
+    state.release(run);
   }
-  state.runs.length = 0;
   return runs;
 }
 
@@ -36,24 +31,27 @@ export function createRunService(deps: RunServiceDeps): RunService {
     runs: [],
     pending: new Set(),
     stopped: false,
-    activeUntil: 0,
-    now: deps.now ?? Date.now,
     resultHandler: undefined,
     results: undefined,
-    pollBusy: false,
+    scanning: false,
+    scanAgain: false,
+    now: deps.now ?? Date.now,
+    delay:
+      deps.delay ??
+      ((ms) =>
+        new Promise<void>((resolve) => {
+          const timer = setTimeout(resolve, ms);
+          timer.unref?.();
+        })),
     nextName: createNamer(),
     active() {
-      return state.runs.filter((run) => run.live).map((run) => run.name);
+      return state.runs.filter((run) => run.phase === "running").map((run) => run.name);
     },
     available() {
       return state.runs.map((run) => run.name);
     },
-    settle(run) {
-      run.live = false;
-      run.read = undefined;
-    },
     release(run) {
-      state.settle(run);
+      run.phase = "closed";
       const index = state.runs.indexOf(run);
       if (index >= 0) {
         state.runs.splice(index, 1);
@@ -63,8 +61,9 @@ export function createRunService(deps: RunServiceDeps): RunService {
   state.results = createAggregator<RunResult>({
     windowMs: deps.aggregateWindowMs,
     deliver: (batch) => state.resultHandler?.(batch),
-    onError: deps.onDeliveryError,
+    onError: (error) => state.onProblem(errorText(error)),
   });
+  startWatch(state);
 
   return {
     run: (profile, task, cwd) => start(state, profile, task, cwd),
@@ -74,15 +73,14 @@ export function createRunService(deps: RunServiceDeps): RunService {
     },
     shutdown() {
       state.stopped = true;
-      stopService(state);
+      stopWatch(state);
       takeRuns(state);
     },
     async closeChildren() {
       state.stopped = true;
-      stopService(state);
+      stopWatch(state);
       await Promise.allSettled([...state.pending]);
       const runs = takeRuns(state);
-      stopService(state);
       return closeRuns(state, runs);
     },
     active: () => state.active(),
@@ -93,8 +91,7 @@ export type { CloseChildrenResult } from "./close.ts";
 export { ToolError } from "./errors.ts";
 export { childSessionsDir, runBaseOf, runsDir } from "./paths.ts";
 export { profileLabel } from "./resolve.ts";
-export type { ResultHandler, RunResult, UnknownReason } from "./result.ts";
+export type { ResultHandler, RunResult } from "./result.ts";
 export type { SendResult } from "./send.ts";
-export { AUTO_EXIT_ENV } from "./spawn-args.ts";
 export type { RunStarted } from "./start.ts";
 export type { RunServiceDeps };

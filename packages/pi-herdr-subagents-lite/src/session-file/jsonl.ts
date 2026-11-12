@@ -1,8 +1,6 @@
-export interface SessionSnapshot {
-  text: string | null;
+export interface TailSnapshot {
   pendingToolCall: boolean;
   empty: boolean;
-  unreadable: boolean;
 }
 
 interface SessionEntry {
@@ -11,14 +9,6 @@ interface SessionEntry {
     role?: unknown;
     content?: unknown;
   };
-}
-
-function isTextBlock(block: unknown): block is { type: "text"; text: string } {
-  if (typeof block !== "object" || block === null) {
-    return false;
-  }
-  const candidate = block as { type?: unknown; text?: unknown };
-  return candidate.type === "text" && typeof candidate.text === "string";
 }
 
 function hasToolCall(content: unknown): boolean {
@@ -34,23 +24,10 @@ function hasToolCall(content: unknown): boolean {
   });
 }
 
-function textOf(entry: SessionEntry): string | null {
-  const content = entry.message?.content;
-  if (!Array.isArray(content)) {
-    return null;
-  }
-  const text = content
-    .filter(isTextBlock)
-    .map((block) => block.text)
-    .filter((block) => block.trim() !== "")
-    .join("\n")
-    .trim();
-  return text === "" ? null : text;
-}
-
-export function parseLastAssistant(raw: string): SessionSnapshot {
+// 只回答 send 续跑前的一个问题：最后一条 assistant 是不是停在工具调用上。
+export function parseTail(raw: string): TailSnapshot {
   const lines = raw.split("\n");
-  for (let index = lines.length - 1; index >= 0; index--) {
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
     const line = lines[index]?.trim();
     if (!line) {
       continue;
@@ -68,12 +45,7 @@ export function parseLastAssistant(raw: string): SessionSnapshot {
     if (entry.type !== "message" || entry.message?.role !== "assistant") {
       continue;
     }
-    return {
-      text: textOf(entry),
-      pendingToolCall: hasToolCall(entry.message?.content),
-      empty: false,
-      unreadable: false,
-    };
+    return { pendingToolCall: hasToolCall(entry.message.content), empty: false };
   }
-  return { text: null, pendingToolCall: false, empty: true, unreadable: false };
+  return { pendingToolCall: false, empty: true };
 }

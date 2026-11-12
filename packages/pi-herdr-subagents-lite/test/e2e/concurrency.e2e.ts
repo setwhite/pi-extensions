@@ -9,7 +9,7 @@ describe.skipIf(!state.ok)(`herdr e2e: maxConcurrent${state.ok ? "" : ` (skipped
 
   it("rejects a run above maxConcurrent", async () => {
     const e2e = harness();
-    e2e.writeConfig({ maxConcurrent: 2, inboxPollMs: 100, pollIntervalMs: 200, idlePollIntervalMs: 200 });
+    e2e.writeConfig({ maxConcurrent: 2, inboxPollMs: 100, livenessPollMs: 1000 });
     const { sessionFile: parent } = await e2e.startParent("parent3");
     await e2e.prompt(
       "parent3",
@@ -27,6 +27,6 @@ describe.skipIf(!state.ok)(`herdr e2e: maxConcurrent${state.ok ? "" : ` (skipped
     const children = (await e2e.tabs()).filter((tab) => /^explore-\d+$/.test(tab.label));
     expect(children).toHaveLength(2);
     await e2e.closeChildren();
-    e2e.writeConfig({ maxConcurrent: 16, inboxPollMs: 100, pollIntervalMs: 200, idlePollIntervalMs: 200 });
+    e2e.writeConfig({ maxConcurrent: 16, inboxPollMs: 100, livenessPollMs: 1000 });
   });
 });

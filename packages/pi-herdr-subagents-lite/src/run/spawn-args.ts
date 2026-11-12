@@ -2,8 +2,6 @@ import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import type { Profile } from "../profile/index.ts";
 
-export const AUTO_EXIT_ENV = "PI_SUBAGENT_AUTO_EXIT";
-
 export function parentCwd(): string {
   return process.cwd();
 }

@@ -1,122 +1,71 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { expect, it, vi } from "vitest";
-import { artifactOf, receiptOf } from "../support/paths.ts";
-import { assistantLine, flushDelivery, longResult, parseStarted } from "../support/result.ts";
-import { runTask, sendTask } from "../support/run.ts";
-import { loadTimedSession } from "../support/session.ts";
+import { readFileSync } from "node:fs";
+import { expect, it } from "vitest";
+import { fakeHost } from "../support/host.ts";
+import { artifactOf } from "../support/paths.ts";
+import { eventually, longResult, parseStarted } from "../support/result.ts";
+import { runTask } from "../support/run.ts";
+import { loadSession } from "../support/session.ts";
+import { settleTurn } from "../support/turn.ts";
 import "../support/hooks.ts";
 
-it("reports poll_failed when the exit receipt cannot be read", async () => {
-  const { sent, tool } = loadTimedSession(async () => null);
+function session() {
+  process.env.HERDR_ENV = "1";
+  return loadSession(fakeHost().host);
+}
 
-  const started = parseStarted(await runTask(tool, "vanished task"));
-  mkdirSync(receiptOf(started.sessionFile));
-
-  await vi.advanceTimersByTimeAsync(3000);
-
-  expect(sent).toHaveLength(1);
-  expect(sent[0]?.message.content).toContain("status could not be read");
-});
-
-it("writes an artifact for long results", async () => {
-  const { sent, tool } = loadTimedSession(async () => ({ status: "idle", completionSeq: 1 }));
-
-  const started = parseStarted(await runTask(tool, "write a long report"));
+it("truncates a long turn and writes the artifact", async () => {
+  const { sent, tool } = session();
   const { head, full } = longResult();
-  writeFileSync(started.sessionFile, `${assistantLine(full)}\n`);
+  const started = parseStarted(await runTask(tool, "long report"));
+  settleTurn(started.sessionFile, { text: full });
+  await eventually(() => sent.length === 1);
 
-  await vi.advanceTimersByTimeAsync(1000);
-  await flushDelivery(sent);
-
-  const artifact = artifactOf(started.sessionFile, 1);
-  expect(existsSync(artifact)).toBe(true);
-  expect(readFileSync(artifact, "utf8")).toBe(full);
   const content = sent[0]?.message.content ?? "";
-  expect(content.startsWith("[subagent worker-1] done")).toBe(true);
   expect(content).toContain(head);
-  expect(content).not.toContain("TAIL_MARKER");
-  expect(content).toContain(`Full result: ${artifact}`);
-
-  await vi.advanceTimersByTimeAsync(5000);
-  expect(sent).toHaveLength(1);
+  expect(content).toContain("Full result:");
+  expect(readFileSync(artifactOf(started.sessionFile, 1), "utf8")).toBe(full);
 });
 
-it("writes an artifact for a long exited result", async () => {
-  const { fake, sent, tool } = loadTimedSession(async () => null);
-  fake.setPaneExists(false);
-
-  const started = parseStarted(await runTask(tool, "write a long report"));
-  const { full } = longResult();
-  writeFileSync(started.sessionFile, `${assistantLine(full)}\n`);
-
-  await vi.advanceTimersByTimeAsync(1000);
-  await flushDelivery(sent);
-
-  const artifact = artifactOf(started.sessionFile, 1);
-  expect(existsSync(artifact)).toBe(true);
-  expect(readFileSync(artifact, "utf8")).toBe(full);
-  expect(sent[0]?.message.content).toContain(`Full result: ${artifact}`);
-});
-
-it("keeps the message when the artifact write fails", async () => {
-  const { sent, tool } = loadTimedSession(async () => ({ status: "idle", completionSeq: 1 }));
-
-  const started = parseStarted(await runTask(tool, "write a long report"));
-  const { head, full } = longResult();
-  writeFileSync(started.sessionFile, `${assistantLine(full)}\n`);
-  mkdirSync(artifactOf(started.sessionFile, 1));
-
-  await vi.advanceTimersByTimeAsync(1000);
-  await flushDelivery(sent);
+it("does not split surrogate pairs when truncating", async () => {
+  const { sent, tool } = session();
+  const started = parseStarted(await runTask(tool, "emoji report"));
+  const text = `${"h".repeat(16383)}😀${"z".repeat(100)}`;
+  settleTurn(started.sessionFile, { text });
+  await eventually(() => sent.length === 1);
 
   const content = sent[0]?.message.content ?? "";
-  expect(content.startsWith("[subagent worker-1] done")).toBe(true);
-  expect(content).toContain(head);
-  expect(content).not.toContain("TAIL_MARKER");
-  expect(content).toContain("artifact write failed");
-  expect(existsSync(`${artifactOf(started.sessionFile, 1)}.tmp`)).toBe(false);
+  expect(content).toContain("h".repeat(16383));
+  expect(content).toContain("Full result:");
+  expect(content).not.toMatch(/\p{Cs}/u);
+  expect(readFileSync(artifactOf(started.sessionFile, 1), "utf8")).toContain("😀");
 });
 
-it("keeps artifacts when the completion seq resets", async () => {
-  const { fake, sent, tool } = loadTimedSession(async () => ({ status: "idle", completionSeq: 2 }));
-  const started = parseStarted(await runTask(tool, "write a long report"));
-  const first = `${"a".repeat(16384)}FIRST_TAIL`;
-  writeFileSync(started.sessionFile, `${assistantLine(first)}\n`);
+it("does not write an artifact for a short turn", async () => {
+  const { sent, tool } = session();
+  const started = parseStarted(await runTask(tool, "short report"));
+  settleTurn(started.sessionFile, { text: "short answer" });
+  await eventually(() => sent.length === 1);
 
-  await vi.advanceTimersByTimeAsync(1000);
-  await flushDelivery(sent);
-  expect(readFileSync(artifactOf(started.sessionFile, 1), "utf8")).toBe(first);
-
-  fake.setAgents(async () => null);
-  await vi.advanceTimersByTimeAsync(1000);
-
-  fake.setAgents(async () => ({ status: "idle", completionSeq: 1 }));
-  const revived = await sendTask(tool, started.name, "continue");
-  expect(revived.isError).toBe(false);
-
-  fake.setAgents(async () => null);
-  fake.setPaneExists(false);
-  const second = `${"b".repeat(16384)}SECOND_TAIL`;
-  writeFileSync(started.sessionFile, `${assistantLine(second)}\n`);
-  await vi.advanceTimersByTimeAsync(1000);
-  await flushDelivery(sent, 2);
-
-  expect(sent).toHaveLength(2);
-  expect(readFileSync(artifactOf(started.sessionFile, 1), "utf8")).toBe(first);
-  expect(readFileSync(artifactOf(started.sessionFile, 2), "utf8")).toBe(second);
+  expect(sent[0]?.message.content).toContain("short answer");
+  expect(sent[0]?.message.content).not.toContain("Full result:");
 });
 
-it("does not write an artifact for short results", async () => {
-  const { sent, tool } = loadTimedSession(async () => ({ status: "idle", completionSeq: 1 }));
+it("delivers the same text again in a new turn", async () => {
+  const { sent, tool } = session();
+  const started = parseStarted(await runTask(tool, "repeat"));
+  settleTurn(started.sessionFile, { text: "same" });
+  await eventually(() => sent.length === 1);
+  settleTurn(started.sessionFile, { text: "same" });
+  await eventually(() => sent.length === 2);
 
-  const started = parseStarted(await runTask(tool, "say hello"));
-  writeFileSync(started.sessionFile, `${assistantLine("short answer")}\n`);
+  expect(sent[1]?.message.content).toContain("same");
+});
 
-  await vi.advanceTimersByTimeAsync(1000);
+it("delivers a done turn without text", async () => {
+  const { sent, tool } = session();
+  const started = parseStarted(await runTask(tool, "silent"));
+  settleTurn(started.sessionFile);
+  await eventually(() => sent.length === 1);
 
-  const content = sent[0]?.message.content ?? "";
-  expect(sent).toHaveLength(1);
-  expect(existsSync(artifactOf(started.sessionFile, 1))).toBe(false);
-  expect(content).toContain("short answer");
-  expect(content).not.toContain("Full result:");
+  expect(sent[0]?.message.content).toBe("[subagent worker-1] done\n\n");
 });

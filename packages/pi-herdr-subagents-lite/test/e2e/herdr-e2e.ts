@@ -44,7 +44,7 @@ export class HerdrE2e extends HerdrSession {
   private async setup(): Promise<void> {
     prepareAgentDir(this.root, this.agentDir, this.project);
     writeSettings(this.agentDir);
-    this.writeConfig({ maxConcurrent: 16, inboxPollMs: 100, pollIntervalMs: 200, idlePollIntervalMs: 200 });
+    this.writeConfig({ maxConcurrent: 16, inboxPollMs: 100, livenessPollMs: 1000 });
     await run(PI_BIN as string, ["install", REPO, "--no-approve"], { env: this.env, cwd: this.root });
     const server = {
       bin: HERDR_BIN as string,

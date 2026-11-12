@@ -19,17 +19,17 @@
 | `enabled` | boolean | — | 只控制工具注册。bridge 由 `bridge.enabled` 独立控制。已跑子代理不受影响 |
 | `toolName` | string | `^[a-z][a-z0-9_]{0,31}$` | 跨扩展重名不处理 |
 | `herdrBin` | string | 非空 | herdr 可执行文件。裸名按 PATH 解析。用绝对路径可指定版本 |
-| `maxConcurrent` | integer | 越界 clamp | 每个父会话的 live 子代理上限。只有下界，无上限。`auto-exit: false` 的 done 子代理仍算 live |
+| `maxConcurrent` | integer | 越界 clamp | 每个父会话同时在跑的回合上限。只有下界，无上限。收工等 `send` 的子代理不占 |
 | `maxResultChars` | integer | 越界 clamp | 字符数。超过则全文落 artifact |
 | `aggregateWindowMs` | integer | 越界 clamp | 0 = 不聚合，逐个回投 |
-| `closeChildrenOn` | string[] | `new` / `resume` / `fork` / `quit` / `reload` | 空 = 不关。命中 `session_shutdown.reason` 时关该父会话的子 tab |
+| `closeChildrenOn` | string[] | `new` / `resume` / `fork` / `quit` / `reload` | 默认 `["quit", "reload"]`。命中 `session_shutdown.reason` 时关该父会话的子 pane |
+| `closeOnFailure` | boolean | — | 默认 false。失败或中断的回合结束后是否关 pane。false 留着，`send` 可以续 |
 | `inboxPollMs` | integer | 越界 clamp | 子侧 inbox 轮询间隔 |
-| `pollIntervalMs` | integer | 越界 clamp | 父侧 `agent list` 轮询间隔。活跃档：有 run 在 working / blocked / unknown，或刚 `run` / `send` |
-| `idlePollIntervalMs` | integer | 越界 clamp | 慢速档间隔。所有 live run 都只是收工等 `send` 时用它。pane 消失的最晚发现时间等于它。pane 还在、进程被杀的那类固定 10 秒 |
+| `livenessPollMs` | integer | 越界 clamp | 进行中的 run 多久查一次 `agent list`。连续三次缺席判失去联系 |
 | `prompts` | object | — | 提示词覆盖。键与展开见 `src/tool/text.ts` |
 | `bridge` | object | — | 见第 7 节 |
 
-`closeChildrenOn` 未命中时只停止投递，不关 pane。父进程自己关 pane 前先停轮询，所以关掉之后不会再发死亡通知。关闭只动父侧自己创建的 pane，同一 tab 里其他 pane 不受影响。父进程崩溃没有 shutdown，不关，不认领。
+`closeChildrenOn` 未命中时只停止投递，不关 pane。父进程自己关 pane 前先停扫描，所以关掉之后不会再发死亡通知。关闭只动父侧自己创建的 pane，同一 tab 里其他 pane 不受影响。父进程崩溃没有 shutdown，不关，不认领。
 
 固定文件：
 
@@ -41,7 +41,7 @@
 | 身份文件 | `<runBase>.identity.md`。存 profile body |
 | 子侧 inbox | `<runBase>.inbox/`。投递成功后删除消息文件。失败保留（at-least-once）。第一条是 `@<runBase>.brief.md`。目录在 `agent start` 前建好，消息在它返回后入队 |
 | 结果 artifact | `<runBase>.result-<seq>.md` |
-| 退出回执 | `<runBase>.exit`。只在 `<runBase>.inbox/` 存在时写 |
+| 回合事件 | `<runBase>.turns/<n>.json`。子代理在每个 `agent_settled` 写，父代理投递后删除 |
 
 子侧不靠环境变量找 `<runBase>`：用自己 session 文件的主名拼同一个前缀。
 
@@ -62,7 +62,7 @@
 | `tools` | string | 省略 = pi 默认集，加 `--exclude-tools <toolName>`（防嵌套。`--tools -<toolName>` 不过滤扩展工具）。纯名字 = 严格 allowlist。`+name` / `-name` = 在默认集增删，除显式写 `+<toolName>` 外仍排除本工具。两者不能混用。空字符串 = 空 allowlist |
 | `skills` | string / list | 省略 = pi 默认发现。`""` 或 `[]` = 不加载 skill。非空列表 = 只加载列出的项，名字按 pi 默认发现集解析（agent-dir、项目 `.pi/skills`、`.agents/skills`、包内、settings 配置）。列表项是名字，不带 `+` / `-`。查不到报 `profile_invalid` |
 | `system-prompt` | string | append / replace / task。见 [DEC-0051](../decisions/0051-system-prompt.md) |
-| `auto-exit` | boolean | true = 任务收工后子进程自己 shutdown，父侧关它的 pane。有未答对话框或未取 inbox 消息时不退 |
+| `auto-exit` | boolean | true = 父代理在这个 run 的 `done` 回合后关 pane。子代理不自杀 |
 | `disable-model-invocation` | boolean | true = 从 guidelines 隐藏。显式 run 仍可用 |
 
 - `ask_user_question` 不自动加入。想反问就写进 `tools`。
@@ -148,25 +148,31 @@
 
 | 子代理状态 | send 做什么 | 返回 |
 |---|---|---|
-| agent 存在（working / idle / blocked / done / unknown） | 写 `<runBase>.inbox/`。子进程按自己是否 idle 选择新 turn 或 steer。有未答对话框时排队，人回答后处理 | `{state:"sent", name}` |
-| 已退出，pane 还在，尾部干净，`auto-exit` 未变 | 同 pane、同名 `agent start --session <childSession>`，再写 inbox。profile 重新读取 | `{state:"restarted", name, paneId}` |
-| 已退出，pane 已关（auto-exit） | 新建 tab，同名 `agent start --session <childSession>`，再写 inbox | `{state:"restarted", name, paneId}` |
-| 已退出（尾部干净）或已收工但仍活着，live 已达 `maxConcurrent` | 不投递，不重启 | `max_concurrent` |
+| run 在 `running` | 写 `<runBase>.inbox/`。子进程按自己是否 idle 选择新 turn 或 steer | `{state:"sent", name}` |
+| run 在 `idle`，agent 还在 | 写 inbox | `{state:"sent", name}` |
+| run 在 `idle`，agent 不在；或 run 在 `dead` | 用同一 session 重启，再写 inbox。profile 重新读取 | `{state:"restarted", name, paneId}` |
+| 重启会让 running 超过 `maxConcurrent` | 不投递，不重启 | `max_concurrent` |
 | 已退出，尾部有未完成 toolCall | 不重启 | `tail_dirty` |
 | 子 session 文件不存在 | 不重启 | `session_missing` |
 | name 不在 run 记录 | 不投递 | `unknown_agent` |
 
 「尾部干净」看最后一条 assistant 消息里有没有未完成的 toolCall。尾部是 toolResult、user 或 custom 条目都不改变这个判断。
 
-重启用 run 记录的 `cwd`。profile 重新读取（DEC-0031），非 `task` 模式按新 profile 重写身份文件。新 profile 的 `auto-exit` 与建 tab 时的值不一致时，关掉旧 pane 并新建 tab。一致则复用原 pane。cwd 与父 cwd 不同时，用新 workspace 的初始 tab。相同时，`tab create` 不带 `--workspace`，由 herdr 落在当前 workspace（实测父会话所在 workspace）。
+重启用 run 记录的 `cwd`。profile 重新读取（DEC-0031），非 `task` 模式按新 profile 重写身份文件。pane 还在就复用，不在就新建。cwd 与父 cwd 不同时，用新 workspace 的初始 tab。相同时，`tab create` 不带 `--workspace`，由 herdr 落在当前 workspace（实测父会话所在 workspace）。
 
 ## 6. 结果消息
 
-完成检测按 `completion_seq` 与本 run 的 `lastHandledSeq` 去重。每次完成最多投递一条 done 结果。同一个 run 经 `send` 续聊后可有多条。`close_failed` 是关 pane 失败时补投的 unknown。第一次失败不结算，子代理死亡时再关一次（DEC-0060）。
+完成只认回合事件（DEC-0062）。子代理在每个 `agent_settled` 写 `<runBase>.turns/<n>.json`：
 
-单次 `agent list` 失败不是死亡。死亡只认事实：有退出回执，或 pane 不在 `pane list` 里。`agent list` 这一拍查不到只算「没看见」。保持 live 满 10 秒才判死（只为被 SIGKILL、写不出回执、pane 又还在的子进程）。机制见 [DEC-0052](../decisions/0052-completion-snapshot.md)。
+~~~json
+{"turn":1,"outcome":"done","stopReason":"stop","text":"...","children":0,"at":1700000000000}
+~~~
 
-异步结果是一条 `subagent_result` 自定义消息。父模型看到的是文本，不是工具结果：
+`outcome` 只有 `done` / `error` / `aborted` / `quit`。判定表见 DEC-0062。父代理只读这个文件，不读 session 尾部，不看 `completion_seq`。
+
+- 同一回合号只投一次。投递成功后删除文件。
+- 投递失败保留文件，下一拍重试；三次失败后丢弃并通知。
+- 异步结果是一条 `subagent_result` 自定义消息：
 
 ~~~text
 [subagent explore-1] done
@@ -176,40 +182,24 @@
 Full result: <runBase>.result-3.md
 ~~~
 
-- 只有超过 `maxResultChars` 才写 artifact，并带 `Full result:` 行。未超限时消息不带路径。
-- artifact 的 `seq` 按 run 内已写成的 artifact 递增。重启后继续，不重置。
-- artifact 不清理。v1 没有过期或回收。
-- 聚合时一条消息里放多个块：
+- 失败与中断带原因，附已有部分文本并明确标注不是完整结果：
 
 ~~~text
-[subagent explore-1] done
-...
+[subagent explore-1] failed
 
-[subagent review-1] done
-...
+529 overloaded
+
+Partial answer (not a completed result):
+<half an answer>
 ~~~
 
-- 子代理死亡时按子 session 尾部与 `<runBase>.exit` 判定（回执只有 `{ reason }`）：
-
-| 回执 | 结果 |
-|---|---|
-| 有回执，session 尾部有最终文本且没有未完成 toolCall | `done`，正文取该文本 |
-| 有回执，尾部没有可用文本 | `unknown`，原因 `quitted` |
-| 没有回执（没走 shutdown） | 退回读 session 尾部，同上判定。否则 `unknown`，原因 `pane_exited` |
-
-- `agent list` 里找不到该 run 时：有退出回执或 pane 已不在，当场判死。否则只算「这一拍没看见」，保持 live 与活跃档，满 10 秒再报 `pane_exited`（只为被 SIGKILL 的子进程存在）。
-- 同一个 run 的同一 turn 只投一次。判据是尾部换过没有：文本或 session 文件字节数任一变化都算换了。文本相同、文件变大是另一个回合，照样投递。投递与关闭互不依赖：没投递过也可能要关 pane。
-- 子代理还没写过 assistant 消息时不结算。继续等它写完或死亡（防止启动阶段的 idle 被当成完成）。
-- 其余 `unknown` 原因：`no_result`（读 3 次仍没有文本，且这个 run 从未投递过结果）、`poll_failed`（连续 3 拍失败：每拍 `agent list` 失败记一次，单个 run 的处理抛错也记一次）、`close_failed`（关 pane 失败后补投）。
-
-~~~text
-[subagent explore-1] the pane exited without a result
-~~~
-
-- 死亡消息是该 run 的终态：最多一条，不受 `lastHandledSeq` 约束。
-- 子代理 blocked（`agent_status = blocked`）时，父侧不发消息，也不读它的 toolCall。问题与答案都留在子 pane，由人处理。blocked 期间不结算结果，继续等它离开 blocked。
-- 投递失败不重发。父会话收到一条 `subagent result not delivered` 通知。
-- `auto-exit: true` 的子代理收工并投递 `done` 结果后，父侧关掉它的 pane。`unknown` 不关。关闭失败不算结算：子代理死亡时补关一次（DEC-0060）。
+- 其余状态：`aborted` → `interrupted`；`quit` → `stopped before reporting a result`；`lost` → `lost contact; no result`。
+- 只有超过 `maxResultChars` 才写 artifact，并带 `Full result:` 行。`seq` 按 run 内已写成的 artifact 递增。artifact 不清理。
+- 聚合时一条消息里放多个块。
+- 存活：只有 `running` 的 run 每 `livenessPollMs` 查一次 `agent list`。连续三次找不到该 agent、且 pane 还在，判 `dead` 并投 `lost`。pane 不在则立即判。机制见 DEC-0064。
+- 关闭判据见 DEC-0063：`done` + `auto-exit` + `children === 0`，或 `quit` / `dead`，或 `closeOnFailure`。关闭失败只通知一次，不改结果。
+- blocked 时父侧不发消息，也不读 toolCall。blocked 期间不结算，继续等它离开 blocked。
+- 投递失败不重发。父会话收到一条通知。
 
 ## 7. bridge
 

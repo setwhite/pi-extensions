@@ -17,8 +17,8 @@ export function identityOf(sessionFile: string): string {
   return `${baseOf(sessionFile)}.identity.md`;
 }
 
-export function receiptOf(sessionFile: string): string {
-  return `${baseOf(sessionFile)}.exit`;
+export function turnsOf(sessionFile: string): string {
+  return `${baseOf(sessionFile)}.turns`;
 }
 
 export function artifactOf(sessionFile: string, seq: number): string {

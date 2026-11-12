@@ -1,15 +1,14 @@
 import { existsSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { createInbox, enqueue } from "../inbox/index.ts";
-import { closeRunPane } from "./close.ts";
 import { spawnFailed, ToolError } from "./errors.ts";
 import { findAgent } from "./find.ts";
 import { createPane } from "./pane.ts";
-import { wake } from "./poll.ts";
 import { resolveProfile, resolveSkills } from "./resolve.ts";
 import { requireSlot } from "./slot.ts";
 import { agentArgs } from "./spawn-args.ts";
-import type { RunState } from "./state.ts";
+import type { RunRecord, RunState } from "./state.ts";
+import { watchRun } from "./watch.ts";
 
 export interface SentResult {
   state: "sent";
@@ -39,30 +38,36 @@ export async function send(state: RunState, name: string, message: string): Prom
     throw new ToolError("spawn_failed", "the session is shutting down");
   }
 
-  const agent = findAgent(await state.host.listAgents(), run);
-  if (agent) {
-    if (!run.live) {
-      requireSlot(state);
-      run.lastHandledSeq = agent.completionSeq;
-      run.live = true;
-      run.pollFailures = 0;
-    }
-    wake(state);
+  if (run.phase === "running") {
     await enqueue(run.runBase, inboxMessage(message));
     return { state: "sent", name };
   }
-
-  if (!existsSync(run.sessionFile)) {
-    throw new ToolError("session_missing", `"${name}" has no child session to resume; start a new run`);
+  // pane 已关的 idle 不用再查 agent，直接重启。
+  if (run.phase === "idle" && !run.paneClosed) {
+    const agent = findAgent(await state.host.listAgents(), run);
+    if (agent) {
+      run.absentChecks = 0;
+      run.phase = "running";
+      watchRun(state, run);
+      await enqueue(run.runBase, inboxMessage(message));
+      return { state: "sent", name };
+    }
   }
-  const tail = state.readLastAssistant(run.sessionFile);
+  return resume(state, run, message);
+}
+
+async function resume(state: RunState, run: RunRecord, message: string): Promise<SendResult> {
+  if (!existsSync(run.sessionFile)) {
+    throw new ToolError("session_missing", `"${run.name}" has no child session to resume; start a new run`);
+  }
+  const tail = state.readSessionTail(run.sessionFile);
   if (tail.unreadable) {
-    throw new ToolError("session_unreadable", `"${name}" has a child session that cannot be read; start a new run`);
+    throw new ToolError("session_unreadable", `"${run.name}" has a child session that cannot be read; start a new run`);
   }
   if (tail.pendingToolCall) {
     throw new ToolError(
       "tail_dirty",
-      `"${name}" cannot restart: its session ends with an unfinished tool call. Wait for the child to finish, or start a new run.`,
+      `"${run.name}" cannot restart: its session ends with an unfinished tool call. Wait for the child to finish, or start a new run.`,
     );
   }
 
@@ -72,24 +77,12 @@ export async function send(state: RunState, name: string, message: string): Prom
   const skillPaths = await resolveSkills(profile, cwd, state.trusted);
   const identityFile = `${run.runBase}.identity.md`;
   const previousPaneId = run.pane?.paneId;
-  const envChanged = run.autoExit !== profile.autoExit;
   run.autoExit = profile.autoExit;
 
-  if (run.pane) {
-    const paneAlive = await state.host.hasPane(run.pane.paneId);
-    if (!paneAlive) {
-      run.pane = undefined;
-    } else if (envChanged) {
-      try {
-        await closeRunPane(state, run);
-      } catch (error) {
-        throw spawnFailed(error, previousPaneId, false);
-      }
-      run.pane = undefined;
-    }
+  if (run.pane !== undefined && !(await state.host.hasPane(run.pane.paneId))) {
+    run.pane = undefined;
   }
 
-  run.read = undefined;
   try {
     const pane = run.pane ?? (await createPane(state, run, cwd, run.paneLabel || run.name));
     run.pane = pane;
@@ -104,21 +97,14 @@ export async function send(state: RunState, name: string, message: string): Prom
       sessionFile: run.sessionFile,
       agentArgs: agentArgs(profile, identityFile, state.toolName, skillPaths),
     });
-    const baseline = findAgent(await state.host.listAgents(), run);
-    if (!baseline) {
-      throw new Error(`agent "${run.name}" did not register after resume`);
-    }
-    run.lastHandledSeq = baseline.completionSeq;
   } catch (error) {
-    state.settle(run);
+    run.phase = "dead";
     throw spawnFailed(error, run.pane?.paneId, run.pane?.paneId !== previousPaneId);
   }
 
-  run.live = true;
-  run.pollFailures = 0;
-  run.busy = false;
-  run.absentSince = undefined;
-  wake(state);
+  run.phase = "running";
+  run.absentChecks = 0;
+  watchRun(state, run);
   await enqueue(run.runBase, inboxMessage(message));
   return { state: "restarted", name: run.name, paneId: run.pane.paneId };
 }

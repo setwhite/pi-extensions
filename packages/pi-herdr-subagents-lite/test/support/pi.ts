@@ -15,7 +15,7 @@ interface SentUserMessage {
 }
 
 type SessionStartHandler = (event: SessionStartEvent, ctx: SessionContext) => void;
-type SettledHandler = (event: { type: "agent_settled" }, ctx: SessionContext) => void;
+type SettledHandler = (event: { type: "agent_settled"; aborted: boolean }, ctx: SessionContext) => void;
 type PromptEvent = { kind: "select" | "confirm" | "input" | "editor" | "custom"; title?: string };
 type PromptHandler = (event: PromptEvent) => void;
 
@@ -74,7 +74,7 @@ export function fakePi(events: string[] = []) {
     const session: SessionContext = {
       cwd: projectDir,
       isProjectTrusted: () => false,
-      sessionManager: { getSessionFile: () => undefined },
+      sessionManager: { getSessionFile: () => undefined, getBranch: () => [] },
       isIdle: () => true,
       ui: { notify: (message, type) => void notifications.push({ message, type }) },
       shutdown: () => {
@@ -96,12 +96,12 @@ export function fakePi(events: string[] = []) {
       await handler({ type: "session_shutdown", reason }, session);
     }
   };
-  const settle = () => {
+  const settle = (aborted = false) => {
     if (!currentSession) {
       throw new Error("no session");
     }
     for (const handler of settledHandlers) {
-      handler({ type: "agent_settled" }, currentSession);
+      handler({ type: "agent_settled", aborted }, currentSession);
     }
   };
   const prompt = (handlers: PromptHandler[], event: PromptEvent) => {

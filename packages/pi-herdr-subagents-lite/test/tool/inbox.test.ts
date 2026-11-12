@@ -1,28 +1,42 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { expect, it, vi } from "vitest";
+import { listTurns, readTurn } from "../../src/turn/index.ts";
 import { childSessionFile, writeInbox } from "../support/inbox.ts";
-import { inboxOf, receiptOf } from "../support/paths.ts";
+import { baseOf, inboxOf } from "../support/paths.ts";
 import { loadChild } from "../support/session.ts";
 import "../support/hooks.ts";
 
-it("writes an exit receipt for a child session", async () => {
+it("writes a quit turn event for a child session", async () => {
   const sessionFile = childSessionFile();
   writeInbox(sessionFile, [["a.md", "queued"]]);
   const child = loadChild(sessionFile);
 
   await child.shutdownSession("quit");
 
-  expect(JSON.parse(readFileSync(receiptOf(sessionFile), "utf8"))).toEqual({ reason: "quit" });
+  const files = listTurns(baseOf(sessionFile));
+  expect(files).toHaveLength(1);
+  const turn = readTurn(files[0] ?? "");
+  expect(turn).toMatchObject({ outcome: "quit", stopReason: "quit" });
 });
 
-it("skips the receipt when there is no inbox", async () => {
+it("skips the quit event when there is no inbox", async () => {
   const sessionFile = childSessionFile();
   const child = loadChild(sessionFile);
 
   await child.shutdownSession("quit");
 
-  expect(existsSync(receiptOf(sessionFile))).toBe(false);
+  expect(listTurns(baseOf(sessionFile))).toEqual([]);
+});
+
+it("skips the quit event on reload", async () => {
+  const sessionFile = childSessionFile();
+  writeInbox(sessionFile, [["a.md", "queued"]]);
+  const child = loadChild(sessionFile);
+
+  await child.shutdownSession("reload");
+
+  expect(listTurns(baseOf(sessionFile))).toEqual([]);
 });
 
 it("delivers inbox messages in order", async () => {

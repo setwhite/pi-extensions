@@ -4,7 +4,6 @@ export type AgentStatus = "idle" | "working" | "blocked" | "done" | "unknown";
 
 export interface AgentSnapshot {
   status: AgentStatus;
-  completionSeq: number;
 }
 
 export interface AgentEntry extends AgentSnapshot {
@@ -22,8 +21,6 @@ export interface StartAgentInput {
 
 interface AgentInfo {
   agent_status: AgentStatus;
-  completion_seq?: number | null;
-  state_change_seq?: number;
   name?: string | null;
   pane_id: string;
   agent_session?: { kind?: string; value?: string } | null;
@@ -65,7 +62,6 @@ export function createAgentCommands(exec: ExecHerdr) {
         paneId: agent.pane_id,
         sessionFile: sessionPath(agent),
         status: agent.agent_status,
-        completionSeq: agent.completion_seq ?? agent.state_change_seq ?? 0,
       }));
     },
   };

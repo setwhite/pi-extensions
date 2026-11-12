@@ -5,7 +5,7 @@ import { fakeHost } from "../support/host.ts";
 import { writeProfile, writeSkill } from "../support/profiles.ts";
 import { firstText } from "../support/result.ts";
 import { runTask, startRun } from "../support/run.ts";
-import { loadSession, loadTool } from "../support/session.ts";
+import { loadTool } from "../support/session.ts";
 import "../support/hooks.ts";
 
 it("maps tools", async () => {
@@ -116,16 +116,4 @@ it("labels the pane with the first task line", async () => {
   await startRun(long, { task: "x".repeat(40) });
 
   expect(long.renamedPanes).toEqual([{ paneId: "w1:p1", label: "x".repeat(32) }]);
-});
-
-it("sets the auto-exit pane env", async () => {
-  process.env.HERDR_ENV = "1";
-  writeProfile("explore.md", "---\nauto-exit: true\n---\n\nExplore body.\n");
-  const fake = fakeHost();
-  const { tool } = loadSession(fake.host);
-
-  await runTask(tool, "worker task");
-  await runTask(tool, "explore task", "explore");
-
-  expect(fake.tabs.map((tab) => tab.env)).toEqual([{ PI_SUBAGENT_AUTO_EXIT: "0" }, { PI_SUBAGENT_AUTO_EXIT: "1" }]);
 });

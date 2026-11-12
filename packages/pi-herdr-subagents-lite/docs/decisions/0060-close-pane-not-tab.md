@@ -1,5 +1,7 @@
 # 0060 关闭按 pane，不按 tab
 
+> 投递判据（尾部换过没有）已被 [DEC-0062](0062-turn-event-contract.md) 取代。关闭仍按 pane。
+
 两处判据一起改。关闭只发 `pane close <paneId>` 一条命令，不再核对 tab 里有几个 pane。`pane_not_found` 视为已关掉：关闭幂等，重复调用没有副作用。投递判据看「尾部换过没有」，不看「文本和上次相同」。
 
 ## 为什么换

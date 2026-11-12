@@ -1,48 +1,38 @@
-import { writeFileSync } from "node:fs";
 import { expect, it, vi } from "vitest";
 import { writeConfig } from "../support/env.ts";
 import { fakeHost } from "../support/host.ts";
 import { pendingInbox } from "../support/inbox.ts";
 import { fakePi } from "../support/pi.ts";
 import { writeProfile } from "../support/profiles.ts";
-import { firstText, parseStarted } from "../support/result.ts";
-import { exitedChild, runTask, sendTask } from "../support/run.ts";
+import { firstText, flushDelivery, parseStarted } from "../support/result.ts";
+import { lostChild, runTask, sendTask } from "../support/run.ts";
 import { loadSession, registerExtension } from "../support/session.ts";
+import { settleTurn } from "../support/turn.ts";
 import "../support/hooks.ts";
 
-it("rejects re-arming a settled child at max concurrency", async () => {
+it("counts only running turns against max concurrency", async () => {
   writeConfig({ maxConcurrent: 1 });
   vi.useFakeTimers();
   process.env.HERDR_ENV = "1";
   const fake = fakeHost();
-  fake.setAgents(async (name) =>
-    name === "worker-1" ? { status: "idle", completionSeq: 1 } : { status: "working", completionSeq: 0 },
-  );
-  const { tool } = loadSession(fake.host);
+  fake.setAgents(async (name) => (name === "worker-1" ? { status: "idle" } : { status: "working" }));
+  const { sent, tool } = loadSession(fake.host);
   const first = parseStarted(await runTask(tool, "first task"));
-  writeFileSync(
-    first.sessionFile,
-    `${JSON.stringify({
-      type: "message",
-      message: { role: "assistant", content: [{ type: "thinking", thinking: "..." }] },
-    })}\n`,
-  );
-  await vi.advanceTimersByTimeAsync(1400);
-  const second = parseStarted(await runTask(tool, "second task"));
-  expect(second.name).toBe("worker-2");
+  settleTurn(first.sessionFile, { text: "done" });
+  await vi.advanceTimersByTimeAsync(500);
+  await flushDelivery(sent);
 
   const result = await sendTask(tool, "worker-1", "next turn");
 
-  expect(result.isError).toBe(true);
-  expect(result.details).toMatchObject({ code: "max_concurrent" });
-  expect(firstText(result)).toContain("worker-2");
-  expect(pendingInbox(first.sessionFile)).toBe(0);
+  expect(result.isError).toBe(false);
+  expect(firstText(result)).toBe('{"state":"sent","name":"worker-1"}');
+  expect(pendingInbox(first.sessionFile)).toBe(1);
 });
 
-it("rejects restarting an exited child at max concurrency", async () => {
+it("starts a second run while a dead run waits for send", async () => {
   writeConfig({ maxConcurrent: 1 });
-  writeProfile("explore.md", "---\nmodel: old/model\nauto-exit: true\n---\n\nExplore body.\n");
-  const { fake, started, tool } = await exitedChild({ profile: "explore" });
+  writeProfile("explore.md", "---\nmodel: old/model\n---\n\nExplore body.\n");
+  const { fake, sent, tool } = await lostChild({ profile: "explore" });
   const second = parseStarted(await runTask(tool, "next task", "explore"));
   expect(second.name).toBe("explore-2");
 
@@ -51,7 +41,7 @@ it("rejects restarting an exited child at max concurrency", async () => {
   expect(result.isError).toBe(true);
   expect(result.details).toMatchObject({ code: "max_concurrent" });
   expect(fake.agents).toHaveLength(2);
-  expect(pendingInbox(started.sessionFile)).toBe(0);
+  expect(sent.length).toBeGreaterThanOrEqual(1);
 });
 
 it("starts a fresh service for each session", async () => {

@@ -8,21 +8,15 @@ export interface CreatedTab {
 export interface CreateTabInput {
   cwd: string;
   label: string;
-  env: Record<string, string>;
 }
 
 export interface CreateWorkspaceInput {
   cwd: string;
   label: string;
-  env: Record<string, string>;
 }
 
 export interface CreatedWorkspace extends CreatedTab {
   workspaceId: string;
-}
-
-function envArgs(env: Record<string, string>): string[] {
-  return Object.entries(env).flatMap(([key, value]) => ["--env", `${key}=${value}`]);
 }
 
 export interface RenameTabInput {
@@ -49,7 +43,7 @@ interface PaneInfo {
 
 export function createPaneCommands(exec: ExecHerdr) {
   return {
-    async createWorkspace({ cwd, label, env }: CreateWorkspaceInput): Promise<CreatedWorkspace> {
+    async createWorkspace({ cwd, label }: CreateWorkspaceInput): Promise<CreatedWorkspace> {
       const result = await exec<{ workspace: WorkspaceInfo; tab: TabInfo; root_pane: PaneInfo }>([
         "workspace",
         "create",
@@ -57,7 +51,6 @@ export function createPaneCommands(exec: ExecHerdr) {
         cwd,
         "--label",
         label,
-        ...envArgs(env),
         "--no-focus",
       ]);
       return {
@@ -67,7 +60,7 @@ export function createPaneCommands(exec: ExecHerdr) {
       };
     },
 
-    async createTab({ cwd, label, env }: CreateTabInput): Promise<CreatedTab> {
+    async createTab({ cwd, label }: CreateTabInput): Promise<CreatedTab> {
       const result = await exec<{ tab: TabInfo; root_pane: PaneInfo }>([
         "tab",
         "create",
@@ -75,7 +68,6 @@ export function createPaneCommands(exec: ExecHerdr) {
         cwd,
         "--label",
         label,
-        ...envArgs(env),
         "--no-focus",
       ]);
       return { tabId: result.tab.tab_id, paneId: result.root_pane.pane_id };

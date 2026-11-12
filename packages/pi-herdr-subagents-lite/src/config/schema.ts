@@ -6,9 +6,9 @@ export const CONFIG_KEYS = [
   "maxResultChars",
   "aggregateWindowMs",
   "closeChildrenOn",
+  "closeOnFailure",
   "inboxPollMs",
-  "pollIntervalMs",
-  "idlePollIntervalMs",
+  "livenessPollMs",
   "prompts",
   "bridge",
 ];

@@ -1,12 +1,13 @@
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { expect, it, vi } from "vitest";
 import { HerdrHostError } from "../../src/herdr/index.ts";
 import { fakeHost } from "../support/host.ts";
 import { sessionsRoot } from "../support/profiles.ts";
-import { assistantLine, firstText, parseStarted } from "../support/result.ts";
+import { firstText, flushDelivery, parseStarted } from "../support/result.ts";
 import { runTask } from "../support/run.ts";
 import { loadSession, loadTimedSession, loadTool } from "../support/session.ts";
+import { settleTurn } from "../support/turn.ts";
 import "../support/hooks.ts";
 
 it("gives up after 100 name retries", async () => {
@@ -102,12 +103,12 @@ it("reports startAgent failure with pane", async () => {
 });
 
 it("delivers one done result", async () => {
-  const { calls, sent, tool } = loadTimedSession(async () => ({ status: "idle", completionSeq: 1 }));
+  const { calls, sent, tool } = loadTimedSession(async () => ({ status: "idle" }));
 
   const started = parseStarted(await runTask(tool, "say hello"));
-  writeFileSync(started.sessionFile, `${assistantLine("hello")}\n`);
-
-  await vi.advanceTimersByTimeAsync(1000);
+  settleTurn(started.sessionFile, { text: "hello" });
+  await vi.advanceTimersByTimeAsync(500);
+  await flushDelivery(sent);
 
   expect(sent).toHaveLength(1);
   const message = sent[0]?.message;
@@ -124,18 +125,20 @@ it("delivers one done result", async () => {
   expect(calls.filter((call) => call === "closePane")).toHaveLength(0);
 });
 
-it("keeps polling while the agent is not registered yet", async () => {
+it("survives a registration gap shorter than three checks", async () => {
   let registered = false;
-  const { sent, tool } = loadTimedSession(async () => (registered ? { status: "idle", completionSeq: 1 } : null));
+  const { sent, tool } = loadTimedSession(async () => (registered ? { status: "idle" } : null));
 
   const started = parseStarted(await runTask(tool, "boot slowly"));
 
-  await vi.advanceTimersByTimeAsync(5000);
+  await vi.advanceTimersByTimeAsync(30_000);
   expect(sent).toHaveLength(0);
 
   registered = true;
-  writeFileSync(started.sessionFile, `${assistantLine("ready now")}\n`);
-  await vi.advanceTimersByTimeAsync(1000);
+  await vi.advanceTimersByTimeAsync(15_000);
+  settleTurn(started.sessionFile, { text: "ready now" });
+  await vi.advanceTimersByTimeAsync(500);
+  await flushDelivery(sent);
 
   expect(sent).toHaveLength(1);
   expect(sent[0]?.message.content.startsWith("[subagent worker-1] done")).toBe(true);

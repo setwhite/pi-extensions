@@ -1,5 +1,7 @@
 # 0052 完成检测用 agent list 快照
 
+> 完成检测已被 [DEC-0062](0062-turn-event-contract.md) 取代，存活判定已被 [DEC-0064](0064-liveness-by-agent-absence.md) 取代。以下留作历史。
+
 父侧调 `herdr agent list`，读取所有 agent 的 `agent_status` 与 `completion_seq`（间隔与定位顺序见本文「修订」各段）。`completion_seq` 大于该 run 的 `lastHandledSeq` 且状态为 `idle` 或 `done` 时，读子 session 尾部。每个 run 只记 `lastHandledSeq`。不订阅 herdr 事件，不维护状态机。以后若改用事件，`events.subscribe` 只服务结果投递与通知。
 
 依据：一次调用覆盖所有 run。不需要 socket 与重连。`pane_id` 由 `agent list` 自带。herdr server 重启后下一拍自动对账。

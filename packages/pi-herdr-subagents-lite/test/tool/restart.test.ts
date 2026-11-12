@@ -2,18 +2,17 @@ import { rmSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, it, vi } from "vitest";
-import { agentDir, writeConfig } from "../support/env.ts";
-import { fakeHost } from "../support/host.ts";
+import { writeConfig } from "../support/env.ts";
 import { identityOf } from "../support/paths.ts";
 import { writeProfile } from "../support/profiles.ts";
-import { assistantLine, firstText, parseStarted } from "../support/result.ts";
-import { exitedChild, runTask, sendTask } from "../support/run.ts";
-import { loadSession } from "../support/session.ts";
+import { firstText, flushDelivery, parseStarted, pendingAskLine } from "../support/result.ts";
+import { lostChild, runTask, sendTask } from "../support/run.ts";
+import { settleTurn } from "../support/turn.ts";
 import "../support/hooks.ts";
 
 it("re-reads the profile on restart", async () => {
   writeProfile("explore.md", "---\nmodel: old/model\n---\n\nOld body.\n");
-  const { fake, setAfterResume, started, tool } = await exitedChild({ profile: "explore" });
+  const { fake, started, tool } = await lostChild({ profile: "explore" });
 
   writeProfile("explore.md", "---\nmodel: new/model\n---\n\nNew body.\n");
 
@@ -23,48 +22,31 @@ it("re-reads the profile on restart", async () => {
   expect(fake.agents[1]?.agentArgs).toEqual(expect.arrayContaining(["--model", "new/model"]));
   expect(await readFile(identityOf(started.sessionFile), "utf8")).toBe("New body.");
 
-  rmSync(join(agentDir, "pi-herdr-subagents-lite", "profiles", "explore.md"), { force: true });
-  setAfterResume(null);
-
-  const missing = await sendTask(tool, "explore-1", "again");
-
-  expect(missing.isError).toBe(true);
-  expect(missing.details).toMatchObject({ code: "unknown_profile" });
   expect(fake.agents).toHaveLength(2);
 });
 
 it("delivers only the result after the restart", async () => {
   writeProfile("explore.md", "---\nmodel: old/model\n---\n\nExplore body.\n");
-  const { sent, setAfterResume, started, tool } = await exitedChild({
-    profile: "explore",
-    baseline: { status: "idle", completionSeq: 3 },
-  });
-
-  expect(sent).toHaveLength(1);
+  const { fake, sent, started, tool } = await lostChild({ profile: "explore" });
+  const before = sent.length;
 
   const result = await sendTask(tool, "explore-1", "continue the task");
-
   expect(result.isError).toBe(false);
 
-  await vi.advanceTimersByTimeAsync(1000);
-  expect(sent).toHaveLength(1);
+  settleTurn(started.sessionFile, { text: "new result" });
+  await vi.advanceTimersByTimeAsync(500);
+  await flushDelivery(sent, before + 1);
 
-  setAfterResume({ status: "idle", completionSeq: 4 });
-  writeFileSync(started.sessionFile, `${assistantLine("new result")}\n`);
-  await vi.advanceTimersByTimeAsync(1000);
-
-  expect(sent).toHaveLength(2);
-  expect(sent[1]?.message.content).toContain("new result");
-  expect(sent[1]?.message.content).not.toContain("old result");
-
-  await vi.advanceTimersByTimeAsync(2000);
-  expect(sent).toHaveLength(2);
+  expect(sent[before]?.message.content).toContain("new result");
+  expect(sent[before]?.message.content).not.toContain("old result");
+  expect(fake.agents).toHaveLength(2);
 });
 
-it("keeps finished runs for send", async () => {
+it("keeps dead runs for send", async () => {
   writeConfig({ maxConcurrent: 1 });
   writeProfile("explore.md", "---\nmodel: old/model\nauto-exit: true\n---\n\nExplore body.\n");
-  const { fake, sent, setAfterResume, started, tool } = await exitedChild({ profile: "explore" });
+  const { fake, sent, started, tool } = await lostChild({ profile: "explore" });
+  const before = sent.length;
 
   const restarted = await sendTask(tool, "explore-1", "continue the task");
 
@@ -72,11 +54,12 @@ it("keeps finished runs for send", async () => {
   expect(JSON.parse(firstText(restarted))).toMatchObject({ state: "restarted", name: "explore-1" });
   expect(fake.agents).toHaveLength(2);
 
-  setAfterResume({ status: "idle", completionSeq: 2 });
-  writeFileSync(started.sessionFile, `${assistantLine("second result")}\n`);
-  await vi.advanceTimersByTimeAsync(1000);
+  settleTurn(started.sessionFile, { text: "second result" });
+  await vi.advanceTimersByTimeAsync(500);
+  await flushDelivery(sent, before + 1);
 
-  expect(sent).toHaveLength(2);
+  expect(sent[before]?.message.content).toContain("second result");
+  expect(fake.calls).toContain("closePane");
 
   const next = await runTask(tool, "next task", "explore");
 
@@ -85,18 +68,20 @@ it("keeps finished runs for send", async () => {
 });
 
 it("sends to a renamed agent by pane id", async () => {
-  vi.useFakeTimers();
   process.env.HERDR_ENV = "1";
+  const { fakeHost } = await import("../support/host.ts");
+  const { loadSession } = await import("../support/session.ts");
   const fake = fakeHost();
-  const { sent, tool } = loadSession(fake.host);
+  const { tool } = loadSession(fake.host);
   const started = parseStarted(await runTask(tool, "inspect the repo"));
+  settleTurn(started.sessionFile, { text: "idle" });
+  await new Promise((resolve) => setTimeout(resolve, 30));
   fake.setListAgents(async () => [
     {
       name: "renamed-worker",
       paneId: started.paneId,
       sessionFile: `${started.sessionFile}.other`,
       status: "idle",
-      completionSeq: 1,
     },
   ]);
 
@@ -105,27 +90,51 @@ it("sends to a renamed agent by pane id", async () => {
   expect(reply.isError).toBe(false);
   expect(firstText(reply)).toBe('{"state":"sent","name":"worker-1"}');
   expect(fake.agents).toHaveLength(1);
-  expect(sent).toHaveLength(0);
 });
 
-it("re-reads auto-exit when restarting", async () => {
+it("opens a new tab when the pane is gone", async () => {
   writeProfile("explore.md", "---\nmodel: old/model\n---\n\nExplore body.\n");
-  const { fake, sent, setAfterResume, started, tool } = await exitedChild({ profile: "explore" });
-  writeProfile("explore.md", "---\nmodel: old/model\nauto-exit: true\n---\n\nExplore body.\n");
+  const { fake, started, tool } = await lostChild({ profile: "explore" });
+  fake.setPaneExists(false);
 
   const result = await sendTask(tool, "explore-1", "continue the task");
 
-  expect(JSON.parse(firstText(result))).toEqual({ state: "restarted", name: "explore-1" });
+  expect(result.isError).toBe(false);
   expect(result.details).toMatchObject({ state: "restarted", name: "explore-1", paneId: "w1:p2" });
-  expect(started.paneId).toBe("w1:p1");
-  expect(fake.tabs.at(-1)?.env).toEqual({ PI_SUBAGENT_AUTO_EXIT: "1" });
+  expect(fake.tabs.at(-1)).toMatchObject({ cwd: process.cwd(), label: "explore-1" });
   expect(fake.agents[1]?.paneId).toBe("w1:p2");
+  expect(fake.agents[1]?.sessionFile).toBe(started.sessionFile);
+});
 
-  setAfterResume({ status: "idle", completionSeq: 2 });
-  writeFileSync(started.sessionFile, `${assistantLine("new result")}\n`);
-  await vi.advanceTimersByTimeAsync(1000);
+it("restarts in the recorded cwd", async () => {
+  writeProfile("explore.md", "---\nmodel: old/model\n---\n\nExplore body.\n");
+  const { fake, tool } = await lostChild({ profile: "explore", cwd: "sub" });
+  fake.setPaneExists(false);
 
-  expect(sent).toHaveLength(2);
-  expect(sent[1]?.message.content).toContain("new result");
-  expect(fake.calls.filter((call) => call === "closePane")).toHaveLength(2);
+  await sendTask(tool, "explore-1", "continue the task");
+
+  expect(fake.workspaces.at(-1)?.cwd).toBe(join(process.cwd(), "sub"));
+});
+
+it("refuses a dirty session", async () => {
+  writeProfile("explore.md", "---\nmodel: old/model\n---\n\nExplore body.\n");
+  const { fake, started, tool } = await lostChild({ profile: "explore" });
+  writeFileSync(started.sessionFile, `${pendingAskLine()}\n`);
+
+  const result = await sendTask(tool, "explore-1", "continue the task");
+
+  expect(result.isError).toBe(true);
+  expect(result.details).toMatchObject({ code: "tail_dirty" });
+  expect(fake.agents).toHaveLength(1);
+});
+
+it("refuses a missing session", async () => {
+  writeProfile("explore.md", "---\nmodel: old/model\n---\n\nExplore body.\n");
+  const { started, tool } = await lostChild({ profile: "explore" });
+  rmSync(started.sessionFile, { force: true });
+
+  const result = await sendTask(tool, "explore-1", "continue the task");
+
+  expect(result.isError).toBe(true);
+  expect(result.details).toMatchObject({ code: "session_missing" });
 });

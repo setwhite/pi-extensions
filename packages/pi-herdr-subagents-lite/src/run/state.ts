@@ -1,30 +1,26 @@
 import type { HerdrHost } from "../herdr/index.ts";
 import type { ProfileCatalog } from "../profile/index.ts";
-import type { ExitReceiptReader, SessionReader } from "../session-file/index.ts";
+import type { SessionTailReader } from "../session-file/index.ts";
 import type { Aggregator } from "./aggregate.ts";
 import type { ResultHandler, RunResult } from "./result.ts";
+
+export type RunPhase = "running" | "idle" | "dead" | "closed";
 
 export interface RunServiceDeps {
   host: HerdrHost;
   sessionsDir: string;
-  readLastAssistant: SessionReader;
-  readExitReceipt: ExitReceiptReader;
+  readSessionTail: SessionTailReader;
   loadProfiles: () => ProfileCatalog;
   trusted: boolean;
   toolName: string;
   maxConcurrent: number;
   maxResultChars: number;
   aggregateWindowMs: number;
-  pollIntervalMs: number;
-  idlePollIntervalMs: number;
-  onDeliveryError: (error: unknown) => void;
+  livenessPollMs: number;
+  closeOnFailure: boolean;
+  onProblem: (message: string) => void;
   now?: () => number;
-}
-
-export interface RunRead {
-  seq: number;
-  attempt: number;
-  at: number;
+  delay?: (ms: number) => Promise<void>;
 }
 
 export interface RunPane {
@@ -38,21 +34,16 @@ export interface RunRecord {
   pane: RunPane | undefined;
   paneLabel: string;
   sessionFile: string;
-  // brief、identity、inbox、exit 回执、结果 artifact 共用的前缀。
+  // brief、identity、inbox、turn 事件、结果 artifact 共用的前缀。
   runBase: string;
   cwd: string;
   autoExit: boolean;
-  lastHandledSeq: number;
-  lastDeliveredText: string | null;
-  // session 文件的字节数：只追加，变大就说明尾部换了一条消息。
-  lastDeliveredSize: number;
-  paneClosed: boolean;
+  lastTurn: number;
   artifactSeq: number;
-  read?: RunRead;
-  pollFailures: number;
-  busy: boolean;
-  absentSince?: number;
-  live: boolean;
+  phase: RunPhase;
+  absentChecks: number;
+  paneClosed: boolean;
+  deliveryFailures: number;
 }
 
 export interface RunState extends RunServiceDeps {
@@ -61,13 +52,14 @@ export interface RunState extends RunServiceDeps {
   stopped: boolean;
   resultHandler: ResultHandler | undefined;
   results: Aggregator<RunResult> | undefined;
-  pollTimer?: ReturnType<typeof setTimeout>;
-  pollBusy: boolean;
-  activeUntil: number;
+  scanTimer?: ReturnType<typeof setInterval>;
+  livenessTimer?: ReturnType<typeof setInterval>;
+  scanning: boolean;
+  scanAgain: boolean;
   now: () => number;
+  delay: (ms: number) => Promise<void>;
   nextName(profile: string): string;
   active(): string[];
   available(): string[];
-  settle(run: RunRecord): void;
   release(run: RunRecord): void;
 }

@@ -24,7 +24,7 @@ export function fakeHost(
   let paneExists = true;
   let starts = 0;
   const paneAgents = new Map<string, { name: string; sessionFile: string }>();
-  let agentImpl: (name: string) => Promise<AgentSnapshot | null> = async () => null;
+  let agentImpl: (name: string) => Promise<AgentSnapshot | null> = async () => ({ status: "idle" });
   let listAgentsImpl: (() => Promise<AgentEntry[]>) | undefined;
   const host: HerdrHost = {
     async createWorkspace(input) {
@@ -80,7 +80,6 @@ export function fakeHost(
             paneId,
             sessionFile: agent.sessionFile,
             status: snapshot.status,
-            completionSeq: snapshot.completionSeq,
           });
         }
       }
@@ -88,6 +87,7 @@ export function fakeHost(
     },
     async closePane(paneId) {
       calls.push("closePane");
+      paneExists = false;
       const error = options.closePane?.(paneId);
       if (error) {
         throw error;

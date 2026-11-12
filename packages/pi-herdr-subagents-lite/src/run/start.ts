@@ -7,11 +7,11 @@ import { spawnFailed, ToolError } from "./errors.ts";
 import { paneLabel } from "./naming.ts";
 import { createPane } from "./pane.ts";
 import { runBaseOf, runsDir } from "./paths.ts";
-import { wake } from "./poll.ts";
 import { resolveProfile, resolveSkills } from "./resolve.ts";
 import { requireSlot } from "./slot.ts";
 import { agentArgs, briefText, resolveCwd } from "./spawn-args.ts";
 import type { RunRecord, RunState } from "./state.ts";
+import { watchRun } from "./watch.ts";
 
 const NAME_ATTEMPTS = 100;
 
@@ -64,14 +64,12 @@ async function launch(state: RunState, profileName: string, task: string, rawCwd
     runBase: current.runBase,
     cwd,
     autoExit: profile.autoExit,
-    lastHandledSeq: 0,
-    lastDeliveredText: null,
-    lastDeliveredSize: -1,
-    paneClosed: false,
+    lastTurn: 0,
     artifactSeq: 0,
-    pollFailures: 0,
-    busy: false,
-    live: true,
+    phase: "running",
+    absentChecks: 0,
+    paneClosed: false,
+    deliveryFailures: 0,
   };
   // 先占槽再 await：并发的 run() 必须立刻看到它。
   state.runs.push(run);
@@ -125,7 +123,7 @@ async function launch(state: RunState, profileName: string, task: string, rawCwd
       }
     }
 
-    wake(state);
+    watchRun(state, run);
 
     return {
       state: "running",

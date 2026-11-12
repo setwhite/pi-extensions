@@ -1,6 +1,6 @@
 # 0032 died 判定以 agent list 消失为准
 
-判死规则已被 [DEC-0052](0052-completion-snapshot.md) 取代：现在只认退出回执与 pane 消失。仍有效的部分：单次命令失败不算死亡。`agent explain` 只作人工诊断。不用 `agent wait`。
+判死规则先被 [DEC-0052](0052-completion-snapshot.md)、后被 [DEC-0064](0064-liveness-by-agent-absence.md) 取代。仍有效的部分：单次命令失败不算死亡。`agent explain` 只作人工诊断。不用 `agent wait`。
 
 依据：父侧已有轮询快照。不额外造等待进程。
 

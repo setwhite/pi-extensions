@@ -45,6 +45,16 @@ export function pendingAskLine(): string {
 
 const realSetTimeout = setTimeout;
 
+export async function eventually(check: () => boolean, label = "condition"): Promise<void> {
+  for (let attempt = 0; attempt < 400; attempt += 1) {
+    if (check()) {
+      return;
+    }
+    await new Promise((resolve) => realSetTimeout(resolve, 5));
+  }
+  expect(check(), label).toBe(true);
+}
+
 export async function flushDelivery<T>(items: T[], count = 1): Promise<void> {
   for (let attempt = 0; attempt < 400 && items.length < count; attempt += 1) {
     await new Promise((resolve) => realSetTimeout(resolve, 5));

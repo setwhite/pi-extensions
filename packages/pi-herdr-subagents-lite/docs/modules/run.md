@@ -1,34 +1,51 @@
 # run
 
-run 生命周期内核。对外行为见 [v1 契约](../specs/0001-v1-contract.md)。本文只写取舍。
+run 生命周期内核：启动、send、回合事件、结算、关闭。对外行为见 [v1 契约](../specs/0001-v1-contract.md)。本文只写取舍。
 
-## 状态来源
+## 状态
 
-- 每一拍拉一次 `agent list` 快照。先按 session 文件、再按 `paneId`、最后按 `name` 定位 run，比较 `completion_seq`（DEC-0052）。不订阅 herdr 事件：一次调用覆盖所有 run，不需要 socket 与重连，server 重启后下一拍自动对账。
-- 死亡只认事实：有退出回执，或 pane 消失。两者都没有时，查不到条目只算「这拍没看见」，满 10 秒才判死（DEC-0052）。
-- 只有对账，没有事件边沿。快照与 `completion_seq` 单调比较是幂等的，丢一拍下一拍补上。所以间隔只是延迟预算，正确性不依赖它。
-- 两档间隔，由上一拍的结果决定。有 run 在 working / blocked / unknown（`run.busy`）、正在缺失宽限里（`run.absentSince`），或最近 30 秒内 `run` / `send` 过，用 `pollIntervalMs`。所有 live run 都只是收工等 `send`，用 `idlePollIntervalMs`。`run` / `send` 会把下一拍拉回活跃档。
-- 读重试也不单独计时。记 `run.read.at`，下一拍取最早的到期时间，全进程只有一个 `setTimeout`。
-- 单次 `agent list` 失败不算死亡。连续 3 拍失败才结算 `poll_failed`。读取门槛见契约 §6。
+每个 run 只有四个状态。
+
+| 状态 | 含义 | 占并发槽 |
+|---|---|---|
+| `running` | 有回合在飞 | 是 |
+| `idle` | 回合收工，等 `send`。pane 可能已关（`paneClosed`） | 否 |
+| `dead` | 判定失去联系，记录留着等 `send` 续跑 | 否 |
+| `closed` | 已从服务移除 | 否 |
+
+## 回合事件
+
+- 父侧 500ms 扫一次各 run 的 `.turns/` 目录。事件就是文件，扫描是唯一触发。
+- 不用 `fs.watch`：Windows 上删掉被监视的目录会让 Node 在 `fs-event.c` 断言崩溃。500ms 一次 readdir 没有进程启动，也没有句柄生命周期。
+- 一个回合只走 `settleTurn` 一条路径：投递 → 删除文件 → 按判据关 pane → 改状态。没有第二条补关路径。
+- 投递失败保留文件，下一拍重试；三次失败后丢弃并通知。
+- 同一回合号只投一次，按 `lastTurn` 去重。
+
+## 存活
+
+- 只有 `running` 的 run 查 `agent list`，每 15 秒一次。
+- `findAgent` 先按 session 文件、再按 `paneId`、最后按 `name`。
+- 连续三次查不到、且 pane 还在，判定 `dead`（DEC-0064）。pane 不在则立即判定。
+- 不拿 pane 文本、退出码或 session 尾部猜死活。
 
 ## 槽位
 
-- run 在第一次 await 之前占槽，并发 `run()` 立刻看到它。
-- `done` 且 `auto-exit: false` 的 run 仍为 live、仍占槽，`send` 才能续聊（DEC-0047）。父侧因此一直轮询，这类 run 是慢速档。
-- `send` 受同一上限约束。已收工或已退出的 run 重新变成 live 之前要占槽。已满时返回 `max_concurrent`，不投递，不重启。
+- 只有 `running` 占槽。`idle` 与 `dead` 不占，父代理还能继续派活。
+- `run` 在第一次 await 之前占槽，并发的 `run()` 立刻看到它。
+- `send` 续跑也要占槽。已满时返回 `max_concurrent`，不投递、不重启。
 
 ## send
 
-- 只有显式 `send` 才重启。死亡不自动重启（DEC-0031）。
-- 重启重读 profile，不用快照。非 `task` 模式按新 profile 重写身份文件。
-- auto-exit 走 pane env（DEC-0056）。新 profile 的 `auto-exit` 与建 tab 时的值不一致时，关掉旧 pane 并新建 tab。否则在原 pane 重新 `agent start`。
-- 三类拒绝重启见契约 §5：宁可报错也不重放副作用。
+- `running`：直接写 inbox，不再查 `agent list`。
+- `idle`：查一次 `agent list`。找到就写 inbox；找不到就按 `dead` 续跑。
+- `dead`：从同一个 session 文件重启。先查尾部有没有未完成的工具调用。
+- 只有显式 `send` 才重启，死亡不自动重启（DEC-0031）。
+- 重启重读 profile，不用快照。
 
-## 结果与关闭
+## 关闭
 
-- 结果超限时，消息里只留可读的头与路径，全文落 `<runBase>.result-<seq>.md`。写失败仍按 `done` 投递并附警告（DEC-0036）。
-- 聚合窗口为 0 与非 0 时，投递失败都走 `onError` → 父会话收到 `subagent result not delivered`。0 不排队，直接投递。
-- `shutdown` 置 stopped 后直接丢掉在途 `start()`。`closeChildren` 会等它们结束再关 pane，避免刚关完又被创建。
-- `closeChildren` 先停轮询再并发关 pane，所以不会再投 `pane_exited`。失败的逐条通知由 [extension](extension.md) 发（DEC-0048）。
-- 关闭是 `pane close`，幂等（DEC-0060）。关失败不结算：保留 live、补一条 `close_failed`，子代理死亡时再关一次。
-- 投递判据是「尾部换过没有」，不是「文本和上次不同」。文本相同、session 文件变大也算新消息。投递与关闭互不依赖。
+- 判据见 DEC-0063：`done` + `auto-exit` + 没有活着的子代理，或 `quit` / `dead`，或 `closeOnFailure`。
+- `pane close` 重试 3 次、间隔 250ms。`pane_not_found` 算已关。
+- 关失败只通知一次，不改变已投递的结果。
+- 关 pane 后不删记录。`send` 见 `paneClosed` 直接重启，不再查 agent。
+- 先投递，再关 pane。

@@ -22,6 +22,7 @@ export interface RestartedRun {
 interface ToolResult {
   text: string;
   isError: boolean;
+  details?: unknown;
 }
 
 export function entries(file: string): unknown[] {
@@ -80,11 +81,18 @@ export function hasToolCall(file: string): boolean {
 function toolResults(file: string): ToolResult[] {
   const out: ToolResult[] = [];
   for (const entry of entries(file)) {
-    const record = entry as { type?: string; message?: { role?: string; content?: unknown; isError?: unknown } };
+    const record = entry as {
+      type?: string;
+      message?: { role?: string; content?: unknown; isError?: unknown; details?: unknown };
+    };
     if (record.type !== "message" || record.message?.role !== "toolResult") {
       continue;
     }
-    out.push({ text: textOf(record.message.content), isError: record.message.isError === true });
+    out.push({
+      text: textOf(record.message.content),
+      isError: record.message.isError === true,
+      details: record.message.details,
+    });
   }
   return out;
 }
@@ -95,16 +103,27 @@ export function results<T>(file: string, state: string): T[] {
     if (result.isError) {
       continue;
     }
-    try {
-      const parsed = JSON.parse(result.text) as { state?: string };
-      if (parsed.state === state) {
-        out.push(parsed as T);
-      }
-    } catch {
-      // 非 JSON 的成功结果不是本工具。
+    const parsed = detailsOf(result) ?? textOfResult(result.text);
+    if (parsed?.state === state) {
+      out.push(parsed as T);
     }
   }
   return out;
+}
+
+// details 是给 UI 与 session 的完整结果；content 只放模型能用的字段。
+function detailsOf(result: ToolResult): { state?: string } | undefined {
+  return typeof result.details === "object" && result.details !== null
+    ? (result.details as { state?: string })
+    : undefined;
+}
+
+function textOfResult(text: string): { state?: string } | undefined {
+  try {
+    return JSON.parse(text) as { state?: string };
+  } catch {
+    return undefined;
+  }
 }
 
 export function errors(file: string, code: string): string[] {

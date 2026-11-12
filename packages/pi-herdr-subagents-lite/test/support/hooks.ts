@@ -10,7 +10,6 @@ const tempDirs = new Set<string>();
 
 beforeEach(() => {
   delete process.env.HERDR_ENV;
-  delete process.env.PI_SUBAGENT_AUTO_EXIT;
   const agentDir = mkdtempSync(join(tmpdir(), "pi-herdr-agent-"));
   const projectDir = mkdtempSync(join(tmpdir(), "pi-herdr-project-"));
   setDirs(agentDir, projectDir);
@@ -27,5 +26,4 @@ afterEach(async () => {
   tempDirs.clear();
   delete process.env.HERDR_ENV;
   delete process.env.PI_CODING_AGENT_DIR;
-  delete process.env.PI_SUBAGENT_AUTO_EXIT;
 });

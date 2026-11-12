@@ -57,7 +57,7 @@ it("uses the cwd parameter", async () => {
 
   await startRun(plain);
 
-  expect(plain.tabs).toEqual([{ cwd: process.cwd(), label: "worker-1", env: { PI_SUBAGENT_AUTO_EXIT: "0" } }]);
+  expect(plain.tabs).toEqual([{ cwd: process.cwd(), label: "worker-1" }]);
 });
 
 it("creates a workspace when the cwd differs", async () => {
@@ -68,9 +68,7 @@ it("creates a workspace when the cwd differs", async () => {
 
   expect(fake.calls.filter((call) => call === "createWorkspace")).toHaveLength(1);
   expect(fake.calls).not.toContain("createTab");
-  expect(fake.workspaces).toEqual([
-    { cwd: join(process.cwd(), "sub"), label: "worker-1", env: { PI_SUBAGENT_AUTO_EXIT: "0" } },
-  ]);
+  expect(fake.workspaces).toEqual([{ cwd: join(process.cwd(), "sub"), label: "worker-1" }]);
   expect(fake.renamedTabs).toEqual([{ tabId: "w2:t1", label: "worker-1" }]);
   expect(started.paneId).toBe("w2:p1");
 });

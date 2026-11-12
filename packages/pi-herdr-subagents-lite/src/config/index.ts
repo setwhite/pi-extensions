@@ -40,8 +40,8 @@ export interface Config {
   aggregateWindowMs: number;
   closeChildrenOn: ShutdownReason[];
   inboxPollMs: number;
-  pollIntervalMs: number;
-  idlePollIntervalMs: number;
+  livenessPollMs: number;
+  closeOnFailure: boolean;
   prompts: PromptOverrides;
   bridge: { enabled: boolean; blockedOn: BlockedKind[] };
 }
@@ -75,10 +75,10 @@ function parse(raw: Raw, file: string): Config {
     maxConcurrent: integer(top, "maxConcurrent", 16, 1, Number.POSITIVE_INFINITY),
     maxResultChars: integer(top, "maxResultChars", 16384, 1024, 1048576),
     aggregateWindowMs: integer(top, "aggregateWindowMs", 500, 0, 10000),
-    closeChildrenOn: enumList(top, "closeChildrenOn", SHUTDOWN_REASONS, []),
+    closeChildrenOn: enumList(top, "closeChildrenOn", SHUTDOWN_REASONS, ["quit", "reload"]),
+    closeOnFailure: boolean(top, "closeOnFailure", false),
     inboxPollMs: integer(top, "inboxPollMs", 250, 50, 5000),
-    pollIntervalMs: integer(top, "pollIntervalMs", 1000, 100, 60000),
-    idlePollIntervalMs: integer(top, "idlePollIntervalMs", 8000, 100, 60000),
+    livenessPollMs: integer(top, "livenessPollMs", 15000, 1000, 300000),
     prompts: promptOverrides(top),
     bridge: {
       enabled: boolean(bridge, "enabled", true),

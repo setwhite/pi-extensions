@@ -11,10 +11,10 @@ const specDefaults = {
   maxConcurrent: 16,
   maxResultChars: 16384,
   aggregateWindowMs: 500,
-  closeChildrenOn: [],
+  closeChildrenOn: ["quit", "reload"],
+  closeOnFailure: false,
   inboxPollMs: 250,
-  pollIntervalMs: 1000,
-  idlePollIntervalMs: 8000,
+  livenessPollMs: 15000,
   prompts: {},
   bridge: { enabled: true, blockedOn: ["custom", "select", "confirm", "input", "editor"] },
 };
@@ -58,10 +58,8 @@ it.each([
   [{ aggregateWindowMs: -1 }, { aggregateWindowMs: 0 }],
   [{ inboxPollMs: 1 }, { inboxPollMs: 50 }],
   [{ inboxPollMs: 99999 }, { inboxPollMs: 5000 }],
-  [{ pollIntervalMs: 1 }, { pollIntervalMs: 100 }],
-  [{ pollIntervalMs: 99999 }, { pollIntervalMs: 60000 }],
-  [{ idlePollIntervalMs: 1 }, { idlePollIntervalMs: 100 }],
-  [{ idlePollIntervalMs: 99999 }, { idlePollIntervalMs: 60000 }],
+  [{ livenessPollMs: 1 }, { livenessPollMs: 1000 }],
+  [{ livenessPollMs: 9999999 }, { livenessPollMs: 300000 }],
 ])("clamps %o", (patch, expected) => {
   expect(readConfig(patch)).toMatchObject(expected);
 });

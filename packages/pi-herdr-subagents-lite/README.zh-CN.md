@@ -54,20 +54,20 @@ pi -e /path/to/pi-herdr-subagents-lite/src/index.ts # 只对当前进程生效
   "toolName": "subagent",
   // 默认 "herdr"。裸名从 PATH 解析。绝对路径锁定版本。
   "herdrBin": "herdr",
-  // 默认 16，下限 1。到上限时 run 返回 max_concurrent。auto-exit: false 的子代理收工后仍占槽。
+  // 默认 16，下限 1。到上限时 run 返回 max_concurrent。只有进行中的回合占槽。
   "maxConcurrent": 16,
   // 默认 16384，范围 1024 到 1048576。超上限时全文落 artifact 文件。消息里留截断的头和路径。
   "maxResultChars": 16384,
   // 默认 500，范围 0 到 10000，单位毫秒。0 = 逐条立即投递。调大合并更多结果。
   "aggregateWindowMs": 500,
-  // 默认空 = 从不关。取值：new、resume、fork、quit、reload。列出的原因会在父会话退出时关掉子 tab。
-  "closeChildrenOn": [],
+  // 默认 ["quit", "reload"]。取值：new、resume、fork、quit、reload。列出的原因会在父会话退出时关掉子 pane。
+  "closeChildrenOn": ["quit", "reload"],
+  // 默认 false。true = 失败或中断的回合结束后关 pane。false 留着，send 可以续。
+  "closeOnFailure": false,
   // 默认 250，范围 50 到 5000，单位毫秒。调大省唤醒，投递变慢。
   "inboxPollMs": 250,
-  // 默认 1000，范围 100 到 60000，单位毫秒。子代理在 working 或 blocked 时用它，刚 run / send 的 30 秒内也用它。
-  "pollIntervalMs": 1000,
-  // 默认 8000，范围 100 到 60000，单位毫秒。所有 live 子代理都只在等 send 时用它。调大后，发现 pane 消失更晚。
-  "idlePollIntervalMs": 8000,
+  // 默认 15000，范围 1000 到 300000，单位毫秒。多久查一次进行中的子代理还活着没有。连续三次缺席判为失去联系。
+  "livenessPollMs": 15000,
   // 工具文案覆盖。每个键默认未设置，用下面这份内置文案。
   "prompts": {
     // 替换内置描述。
@@ -134,7 +134,7 @@ skills: ""
 # task：正文就是任务文本，不写身份文件
 system-prompt: append
 
-# 收工后自行退出并关掉 tab。有打开的对话框或 inbox 待投递时会等
+# 这个 run 的 done 回合结束后关掉 pane。false 则留着，send 还能续
 auto-exit: true
 
 # true = 不出现在 guidelines 的 profile 列表里。显式 run 仍然可用

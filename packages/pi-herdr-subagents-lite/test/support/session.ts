@@ -8,19 +8,16 @@ import {
 } from "../../src/extension/index.ts";
 import type { AgentSnapshot, HerdrHost } from "../../src/herdr/index.ts";
 import { loadProfiles, agentDir as resolveAgentDir } from "../../src/profile/index.ts";
-import { readExitReceipt, readLastAssistant, writeExitReceipt } from "../../src/session-file/index.ts";
+import { readSessionTail } from "../../src/session-file/index.ts";
 import { fakeHost } from "./host.ts";
-import { childSessionFile } from "./inbox.ts";
 import { fakePi } from "./pi.ts";
 
 export function registerExtension(pi: ExtensionRegistrar, host: HerdrHost) {
   createExtension({
     createHost: () => host,
-    readLastAssistant,
-    readExitReceipt,
+    readSessionTail,
     loadConfig: () => loadConfig(resolveAgentDir()),
     loadProfiles,
-    writeExitReceipt,
   })(pi);
 }
 
@@ -52,24 +49,11 @@ export function loadTimedSession(
   return { ...loadSession(fake.host, calls), calls, fake };
 }
 
-export function loadAutoExitChild(options: { env?: string | null } = {}) {
-  if (options.env === null) {
-    delete process.env.PI_SUBAGENT_AUTO_EXIT;
-  } else {
-    process.env.PI_SUBAGENT_AUTO_EXIT = options.env ?? "1";
-  }
-  const sessionFile = childSessionFile();
-  const fake = fakePi();
-  registerExtension(fake.pi, fakeHost().host);
-  fake.startSession({ sessionManager: { getSessionFile: () => sessionFile } });
-  return { fake, sessionFile };
-}
-
 export function loadChild(sessionFile: string | undefined, options: { isIdle?: () => boolean } = {}) {
   const fake = fakePi();
   registerExtension(fake.pi, fakeHost().host);
   fake.startSession({
-    sessionManager: { getSessionFile: () => sessionFile },
+    sessionManager: { getSessionFile: () => sessionFile, getBranch: () => [] },
     isIdle: options.isIdle ?? (() => true),
   });
   return fake;

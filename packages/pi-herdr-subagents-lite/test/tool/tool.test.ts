@@ -111,7 +111,7 @@ it("launches a worker", async () => {
   const { agent, started } = await startRun(fake);
 
   expect(started).toMatchObject({ state: "running", name: "worker-1", paneId: "w1:p1" });
-  expect(fake.tabs).toEqual([{ cwd: process.cwd(), label: "worker-1", env: { PI_SUBAGENT_AUTO_EXIT: "0" } }]);
+  expect(fake.tabs).toEqual([{ cwd: process.cwd(), label: "worker-1" }]);
   expect(agent).toMatchObject({ name: "worker-1", paneId: started.paneId, sessionFile: started.sessionFile });
   const brief = await readFile(briefOf(started.sessionFile), "utf8");
   expect(brief).toBe("# Task\ninspect the repo\n");

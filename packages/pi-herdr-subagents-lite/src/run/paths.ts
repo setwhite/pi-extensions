@@ -10,7 +10,7 @@ export function runsDir(): string {
   return join(dataDir(agentDir()), "runs");
 }
 
-// run 的附属文件共用一个前缀：brief、identity、inbox、exit 回执、结果 artifact。
+// run 的附属文件共用一个前缀：brief、identity、inbox、turn 事件、结果 artifact。
 export function runBaseOf(sessionFile: string): string {
   return join(runsDir(), basename(sessionFile, ".jsonl"));
 }

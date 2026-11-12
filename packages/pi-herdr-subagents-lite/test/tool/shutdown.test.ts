@@ -1,98 +1,106 @@
-import { readFileSync, writeFileSync } from "node:fs";
-import { expect, it, vi } from "vitest";
+import { writeFileSync } from "node:fs";
+import { expect, it } from "vitest";
 import { writeConfig } from "../support/env.ts";
 import { fakeHost } from "../support/host.ts";
-import { artifactOf } from "../support/paths.ts";
 import { writeProfile } from "../support/profiles.ts";
-import { assistantLine, firstText, flushDelivery, parseStarted } from "../support/result.ts";
-import { runTask, runTasks } from "../support/run.ts";
-import { loadSession, loadTimedSession } from "../support/session.ts";
+import { eventually, firstText, flushDelivery, parseStarted } from "../support/result.ts";
+import { runTask, runTasks, sendTask } from "../support/run.ts";
+import { loadSession } from "../support/session.ts";
+import { settleTurn } from "../support/turn.ts";
 import "../support/hooks.ts";
 
-it("does not split surrogate pairs when truncating", async () => {
-  const { sent, tool } = loadTimedSession(async () => ({ status: "idle", completionSeq: 1 }));
-
-  const started = parseStarted(await runTask(tool, "emoji report"));
-  const head = `${"h".repeat(16383)}😀`;
-  writeFileSync(started.sessionFile, `${assistantLine(`${head}${"z".repeat(100)}`)}\n`);
-
-  await vi.advanceTimersByTimeAsync(1000);
-  await flushDelivery(sent);
-
-  const content = sent[0]?.message.content ?? "";
-  expect(content).toContain("h".repeat(16383));
-  expect(content).toContain("Full result:");
-  expect(content).not.toMatch(/\p{Cs}/u);
-  expect(readFileSync(artifactOf(started.sessionFile, 1), "utf8")).toContain("😀");
-});
-
-async function expectDoneDespiteClose(closePane: (paneId: string) => Error | undefined, closeFailed = false) {
+it("closes the pane after delivering a done turn when auto-exit is true", async () => {
+  process.env.HERDR_ENV = "1";
   writeProfile("worker.md", "---\nauto-exit: true\n---\n\nWorker body.\n");
-  const { calls, sent, tool } = loadTimedSession(async () => ({ status: "idle", completionSeq: 1 }), closePane);
-
+  const calls: string[] = [];
+  const fake = fakeHost({ events: calls });
+  const { sent, tool } = loadSession(fake.host);
   const started = parseStarted(await runTask(tool, "say hello"));
-  writeFileSync(started.sessionFile, `${assistantLine("hello")}\n`);
+  settleTurn(started.sessionFile, { text: "hello" });
+  await eventually(() => calls.includes("closePane"));
 
-  await vi.advanceTimersByTimeAsync(1000);
-
-  const content = sent[0]?.message.content ?? "";
-  expect(sent).toHaveLength(closeFailed ? 2 : 1);
-  expect(content.startsWith("[subagent worker-1] done")).toBe(true);
-  expect(content).toContain("hello");
-  expect(content).not.toContain("error");
-  if (closeFailed) {
-    expect(sent[1]?.message.content).toBe("[subagent worker-1] result delivered, but the pane did not close");
-  }
-  expect(calls.filter((call) => call === "closePane")).toHaveLength(1);
+  expect(sent).toHaveLength(1);
+  expect(sent[0]?.message.content.startsWith("[subagent worker-1] done")).toBe(true);
+  expect(calls.indexOf("sendMessage")).toBeLessThan(calls.indexOf("closePane"));
 
   const next = await runTask(tool, "next task");
   expect(next.isError).toBe(false);
   expect(parseStarted(next).name).toBe("worker-2");
-}
-
-it("reports a failed close", async () => {
-  await expectDoneDespiteClose(() => new Error("herdr pane close failed"), true);
 });
 
-it("closes the pane after the child dies when the close failed", async () => {
+it("resumes a child whose pane was closed after a done turn", async () => {
+  process.env.HERDR_ENV = "1";
   writeProfile("worker.md", "---\nauto-exit: true\n---\n\nWorker body.\n");
-  const attempts: string[] = [];
-  const { calls, fake, sent, tool } = loadTimedSession(
-    async () => ({ status: "idle", completionSeq: 1 }),
-    (paneId) => {
-      attempts.push(paneId);
-      return attempts.length === 1 ? new Error("herdr pane close failed") : undefined;
-    },
-  );
-
+  const calls: string[] = [];
+  const fake = fakeHost({ events: calls });
+  const { tool } = loadSession(fake.host);
   const started = parseStarted(await runTask(tool, "say hello"));
-  writeFileSync(started.sessionFile, `${assistantLine("hello")}\n`);
+  writeFileSync(started.sessionFile, "");
+  settleTurn(started.sessionFile, { text: "hello" });
+  await eventually(() => calls.includes("closePane"));
 
-  await vi.advanceTimersByTimeAsync(1000);
-  expect(sent).toHaveLength(2);
-  expect(calls.filter((call) => call === "closePane")).toHaveLength(1);
+  const reply = await sendTask(tool, "worker-1", "one more");
 
-  fake.setAgents(async () => null);
-  fake.setPaneExists(false);
-  await vi.advanceTimersByTimeAsync(1000);
+  expect(reply.isError).toBe(false);
+  expect(reply.details).toMatchObject({ state: "restarted", name: "worker-1" });
+  expect((reply.details as { paneId: string }).paneId).not.toBe(started.paneId);
+  expect(fake.agents).toHaveLength(2);
+});
 
-  expect(calls.filter((call) => call === "closePane")).toHaveLength(2);
-  expect(attempts).toEqual(["w1:p1", "w1:p1"]);
+it("reports a failed close once and still frees the slot", async () => {
+  process.env.HERDR_ENV = "1";
+  writeProfile("worker.md", "---\nauto-exit: true\n---\n\nWorker body.\n");
+  const fake = fakeHost({ closePane: () => new Error("herdr pane close failed") });
+  const { notifications, sent, tool } = loadSession(fake.host);
+  const started = parseStarted(await runTask(tool, "say hello"));
+  settleTurn(started.sessionFile, { text: "hello" });
+  await eventually(() => notifications.some((item) => item.message.includes("could not close")));
+
+  expect(sent).toHaveLength(1);
+  expect(fake.calls.filter((call) => call === "closePane")).toHaveLength(3);
+
+  const next = await runTask(tool, "next task");
+  expect(next.isError).toBe(false);
+  expect(parseStarted(next).name).toBe("worker-2");
+});
+
+it("does not close a failed turn by default", async () => {
+  process.env.HERDR_ENV = "1";
+  const fake = fakeHost();
+  const { sent, tool } = loadSession(fake.host);
+  const started = parseStarted(await runTask(tool, "may fail"));
+  settleTurn(started.sessionFile, { outcome: "error", stopReason: "error", errorMessage: "529 overloaded" });
+  await flushDelivery(sent);
+
+  expect(sent[0]?.message.content).toContain("[subagent worker-1] failed");
+  expect(sent[0]?.message.content).toContain("529 overloaded");
+  expect(fake.calls).not.toContain("closePane");
+});
+
+it("closes the pane when the child quits", async () => {
+  process.env.HERDR_ENV = "1";
+  const fake = fakeHost();
+  const { sent, tool } = loadSession(fake.host);
+  const started = parseStarted(await runTask(tool, "quit soon"));
+  settleTurn(started.sessionFile, { outcome: "quit", stopReason: "quit" });
+  await eventually(() => fake.calls.includes("closePane"));
+
+  expect(sent[0]?.message.content).toContain("stopped before reporting a result");
 });
 
 it("stops after session shutdown", async () => {
-  const { calls, sent, shutdownSession, tool } = loadTimedSession(async () => ({
-    status: "working",
-    completionSeq: 0,
-  }));
+  process.env.HERDR_ENV = "1";
+  writeConfig({ closeChildrenOn: [] });
+  const fake = fakeHost();
+  const { sent, shutdownSession, tool } = loadSession(fake.host);
 
   await runTask(tool, "long task");
 
   await shutdownSession();
-  await vi.advanceTimersByTimeAsync(5000);
+  await new Promise((resolve) => setTimeout(resolve, 30));
 
   expect(sent).toHaveLength(0);
-  expect(calls.filter((call) => call === "closePane")).toHaveLength(0);
+  expect(fake.calls).not.toContain("closePane");
 });
 
 it("cancels an in-flight start when the session shuts down", async () => {
@@ -105,7 +113,7 @@ it("cancels an in-flight start when the session shuts down", async () => {
   const fake = fakeHost({ hooks: { renamePane: () => gate } });
   const { shutdownSession, tool } = loadSession(fake.host);
   const pending = runTask(tool, "slow start");
-  await vi.waitFor(() => expect(fake.calls).toContain("renamePane"));
+  await eventually(() => fake.calls.includes("renamePane"));
 
   const closing = shutdownSession("quit");
   release();
@@ -120,28 +128,24 @@ it("cancels an in-flight start when the session shuts down", async () => {
 
 it("closes children on matching reasons", async () => {
   writeConfig({ closeChildrenOn: ["quit"] });
-  const { calls, sent, shutdownSession, tool } = loadTimedSession(async () => ({
-    status: "working",
-    completionSeq: 0,
-  }));
+  process.env.HERDR_ENV = "1";
+  const fake = fakeHost();
+  const { shutdownSession, tool } = loadSession(fake.host);
 
   await runTasks(tool, 2);
   await shutdownSession("quit");
-  await vi.advanceTimersByTimeAsync(5000);
 
-  expect(calls.filter((call) => call === "closePane")).toHaveLength(2);
-  expect(sent.filter((message) => message.message.content.includes("unknown"))).toHaveLength(0);
+  expect(fake.calls.filter((call) => call === "closePane")).toHaveLength(2);
 });
 
-it("keeps children when the reason does not match", async () => {
-  writeConfig({ closeChildrenOn: ["resume"] });
-  const { calls, shutdownSession, tool } = loadTimedSession(async () => ({
-    status: "working",
-    completionSeq: 0,
-  }));
+it("keeps children when the reason is not listed", async () => {
+  writeConfig({ closeChildrenOn: [] });
+  process.env.HERDR_ENV = "1";
+  const fake = fakeHost();
+  const { shutdownSession, tool } = loadSession(fake.host);
 
-  await runTask(tool, "long task");
+  await runTask(tool, "stay");
   await shutdownSession("quit");
 
-  expect(calls.filter((call) => call === "closePane")).toHaveLength(0);
+  expect(fake.calls).not.toContain("closePane");
 });

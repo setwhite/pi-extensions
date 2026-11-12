@@ -5,14 +5,12 @@ import { useHerdrE2e, writeExploreProfile } from "./fixture.ts";
 import { hasToolCall, killProcess, messages, prereqs, results, type StartedRun, sleep, waitFor } from "./harness.ts";
 
 const state = prereqs();
-// 被杀的子代理按 session 尾部结算：尾部有未完成 toolCall 走 pane_exited，否则读 3 次后是 no_result。
-const NO_RESULT_TEXTS = ["the pane exited without a result", "no result was read"];
 
 describe.skipIf(!state.ok)(`herdr e2e: child loss${state.ok ? "" : ` (skipped: ${state.reason})`}`, () => {
   const harness = useHerdrE2e(writeExploreProfile);
   let parent4: { sessionFile: string; paneId: string };
 
-  it("reports a killed child without a result", async () => {
+  it("reports a killed child as lost and closes its pane", async () => {
     const e2e = harness();
     parent4 = await e2e.startParent("parent4");
     const parent = parent4.sessionFile;
@@ -29,9 +27,9 @@ describe.skipIf(!state.ok)(`herdr e2e: child loss${state.ok ? "" : ` (skipped: $
 
     killProcess(await e2e.childPid((pane as { pane_id: string }).pane_id));
 
-    const unknown = await waitFor(() => messages(parent, "subagent_result")[0], "unknown result", 60_000);
-    expect(NO_RESULT_TEXTS.some((text) => unknown.includes(`[subagent ${started.name}] ${text}`))).toBe(true);
-    expect(await e2e.tabFor(started.name)).toBeDefined();
+    const lost = await waitFor(() => messages(parent, "subagent_result")[0], "lost result", 60_000);
+    expect(lost).toContain(`[subagent ${started.name}] lost contact; no result`);
+    await waitFor(async () => (await e2e.tabFor(started.name)) === undefined, "tab to close", 60_000);
     await e2e.closeChildren();
   });
 

@@ -28,12 +28,12 @@
 |---|---|
 | [0022](0022-tab-placement.md) | 新 tab 或新 workspace |
 | [0023](0023-start-then-prompt.md) | brief 不进启动参数，等 idle 后经 inbox 投递 |
-| [0047](0047-close-on-done-default-keep.md) | 完成默认保留 tab。关闭由 auto-exit 与 closeChildrenOn 决定 |
+| [0047](0047-close-on-done-default-keep.md) | 完成默认保留 tab。已由 0063 取代 |
 | [0048](0048-close-children-on.md) | 父会话结束按 closeChildrenOn 清理 |
-| [0060](0060-close-pane-not-tab.md) | 关闭按 pane，不按 tab。投递判据按尾部是否换过 |
-| [0032](0032-death-detection.md) | died 判定。已由 0052 改为只认事实 |
+| [0060](0060-close-pane-not-tab.md) | 关闭按 pane，不按 tab。投递判据已由 0062 取代 |
+| [0032](0032-death-detection.md) | died 判定。已由 0064 取代 |
 | [0053](0053-session-dir.md) | 子 session 进父会话的桶，run 文件进扩展目录的 runs/ |
-| [0056](0056-auto-exit-channel.md) | auto-exit 用 pane env 传 |
+| [0056](0056-auto-exit-channel.md) | auto-exit 用 pane env 传。已由 0063 取代 |
 
 ## 任务与上下文
 
@@ -53,7 +53,16 @@
 | [0030](0030-async-only.md) | 只做异步交付 |
 | [0031](0031-crash-recovery.md) | 死亡不重启，send 可续聊 |
 | [0036](0036-result-pipeline.md) | 结果投递路径 |
-| [0052](0052-completion-snapshot.md) | 完成检测用 agent list 快照 |
+| [0052](0052-completion-snapshot.md) | 完成检测用 agent list 快照。已由 0062 / 0064 取代 |
+
+## 终止与存活
+
+| # | 决策 |
+|---|---|
+| [0062](0062-turn-event-contract.md) | 终止用回合事件，父代理不推断 |
+| [0063](0063-close-pane-owner.md) | 关 pane 只由父代理做 |
+| [0064](0064-liveness-by-agent-absence.md) | 存活按 agent 缺席三次判定 |
+| [0065](0065-settle-state-machine.md) | 结算收敛成一个状态机 |
 
 ## 身份与展示
 

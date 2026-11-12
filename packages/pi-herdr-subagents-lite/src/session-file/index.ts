@@ -1,34 +1,27 @@
 import { readFileSync, statSync } from "node:fs";
-import { parseLastAssistant, type SessionSnapshot } from "./jsonl.ts";
+import { parseTail } from "./jsonl.ts";
 import { readTail, TAIL_WINDOW_BYTES } from "./tail.ts";
 
-export {
-  type ExitReceipt,
-  type ExitReceiptReader,
-  type ExitReceiptWriter,
-  readExitReceipt,
-  writeExitReceipt,
-} from "./receipt.ts";
-
-export interface SessionRead extends SessionSnapshot {
-  // 读取时文件的字节数。session 只追加，所以它同时是尾部的身份。读不到时为 -1。
-  size: number;
+export interface SessionTail {
+  pendingToolCall: boolean;
+  unreadable: boolean;
 }
 
-export type SessionReader = (path: string) => SessionRead;
+export type SessionTailReader = (path: string) => SessionTail;
 
-const UNREADABLE: SessionRead = { text: null, pendingToolCall: false, empty: false, unreadable: true, size: -1 };
+const UNREADABLE: SessionTail = { pendingToolCall: false, unreadable: true };
 
-export const readLastAssistant: SessionReader = (path) => {
+// 读最后一条 assistant，只为了判断 send 能不能安全续跑。
+export const readSessionTail: SessionTailReader = (path) => {
   try {
     const size = statSync(path).size;
     if (size > TAIL_WINDOW_BYTES) {
-      const tail = parseLastAssistant(readTail(path, size));
+      const tail = parseTail(readTail(path, size));
       if (!tail.empty) {
-        return { ...tail, size };
+        return { pendingToolCall: tail.pendingToolCall, unreadable: false };
       }
     }
-    return { ...parseLastAssistant(readFileSync(path, "utf8")), size };
+    return { pendingToolCall: parseTail(readFileSync(path, "utf8")).pendingToolCall, unreadable: false };
   } catch {
     return { ...UNREADABLE };
   }

@@ -6,16 +6,15 @@ import type { HerdrHost } from "../herdr/index.ts";
 import { drain, hasInbox, pumpInbox } from "../inbox/index.ts";
 import type { ProfileCatalog, ProfileSources } from "../profile/index.ts";
 import { childSessionsDir, createRunService, type RunService, runBaseOf } from "../run/index.ts";
-import type { ExitReceiptReader, ExitReceiptWriter, SessionReader } from "../session-file/index.ts";
+import type { SessionTailReader } from "../session-file/index.ts";
 import { createTool, type ResultMessage, type SubagentTool, sendResults } from "../tool/index.ts";
-import { watchAutoExit } from "./auto-exit.ts";
+import type { TurnEntry } from "../turn/index.ts";
+import { watchReport } from "./report.ts";
 import { type ShutdownHandler, watchShutdown } from "./shutdown.ts";
 
 export interface ExtensionDeps {
   createHost: (config: Config) => HerdrHost;
-  readLastAssistant: SessionReader;
-  readExitReceipt: ExitReceiptReader;
-  writeExitReceipt: ExitReceiptWriter;
+  readSessionTail: SessionTailReader;
   loadConfig: () => Config;
   loadProfiles: (sources: ProfileSources) => ProfileCatalog;
 }
@@ -23,7 +22,10 @@ export interface ExtensionDeps {
 export interface SessionContext {
   cwd: string;
   isProjectTrusted(): boolean;
-  sessionManager: { getSessionFile(): string | undefined };
+  sessionManager: {
+    getSessionFile(): string | undefined;
+    getBranch(): TurnEntry[];
+  };
   isIdle(): boolean;
   ui: { notify(message: string, type?: "info" | "warning" | "error"): void };
   shutdown(): void;
@@ -32,7 +34,7 @@ export interface SessionContext {
 export type { SubagentTool };
 
 type SessionStartHandler = (event: SessionStartEvent, ctx: SessionContext) => void;
-type SettledHandler = (event: { type: "agent_settled" }, ctx: SessionContext) => void;
+type SettledHandler = (event: { type: "agent_settled"; aborted: boolean }, ctx: SessionContext) => void;
 type PromptHandler = (event: { kind: BlockedKind; title?: string }) => void;
 
 export interface ExtensionRegistrar {
@@ -56,7 +58,7 @@ export function createExtension(deps: ExtensionDeps): (pi: ExtensionRegistrar) =
     let stopPump: (() => void) | undefined;
     let inboxFailures = 0;
     createBridge(pi, config.bridge);
-    const autoExit = watchAutoExit(pi);
+    watchReport(pi, { activeChildren: () => service?.active().length ?? 0 });
 
     const stopInbox = () => {
       stopPump?.();
@@ -65,7 +67,6 @@ export function createExtension(deps: ExtensionDeps): (pi: ExtensionRegistrar) =
 
     watchShutdown(pi, {
       config,
-      writeExitReceipt: deps.writeExitReceipt,
       stopInbox,
       takeService() {
         const current = service;
@@ -111,24 +112,29 @@ export function createExtension(deps: ExtensionDeps): (pi: ExtensionRegistrar) =
       service = createRunService({
         host,
         sessionsDir: childSessionsDir(ctx.sessionManager.getSessionFile()),
-        readLastAssistant: deps.readLastAssistant,
-        readExitReceipt: deps.readExitReceipt,
+        readSessionTail: deps.readSessionTail,
         loadProfiles: () => deps.loadProfiles(sources),
         trusted: sources.trusted,
         maxConcurrent: config.maxConcurrent,
         maxResultChars: config.maxResultChars,
         aggregateWindowMs: config.aggregateWindowMs,
-        pollIntervalMs: config.pollIntervalMs,
-        idlePollIntervalMs: config.idlePollIntervalMs,
+        livenessPollMs: config.livenessPollMs,
+        closeOnFailure: config.closeOnFailure,
         toolName: config.toolName,
-        onDeliveryError: (error) => ctx.ui.notify(`subagent result not delivered: ${errorText(error)}`, "error"),
+        onProblem: (message) => ctx.ui.notify(message, "error"),
       });
       service.onResult((results) => sendResults(pi, results));
     };
 
+    const currentService = (): RunService => {
+      if (!service) {
+        throw new Error("subagent service is not started");
+      }
+      return service;
+    };
+
     pi.on("session_start", (_event, ctx) => {
       stopInbox();
-      autoExit.reset();
       const sources = { cwd: ctx.cwd, trusted: ctx.isProjectTrusted() };
       startService(sources, ctx);
       if (config.enabled) {
@@ -137,12 +143,5 @@ export function createExtension(deps: ExtensionDeps): (pi: ExtensionRegistrar) =
       }
       startInbox(ctx);
     });
-
-    const currentService = (): RunService => {
-      if (!service) {
-        throw new Error("subagent service is not started");
-      }
-      return service;
-    };
   };
 }
