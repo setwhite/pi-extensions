@@ -2,6 +2,15 @@
 
 本文件记录已发布版本的用户可见变更。更细的过程见 git log。破坏性变更标 **BREAKING**。0.5.2 及更早的变更见旧仓 `setwhite/pi-herdr-subagents-lite` 的 tag `v0.3.0`–`v0.5.2`。
 
+## 0.9.0 — 2026-11-12
+
+- **BREAKING**：完成不再从 session 尾部推断。子代理在每个 `agent_settled` 写一个回合事件（`<runBase>.turns/<n>.json`），父代理只认这个文件。失败轮、中断轮不会再被当成完成；消息明确写 `failed` / `interrupted`，并附已有部分文本。
+- **BREAKING**：子代理不再自杀。`auto-exit` 变成父代理的关闭判据：`done` 且没有活着的子代理才关。删掉 `PI_SUBAGENT_AUTO_EXIT`。
+- **BREAKING**：配置项 `pollIntervalMs` 与 `idlePollIntervalMs` 删除，改为 `livenessPollMs`（默认 15000）。`closeChildrenOn` 默认改为 `["quit", "reload"]`，新增 `closeOnFailure`（默认 false）。
+- 不再每秒起 `herdr agent list` 进程。回合用 500ms 一次本地目录扫描；存活只对进行中的 run 每 15 秒对账，连续三次缺席才判失去联系。
+- 并发上限只数进行中的回合。收工等 `send` 的子代理不再占槽。
+- 关 pane 重试 3 次、间隔 250ms；失败只通知一次。
+
 ## 0.8.0 — 2026-11-03
 
 - 模型不再看到子 session 路径与 pane id：`run` 与 `send` 的工具返回只剩 `state` 与 `name`，`paneId` 与 `sessionFile` 留在 `details`。`unknown` 结果消息不再附 `Session file:`。`send` 的错误只报子代理名。目的是不让父代理顺着路径去读子会话正文。
