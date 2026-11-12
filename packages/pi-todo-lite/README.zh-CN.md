@@ -4,12 +4,12 @@
 
 ![pi-todo-lite：输入框上方的 Todo 表，右侧是运行中的工具调用](assets/cover.png)
 
-模型维护一张有序任务表。表显示在输入框上方。compaction、切分支、`--continue` 之后，表照旧回放。本包没有运行时依赖。
+模型维护一张有序任务表，表显示在输入框上方。compaction、切分支、`--continue` 之后，表照旧回放。本包没有运行时依赖。
 
 ## 功能
 
 - 模型侧只有一个工具 `todo(tasks)`。一次调用提交整张表，新表替换旧表。`tasks: []` 清空表。
-- 表在输入框上方。未完成的任务先占行。表超过 `ui.widget.maxLines` 行时，余下的行收成 `+N more`。
+- 未完成的任务先占行。表超过 `ui.widget.maxLines` 行时，余下的行收成 `+N more`。
 - `alt+t` 折叠表，任务数据不变。`ui.*` 改表的位置、字形、表头与完成样式。
 - 扩展注册四个命令：`/todos`、`/todos clear`、`/todos export`、`/todos import <file>`。
 
@@ -19,15 +19,15 @@
 pi install npm:pi-todo-lite
 ```
 
-旧仓已并入 monorepo。请用 npm 安装。
+旧仓已并入 monorepo，请从 npm 装。
 
 ## 配置
 
-配置文件是 `<agent dir>/pi-todo/config.json`。`<agent dir>` 取 `$PI_CODING_AGENT_DIR`。变量未设置时，取 `~/.pi/agent`。目录名是 `pi-todo`，不是包名。
+配置文件是 `<agent dir>/pi-todo/config.json`。`<agent dir>` 取 `$PI_CODING_AGENT_DIR`，未设置时取 `~/.pi/agent`。目录名是 `pi-todo`，不是包名。
 
-扩展只读这个文件。扩展从不写这个文件。文件不存在时，全部用默认值。
+扩展只读这个文件，不写。文件不存在时全部取默认值。
 
-以下情况抛出错误。消息带绝对路径，并按每个错误给一行 `字段路径: 原因`：JSON 损坏、键名未知、类型错、枚举值错。数值越界时，扩展夹到边界。
+下列情况抛出错误：JSON 损坏、键名未知、类型错、枚举值错。消息带绝对路径，每个错误一行 `字段路径: 原因`。数值越界时夹到边界。
 
 **最小配置**：零配置即可用。要缩短表，改 `ui.widget.maxLines`。默认 9 行。
 
@@ -77,7 +77,7 @@ pi install npm:pi-todo-lite
 }
 ```
 
-未知键直接抛错。扩展不静默忽略任何键。
+未知键直接抛错，不静默忽略任何键。
 
 ## 用法
 

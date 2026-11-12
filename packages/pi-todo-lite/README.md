@@ -9,7 +9,7 @@ The model keeps one ordered task table above the editor. The table replays after
 ## Features
 
 - The model side has one tool, `todo(tasks)`. The call submits the whole table and replaces the old table. `tasks: []` clears the table.
-- The table sits above the editor. Pending tasks take lines first. If the table passes `ui.widget.maxLines` lines, the rest collapse into `+N more`.
+- Pending tasks take lines first. If the table passes `ui.widget.maxLines` lines, the rest collapse into `+N more`.
 - `alt+t` collapses the table and keeps the data. `ui.*` moves the table and changes the glyphs, the header and the completed style.
 - The extension adds four commands: `/todos`, `/todos clear`, `/todos export`, `/todos import <file>`.
 
@@ -19,15 +19,15 @@ The model keeps one ordered task table above the editor. The table replays after
 pi install npm:pi-todo-lite
 ```
 
-The old repository moved into this monorepo. Install from npm.
+The old repository moved into this monorepo, so install from npm.
 
 ## Configuration
 
-The config file is `<agent dir>/pi-todo/config.json`. `<agent dir>` is `$PI_CODING_AGENT_DIR`. If `$PI_CODING_AGENT_DIR` is unset, the agent dir is `~/.pi/agent`. The directory is `pi-todo`, not the package name.
+The config file is `<agent dir>/pi-todo/config.json`. `<agent dir>` is `$PI_CODING_AGENT_DIR`, or `~/.pi/agent` when unset. The directory is `pi-todo`, not the package name.
 
-The extension only reads this file. The extension never writes this file. Without the file, all values are defaults.
+The extension only reads this file and never writes it. Without the file, all values are defaults.
 
-These cases throw an error. The message holds the absolute path and one `path: reason` line per fault: broken JSON, an unknown key, a wrong type or a wrong enum. The extension clamps out-of-range numbers.
+An error names the absolute path and one `path: reason` line per fault. These cases throw: broken JSON, an unknown key, a wrong type, a wrong enum. An out-of-range number clamps to the bound.
 
 **Minimal configuration**: zero config works. To make the table shorter, set `ui.widget.maxLines`. The default is 9 lines.
 
@@ -37,7 +37,7 @@ These cases throw an error. The message holds the absolute path and one `path: r
 }
 ```
 
-**Full configuration**: all keys follow, with their default values. The `//` starts a comment. Remove the comments in a real file.
+**Full configuration**: all keys follow, with their default values. `//` starts a comment; remove the comments in a real file.
 
 ```jsonc
 {
@@ -77,7 +77,7 @@ These cases throw an error. The message holds the absolute path and one `path: r
 }
 ```
 
-An unknown key throws. The extension ignores no key silently.
+An unknown key throws; no key is ignored silently.
 
 ## Usage
 

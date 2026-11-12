@@ -22,7 +22,7 @@
 | `src/view.ts` | `src/plan.ts`（只取类型） |
 | `src/index.ts` | `src/config.ts`、`src/plan.ts`、`src/view.ts` |
 
-单一出口不在这里复述。宿主包、`typebox`、`node:` 各允许出现在哪个文件，见本包 `scripts/import-graph.mjs` 的 `singleImport`。同一张表的 `edges` 由仓库根 `scripts/check-imports.mjs` 执行上面这张表（`pnpm check:imports`）。改图时两边一起改。
+单一出口不在这里复述：宿主包、`typebox`、`node:` 各允许出现在哪个文件，见本包 `scripts/import-graph.mjs` 的 `singleImport`。`edges` 与上表由仓库根 `scripts/check-imports.mjs` 校验（`pnpm check:imports`），改图时两边一起改。
 
 为什么这么切：这三个文件不 import 宿主包。入参出参都是普通值。所以测试不用 mock 宿主。
 
