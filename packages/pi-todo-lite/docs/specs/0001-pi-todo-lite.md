@@ -29,7 +29,7 @@
 
 ## 协议
 
-`todo(tasks)`：一次调用提交完整有序清单，整表替换。没有 id / key / action / baseVersion（理由见 [`D01`](../decisions/D01-whole-table-snapshot.md)）。
+`todo(tasks)`：一次调用提交完整有序清单，整表替换。没有 id / key / action / baseVersion（理由见 [`0001`](../decisions/0001-whole-table-snapshot.md)）。
 
 字段、约束、报错文案、参数 schema 全在 `src/plan.ts` 与 `src/index.ts`。对应 `test/plan.test.ts` / `test/index.test.ts`。
 
@@ -37,7 +37,7 @@
 
 ## 状态与回放
 
-写入与读取各只有一条路径。接线在 `src/index.ts`。理由见 [`D02`](../decisions/D02-state-only-own-ledger.md)。
+写入与读取各只有一条路径。接线在 `src/index.ts`。理由见 [`0002`](../decisions/0002-state-only-own-ledger.md)。
 
 留在这的取舍：账本侧口子宽，模型侧口子严。回放跳过坏条目，写入整次退回。合并两侧只会让一边变松。
 
@@ -57,7 +57,7 @@
 
 配置键、默认值、校验、报错在 `src/config.ts`。键表在 README 的配置节。命令集合在 `src/index.ts`。
 
-留在这的口径：扩展只读配置（见 [`D04`](../decisions/D04-config-read-only.md)）。工具面把 `Error` 抛给 pi。命令面一律 catch 成 `notify`。抛出去宿主只记 `extension_error`，用户在对话区看不到原因。UI 不可用时静默跳过，状态照旧落账。
+留在这的口径：扩展只读配置（见 [`0004`](../decisions/0004-config-read-only.md)）。工具面把 `Error` 抛给 pi。命令面一律 catch 成 `notify`。抛出去宿主只记 `extension_error`，用户在对话区看不到原因。UI 不可用时静默跳过，状态照旧落账。
 
 ## 测试与验收
 
@@ -78,7 +78,7 @@
 ## 不做的
 
 - 项目级持久化（跨会话、跨 cwd 的存储）。
-- nudge 与 steer（理由见 [`D03`](../decisions/D03-no-nudge.md)）、status line。
+- nudge 与 steer（理由见 [`0003`](../decisions/0003-no-nudge.md)）、status line。
 - 自定义 `renderCall` / `renderResult`、`prepareArguments` 容错层、日志与调试开关。
 - 子代理看板、`key` / `baseVersion`、i18n。
 - 压缩后忘表的兜底。表只活在模型上下文里。被 compaction 截掉后，模型不知道表内容，widget 却还在显示。先不做，等真观察到症状再议。

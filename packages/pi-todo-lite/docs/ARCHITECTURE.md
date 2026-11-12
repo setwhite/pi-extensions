@@ -30,7 +30,7 @@
 
 - 语义与校验 → `plan.ts`。
 - 显示与文本 → `view.ts`。
-- 配置键 → `config.ts`（四处同改，见 [`D04`](decisions/D04-config-read-only.md)）。
+- 配置键 → `config.ts`（四处同改，见 [`0004`](decisions/0004-config-read-only.md)）。
 - 只有注册、调宿主与 `/todos import` / `export` 的文件 IO 才碰 `index.ts`。
 
 `src/` 下不建 `utils.ts` / `types.ts` / `constants.ts`。类型跟着用它的模块走。
@@ -45,7 +45,7 @@
 
 `formatTasks` 的进度行与 widget 表头各一份模板。`describe` / `echo` 在 `config.ts` 与 `plan.ts` 各一份。重复到第三次再抽。
 
-README 的配置示例故意抄一份 `DEFAULTS`。`test/docs.test.ts` 逐字对账。用户不读源码，漂移靠测试拦（见 [`D04`](decisions/D04-config-read-only.md)）。
+README 的配置示例故意抄一份 `DEFAULTS`。`test/docs.test.ts` 逐字对账。用户不读源码，漂移靠测试拦（见 [`0004`](decisions/0004-config-read-only.md)）。
 
 ## 文档职责
 

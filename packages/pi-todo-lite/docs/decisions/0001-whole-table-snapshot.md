@@ -1,4 +1,4 @@
-# D01 · 单工具整表快照，不用 action + id
+# 0001 单工具整表快照，不用 action + id
 
 **决定**：工具只有 `todo(tasks)`，整表替换。没有 id、key、action、baseVersion。
 

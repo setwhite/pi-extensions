@@ -1,4 +1,4 @@
-# D02 · 状态只写自己的账，不写 toolResult details
+# 0002 状态只写自己的账，不写 toolResult details
 
 **决定**：每次变化调 `pi.appendEntry("pi-todo-state", { tasks })`。回放只扫 `type: "custom"` + `customType: "pi-todo-state"` 的条目，不读 toolResult 的 `details`。
 

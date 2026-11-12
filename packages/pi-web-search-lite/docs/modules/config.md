@@ -6,7 +6,7 @@
 
 ## 取舍
 
-- 数值越界只 clamp，其余非法即抛错。理由见 [ADR-0005](../adr/0005-strict-config-validation.md)。
+- 数值越界只 clamp，其余非法即抛错。理由见 [DEC-0005](../decisions/0005-strict-config-validation.md)。
 - 默认值的可读版本只在根 `README.md`（英文）/ `README.zh-CN.md`（中文）的「完整示例」。本文不列默认值，避免第三份副本。
 
 ## 指针

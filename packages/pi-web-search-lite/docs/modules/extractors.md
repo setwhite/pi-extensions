@@ -1,11 +1,11 @@
 # extractors/ — 提取器层
 
-`web_fetch` 的提取器链。链的顺序、跳过、顺延与全部失败的汇总语义见 [ADR-0002](../adr/0002-extractor-chain-default.md)。实现与断言在 `src/extractors/index.ts`、`test/extractors/index.test.ts`。**不依赖 providers/ 与 handlers/**。出站请求一律经 `src/http/`。
+`web_fetch` 的提取器链。链的顺序、跳过、顺延与全部失败的汇总语义见 [DEC-0002](../decisions/0002-extractor-chain-default.md)。实现与断言在 `src/extractors/index.ts`、`test/extractors/index.test.ts`。**不依赖 providers/ 与 handlers/**。出站请求一律经 `src/http/`。
 
 ## 取舍与坑
 
 - 隐私：默认链里的 `jina` 会把目标 URL 交给 `r.jina.ai`（匿名 20 RPM）。在意隐私就把它移出 `fetch.extractors`。
-- 端点常量由本层自持（`*_API_BASE`）。key 只读 `config.apiKeys`。`src/providers/` 与 `src/extractors/` 互不依赖。缺 key 在本层的语义是跳过，不是报错（ADR-0002）。
+- 端点常量由本层自持（`*_API_BASE`）。key 只读 `config.apiKeys`。`src/providers/` 与 `src/extractors/` 互不依赖。缺 key 在本层的语义是跳过，不是报错（DEC-0002）。
 - `parallel`：要 `advanced_settings.full_content` 才返回整页 markdown。单 URL 的失败在响应的 `errors[]` 里，取第一个抛错。走 v1 路径。v1beta 的顶层 `full_content` 会 422。
 - `keenable`：固定 `live=true`。默认档只给索引副本，未索引的 URL 直接报错。提取器的契约是拿到源站正文。代价是该请求按 `fetch.live` 这个 SKU 单独计费。
 - `deepseek`：整页 markdown 在 `content`。无 content 即抛错顺延。

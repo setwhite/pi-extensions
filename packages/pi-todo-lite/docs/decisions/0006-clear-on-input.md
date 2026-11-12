@@ -1,4 +1,4 @@
-# D06 · clear 在用户发下一条消息时触发，并成为默认档
+# 0006 clear 在用户发下一条消息时触发，并成为默认档
 
 **决定**：`lifecycle.onFinish: "clear"` 挂在 `input`（source 不筛：interactive / rpc / extension 一样）。守卫是表非空且整表 `completed`。默认值由 `model` 改成 `clear`。
 

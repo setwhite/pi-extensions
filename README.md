@@ -83,10 +83,10 @@ git config core.hooksPath .githooks # 启用提交钩子，钩子跑同样四条
 | `docs/ARCHITECTURE.md` | 模块、依赖方向、测试 seam | ✓ | ✓ | ✓ | ✓ |
 | `docs/GLOSSARY.md` | 术语的唯一命名来源 | ✓ | ✓ | ✓ | ✓ |
 | `docs/modules/` | 单模块的取舍与坑 | ✓ | — | ✓ | ✓ |
-| `docs/adr/` 或 `docs/decisions/` | 一条决策一份文件 | `adr/` | ✓ | ✓ | ✓ |
+| `docs/decisions/` | 一条决策一份文件 | ✓ | ✓ | ✓ | ✓ |
 | `docs/specs/` | 对外契约 | — | ✓ | ✓ | ✓ |
 | `docs/research/` | 外部实测记录 | — | — | ✓ | ✓ |
 
-仓库级决策在 [docs/adr/](docs/adr/)：为什么合并成一个仓库。
+仓库级决策在 [docs/decisions/](docs/decisions/)：为什么合并成一个仓库。
 
-约定：README 有中英两版。`docs/` 用中文。模型可见文案用英文。
+约定：README 有中英两版。`docs/` 用中文。模型可见文案用英文。决策一条一文件，正文引用写 `DEC-0001`，索引在各 `decisions/README.md`。

@@ -4,7 +4,7 @@
 
 ## 不变量
 
-- 所有结果都经 `finalizeContent`（宿主截断 + `spillToFile`）。错误一律 `throw`，不在 `content` 里伪装成功（[ADR-0008](../adr/0008-throw-errors-english-prompts.md)）。
+- 所有结果都经 `finalizeContent`（宿主截断 + `spillToFile`）。错误一律 `throw`，不在 `content` 里伪装成功（[DEC-0008](../decisions/0008-throw-errors-english-prompts.md)）。
 - `raw` 分支在 handler 之前，不调用 `runPageHandlers`。`fetch.allowRaw` 为假时，即使绕过 schema 传 `raw: true` 也抛错。
 - handler 只改写 URL 时（reddit → redlib），改写后的 URL 必须重跑 `assertPublicUrl` 才能进链。
 - `details` 只给 TUI 与测试，不进模型上下文。

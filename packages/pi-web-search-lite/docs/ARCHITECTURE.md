@@ -42,16 +42,16 @@ tools/{search,fetch}.ts ─→ tools/result.ts（宿主截断工具） / tools/r
 - `src/providers/` / `src/extractors/` / `src/handlers/` 三者互不依赖。需要组合时由 `src/tools/` 编排。
 - 宿主包 `@earendil-works/pi-coding-agent` 在生产代码里只出现两处：`src/index.ts` 的 `import type { ExtensionAPI }`（扩展入口签名），与 `src/tools/result.ts`（截断工具与 `AgentToolResult` / `ToolDefinition` / `Theme` 类型）。`@earendil-works/pi-tui` 只在 `src/tools/render.ts`。其余模块不依赖宿主 API，便于单测。
 - 工具描述与结果信封只由 `src/tools/` 组装。下层只产出结构化错误与原因片段：handler 的 skip reason、extractor 的链失败汇总、provider 的缺 key 文案。模型可见的最终文本由工具层决定，界面文案只出现在 `src/tools/render.ts`。两者统一用英文，注释与文档用中文。
-- 能力边界与「不做什么」见 `docs/adr/`。新增能力不得改动上述依赖方向。必须改动时，先更新本文件。
+- 能力边界与「不做什么」见 `docs/decisions/`。新增能力不得改动上述依赖方向。必须改动时，先更新本文件。
 - 上述边与「单一出口」由仓库根的 `scripts/check-imports.mjs` 执行（`pnpm check:imports`）。改图时同步改本包 `scripts/import-graph.mjs` 的 `edges` / `singleImport`。两边不一致时 CI 红。
 
 ## 3. 目录与测试约定
 
 - 源码在 `src/`，测试在 `test/`，仓库脚本在 `scripts/`，文档在 `docs/`，README 用的图在 `assets/`。发布产物只有 `src/` 与根 `CHANGELOG.md`（`files` 列这两项）。`CHANGELOG.md` 进包，pi 才能读它显示更新日志。
 - 单文件模块用 `<name>/index.ts`，多文件模块在目录内平铺（如 `src/providers/tavily.ts`）。
-- 模块文档统一放 `docs/modules/`，与模块同名（`src/config/` → `docs/modules/config.md`）。改动时同 PR 更新（[ADR-0011](adr/0011-contracts-in-code.md)）。术语见 `docs/GLOSSARY.md`。
+- 模块文档统一放 `docs/modules/`，与模块同名（`src/config/` → `docs/modules/config.md`）。改动时同 PR 更新（[DEC-0011](decisions/0011-contracts-in-code.md)）。术语见 `docs/GLOSSARY.md`。
 - 测试统一放包根 `test/`。单个测试文件放根（如 `test/http.test.ts`），同一模块多个文件时建子目录（如 `test/providers/tavily.test.ts`），跨模块回归放 `test/regression/`，共享夹具用 `fixtures.ts` / `stub.ts`。测试不进发布产物。测试标题与夹具可用中文。断言运行时文案时，必须与源码英文一致。
-- 需要 key 与外网的真链路冒烟放 `test/e2e/`，只由 `pnpm test:e2e` 拉起，永不进 CI（[ADR-0012](adr/0012-e2e-manual-only.md)）。
+- 需要 key 与外网的真链路冒烟放 `test/e2e/`，只由 `pnpm test:e2e` 拉起，永不进 CI（[DEC-0012](decisions/0012-e2e-manual-only.md)）。
 - 根 README 的封面图放 `assets/`。它不进发布产物，所以 README 里用 GitHub raw 绝对地址引用。
 - 发布物由 `test/package.test.ts` 与发布流水线的 tarball 断言守。
 - 四条闸是 `pnpm lint`、`pnpm check:imports`、`pnpm typecheck`、`pnpm test`，提交前钩子与 CI 跑同一批，组成见根 `README.md`「开发」。交付前跑这四条，发版前另跑 `pnpm test:e2e`。
@@ -63,7 +63,7 @@ tools/{search,fetch}.ts ─→ tools/result.ts（宿主截断工具） / tools/r
 |---|---|---|
 | 根 `README.md`（英文）/ `README.zh-CN.md`（中文镜像） | 是什么、功能、安装、配置、用法、参考项目、文档指针 | 选型理由、模块签名、开发命令 |
 | `CHANGELOG.md` | 各发布版本的用户可见变更 | 契约与理由 |
-| `docs/adr/`（一条一文件） | 背景、决定了什么、为什么、不做什么 | 字段表、契约细节 |
+| `docs/decisions/`（一条一文件） | 背景、决定了什么、为什么、不做什么 | 字段表、契约细节 |
 | `docs/ARCHITECTURE.md` | 模块划分、依赖方向、目录 / 测试 / 文档约定 | 模块内部签名与字段 |
 | `docs/GLOSSARY.md` | 本扩展特有术语的唯一命名来源 | 实现细节 |
 | `docs/modules/<模块>.md` | 该模块的取舍、坑与指针 | 其它模块的内容。代码或测试已表达的 API、契约、默认值 |

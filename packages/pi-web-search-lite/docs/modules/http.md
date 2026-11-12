@@ -2,11 +2,11 @@
 
 代理、超时、UA、`AbortSignal`、错误归一化。**不认 provider 语义、不 import 宿主包**。全仓库只有这一个模块直接调用 `undici` 的 `fetch`。gh 子进程不走本模块（见 [handlers.md](handlers.md)）。
 
-API、错误类型与逐条契约在 `src/http/index.ts`，由 `test/http.test.ts` 与 `test/undici-surface.test.ts` 钉住。本文不复述。跨模块只有两条约定：入口 URL 的 SSRF 校验由调用方在抓取前完成，本模块只校验重定向的每一跳。代理只认 `config.proxy`，不读 `HTTP_PROXY` 等环境变量（[ADR-0004](../adr/0004-single-proxy-setting.md)）。
+API、错误类型与逐条契约在 `src/http/index.ts`，由 `test/http.test.ts` 与 `test/undici-surface.test.ts` 钉住。本文不复述。跨模块只有两条约定：入口 URL 的 SSRF 校验由调用方在抓取前完成，本模块只校验重定向的每一跳。代理只认 `config.proxy`，不读 `HTTP_PROXY` 等环境变量（[DEC-0004](../decisions/0004-single-proxy-setting.md)）。
 
 ## 代理回退与冷却
 
-有代理时先走代理。传输层失败时改直连，重试一次。连续 3 次失败后，60 秒内只直连。到期放行一次探测（[ADR-0013](../adr/0013-proxy-fallback-direct.md)）。取舍与坑：
+有代理时先走代理。传输层失败时改直连，重试一次。连续 3 次失败后，60 秒内只直连。到期放行一次探测（[DEC-0013](../decisions/0013-proxy-fallback-direct.md)）。取舍与坑：
 
 - 状态按进程共享，按 `proxy` 串重置。`createHttpClient` 每次工具调用都新建，计数放 client 里永远到不了阈值。`/reload` 换了 `proxy` 就重新数。
 - 只回退 `network` / `timeout`。`http_status` 不回退，所以代理自己回 `502` / `407` 时会被当成目标错误。这是已知盲点，不是漏写。

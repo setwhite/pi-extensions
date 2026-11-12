@@ -151,7 +151,7 @@ Both projects are open source. This extension builds on them; thanks to the auth
 | [ARCHITECTURE](docs/ARCHITECTURE.md) | Modules and dependency direction |
 | [GLOSSARY](docs/GLOSSARY.md) | Terms |
 | [Modules](docs/modules/) | Trade-offs and traps per module |
-| [ADR](docs/adr/) | Choices and what the extension does not do |
+| [Decisions](docs/decisions/) | Choices and what the extension does not do |
 | [CHANGELOG.md](CHANGELOG.md) | Release notes |
 
 ## License
