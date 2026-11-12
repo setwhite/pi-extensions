@@ -213,7 +213,7 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 - `guidance` 只认三个字段：`description`（工具说明）、`promptSnippet`（工具清单里的一行）、`promptGuidelines`（追加到系统提示的规则数组）。`""` 与 `[]` 表示清空。
 - 没有单独的 primer。给模型的 Chrome 使用说明全部写成该工具的 `promptGuidelines`，默认内置，`guidance.<id>.promptGuidelines` 整段替换。跨工具的规则不进配置，写 AGENTS.md。
 - 规则平铺进系统提示的 `<rules>` 段，pi 按原文去重，不加工具前缀。`buildSurface` 给每条规则加 `${tools.<id>.name}: ` 前缀，所以改名后规则跟着改名，配置里也只需写句子。
-- 默认工具面按 6,500 字符断言（SPEC 上限 12,000）。覆盖后不拦。
+- 默认工具面按 6,500 字符断言（本文件的上限 12,000）。覆盖后不拦。
 
 ### 命令
 

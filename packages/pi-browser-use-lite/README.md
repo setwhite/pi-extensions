@@ -16,9 +16,9 @@ The package has two halves. The pi extension registers the tools and runs a loca
 | `chrome_vision` | screenshot the viewport or the full page |
 | `chrome_cdp` | one raw CDP call for anything the other four do not cover |
 
-Behaviour worth knowing:
+Behavior worth knowing:
 
-- Each session gets its own browser window. The tools do not touch your own tabs. The tabs the session opened are closed when the session ends.
+- Each session gets its own browser window, and the tools never touch your own tabs. Session tabs are closed when the session ends.
 - That window opens unfocused. If a click or keystroke finds the page hidden, the extension enables focus emulation so Chrome accepts the input without raising the window. Reads never touch it.
 - Input goes through trusted CDP events, so pages that reject synthetic events still react.
 - Console and network capture starts at navigation, not at the first read.
@@ -50,7 +50,9 @@ Authorization ends with the session. Set `policy.authorizeOnStart` to start each
 
 One JSON file: `<agent dir>/pi-browser-use-lite/config.json`. The agent dir is `PI_CODING_AGENT_DIR`, or `~/.pi/agent` when the variable is unset.
 
-Without the file every value is the default. A wrong type or an unknown key fails startup and names every bad field at once. An unknown enum value falls back to the default. An out-of-range number is clamped to the nearest bound. The comments below only explain. A real file must be strict JSON.
+Without the file every value is the default.
+
+A wrong type or an unknown key fails startup and names every bad field at once. An unknown enum value falls back to the default, and an out-of-range number clamps to the nearest bound. The comments below only explain, so a real file must be strict JSON.
 
 **Minimal configuration**: nothing. All five tools work on the defaults.
 
@@ -122,7 +124,7 @@ Every key is optional. `src/config/schema.ts` holds the ranges and the defaults.
 | [tianrendong/pi-chrome](https://github.com/tianrendong/pi-chrome) | The base of this package. It is pi-chrome v0.15.57, trimmed. The local bridge, the companion Chrome extension, the `/chrome` authorize flow and the CDP input layer come from it |
 | [dondai44423/bladebro](https://github.com/dondai44423/bladebro) | The 5-tool decision and the tool-surface size guard. The chain differs: it starts its own Chromium, this package uses your browser |
 
-Both projects are open source. Thank you for the code.
+Both projects are open source. This package builds on them; thanks to the authors.
 
 ## Docs
 

@@ -6,57 +6,34 @@
 
 ### 1.1 Pi 扩展侧
 
-源码在 `src/` 下，模块以目录为单位。
+源码在 `src/` 下，模块以目录为单位，顶层只放 `index.ts`。
 
-| 模块 | 职责 | 契约边界 |
-|---|---|---|
-| `src/index.ts` | 读配置，按 `tools.*` 注册工具（默认 5 个，未授权时注册为不活动），挂 `/chrome` 命令与其参数补全，授权变化时同步活动工具集 | 只有扩展入口。不导出可复用 API |
-| `src/config/` | 定位、加载、校验、clamp 配置文件 | 只依赖 `node:`。不碰网络与浏览器 |
-| `src/protocol/` | 桥的命令与结果信封类型、动作名表、错误类别与 hint、超时常量 | 无依赖。动作名与错误 hint 是唯一来源 |
-| `src/bridge/` | 本地 HTTP 桥：`/next` 长轮询、`/result`、`/command` 转发、`/status`、在途命令表、扩展版本闸。端口上先到者当 server，其余当 client 转发，owner 消失时抢端口升为 server。四个文件：`index`（门面）、`queue`（在途表与等待队列）、`ownership`（端口归属）、`http`（四个端点） | 只依赖 `protocol/`。不认识工具语义 |
-| `src/policy/` | 策略插点：授权。自动化 target 归属在扩展侧 `background/target.js` | 依赖 `config/`。不做 IO |
-| `src/tools/` | 5 个工具的定义与执行器、各自的默认 `promptGuidelines` 常量。`guidance.*` 在此覆盖文案与规则 | 组装模型可见文本的唯一处。错误文案取自 `protocol/` 的 hint |
-| `src/format/` | 结构化结果转模型文本的纯函数 | 无依赖 |
-| `src/fs/` | 截图落盘与按数量修剪 | 只依赖 `node:` |
-| `src/commands/` | `/chrome` 子命令：`authorize` `status` | 依赖 `bridge/`、`policy/` |
+| 模块 | 职责 |
+|---|---|
+| `src/index.ts` | 读配置，按 `tools.*` 注册工具（默认 5 个，未授权时注册为不活动），挂 `/chrome` 命令与其参数补全，授权变化时同步活动工具集。只有扩展入口，不导出可复用 API |
+| `src/config/` | 定位、加载、校验、clamp 配置文件。只依赖 `node:`，不碰网络与浏览器 |
+| `src/protocol/` | 桥的命令与结果信封类型、动作名表、错误类别与 hint、超时常量。动作名与错误 hint 的唯一来源，无依赖 |
+| `src/bridge/` | 本地 HTTP 桥：`/next` 长轮询、`/result`、`/command` 转发、`/status`、在途命令表、扩展版本闸。端口上先到者当 server，其余当 client 转发，owner 消失时抢端口升为 server。只依赖 `protocol/`，不认识工具语义 |
+| `src/policy/` | 策略插点：授权。自动化 target 归属在扩展侧 `background/target.js`。依赖 `config/`，不做 IO |
+| `src/tools/` | 5 个工具的定义与执行器、各自的默认 `promptGuidelines` 常量。`guidance.*` 在此覆盖文案与规则。组装模型可见文本的唯一处，错误文案取自 `protocol/` 的 hint |
+| `src/format/` | 结构化结果转模型文本的纯函数，无依赖 |
+| `src/fs/` | 截图落盘与按数量修剪，只依赖 `node:` |
+| `src/commands/` | `/chrome` 子命令：`authorize`、`status`。依赖 `bridge/`、`policy/` |
 
 ### 1.2 Chrome 扩展侧
 
-`browser-extension/` 有两个代码域。
+`browser-extension/` 分两个代码域，逐个文件的取舍见 `docs/modules/`。
 
-`background/` 是 ES 模块，由 `manifest.json` 的 `background.type: "module"` 加载。
+- `background/`：ES 模块，由 `manifest.json` 的 `background.type: "module"` 加载。`index.js` 只注册 listener 与 alarm；`transport.js` 轮询与回传；`dispatch.js` 路由动作；`tabs.js` / `ledger.js` / `target.js` 管标签页与归属；`capture.js` 从导航起抓日志；`input/` 送指针、键盘与上传；`page/` 读写页面。
+- `page/`：只放被 `executeScript({files})` 送进页面的经典脚本。文件必须自包含：不 `import`，不引用模块作用域，也不 `export`。现有 `snapshot.js`。
 
-| 文件 | 职责 |
-|---|---|
-| `background/index.js` | 只注册 listener，武装 alarm，每秒叫一次轮询 |
-| `background/transport.js` | 轮询循环、结果回传、请求超时、报版本头、版本落后重载自己 |
-| `background/dispatch.js` | 动作路由表 |
-| `background/tabs.js` | 标签页查询、格式、置前、导航与等加载、会话窗口台账 |
-| `background/ledger.js` | 台账的读写：一个键同时写 `storage.session` 与 `storage.local`，读先 session 再 local |
-| `background/target.js` | 自动化 target 归属 |
-| `background/capture.js` | console 与 network 的早期捕获。`webNavigation.onCommitted` 时挂调试器并开 `Runtime`/`Network` 两个域，从导航起抓。契约见 SPEC-0001 的 `chrome_see` 段 |
-| `background/input/debugger.js` | debugger 挂载、自愈重连、原始 CDP 调用、scripting 回退 |
-| `background/input/pointer.js` | 移动、点击、悬停、拖动、滚轮 |
-| `background/input/keyboard.js` | 键位表、键事件、输入、填充、按键 |
-| `background/input/upload.js` | file chooser 截获、`DOM.setFileInputFiles` |
-| `background/page/evaluate.js` | 在页面里求值、辅助函数注入 |
-| `background/page/helpers.js` | 页面内辅助函数，按源码注入 |
-| `background/page/snapshot.js` | 快照与深查的包装 |
-| `background/page/screenshot.js` | 截屏 |
-
-注入目录 `browser-extension/page/` 只放被 `executeScript({files})` 送进页面的经典脚本。文件必须自包含：不 `import`，不引用模块作用域，也不 `export`。
-
-| 文件 | 注入方式 |
-|---|---|
-| `browser-extension/page/snapshot.js` | `executeScript({files})` |
-
-辅助函数不进注入目录，放 `background/page/helpers.js`：具名导出、函数体自包含，由 `background/page/evaluate.js` 逐个 `executeScript({func})` 注入。`func` 形式的源码在 `chrome.scripting` 被拒时还能经 `Runtime.evaluate` 送进页面；注入目录的文件做不到这一点。
+辅助函数不进注入目录，放 `background/page/helpers.js`：具名导出、函数体自包含，由 `background/page/evaluate.js` 逐个 `executeScript({func})` 注入。`func` 形式的源码在 `chrome.scripting` 被拒时还能经 `Runtime.evaluate` 送进页面，注入目录的文件做不到这一点。
 
 没有 `page/actions.js`：CDP 输入失败时不做 DOM 假事件回退（[DEC-0007](decisions/0007-drop-redundant-pieces.md)）。
 
 ## 2. 依赖方向
 
-路径相对 `src/`。模块以目录为单位，顶层只放 `index.ts`。
+路径相对 `src/`。
 
 规则：
 
@@ -70,16 +47,16 @@
 ## 3. 目录与测试约定
 
 - 源码 `src/`，测试 `test/`，扩展在 `browser-extension/`，文档 `docs/`。
-- 参考仓库在 `_repos/`。根 `.gitignore` 已排除。`tsconfig.json` 必须 `exclude` 它。
+- 参考仓库在 `_repos/`。根 `.gitignore` 已排除，`tsconfig.json` 必须 `exclude` 它。
 - 发布产物 `files` 列 `src`、`browser-extension`、`CHANGELOG.md`。相对兄弟包多一项，因为用户要加载扩展。`README.md` 与 `LICENSE` 由 npm 自动收录，不写进 `files`。
-- 其余 `package.json` 字段照 `packages/pi-todo-lite/package.json`：`pi.extensions`、`peerDependencies`、`devDependencies`、`scripts` 四项对齐，取值以本包 `package.json` 为准。
+- `package.json` 的 `pi.extensions` / `peerDependencies` / `devDependencies` / `scripts` 四项与兄弟包对齐，取值以本包 `package.json` 为准。
 - 模块文档放 `docs/modules/<module>.md`。
 - 真浏览器冒烟放 `test/e2e/`，不进 `pnpm test`，永不进 CI。e2e 不启动浏览器：它连一个已开着、已手动 load unpacked 装好扩展的 Chromium 系浏览器。浏览器没连上时失败并打印装扩展的三步，不 skip。挑战页由 e2e 用 `node:http` 起在 `127.0.0.1` 的临时端口上；manifest 的 `host_permissions` 不带端口，所以不用改 manifest。
-- e2e 认扩展身份靠桥状态里的 `extensionVersion`：只有本扩展会报版本，别的包（例如 pi-chrome）的桥占着 17318 时也会说 `connected`，只看这个布尔值会把命令发给别人的扩展。
-- 同一时间只能有一份本扩展在轮询。两个浏览器都装了同一版本时，桥分不出它们，命令会被先到的那一份取走，另一份只看到超时。跑 e2e 前关掉另一个浏览器。
+- e2e 认扩展身份靠桥状态里的 `extensionVersion`：只有本扩展会报版本。别的包（例如 pi-chrome）的桥占着 17318 时也会说 `connected`，只看这个布尔值会把命令发给别人的扩展。
+- 同一时间只能有一份本扩展在轮询。两个浏览器都装了同一版本时，桥分不出它们，命令被先到的那一份取走，另一份只看到超时。跑 e2e 前关掉另一个浏览器。
 - 版本自愈只在版本号不一致时触发。改了扩展代码但没改版本号时桥不会叫扩展重载，跑 `pnpm test:e2e` 前仍要在扩展页手动刷新一次。
-- 收工 QA 四条：`pnpm lint`、`pnpm check:imports`、`pnpm test`、`pnpm typecheck`。
-- e2e 实测环境：Edge（Chromium）与 Vivaldi。用例里 `chrome_tab switch` 会把 Pi 的窗口带到前台，`waitVisible` 才有稳定的 `visible`：窗口留在后台且尚未开过焦点模拟时，读操作看到的仍是 `hidden`；输入开过之后页面会持续自报 visible。
+- 交付前跑 `pnpm lint`、`pnpm check:imports`、`pnpm test`、`pnpm typecheck`，与根 `pnpm check` 同款。发版前另跑 `pnpm test:e2e`。
+- e2e 实测环境：Edge（Chromium）与 Vivaldi。用例里 `chrome_tab switch` 会把 Pi 的窗口带到前台，`waitVisible` 才有稳定的 `visible`。窗口留在后台且尚未开过焦点模拟时，读操作看到的仍是 `hidden`；输入开过之后页面会持续自报 visible。
 
 ## 4. 文档职责（防止重复）
 
@@ -127,4 +104,4 @@
 | 目标隔离 | `browser-extension/background/target.js` | 挂 `chrome.storage.session` 与 `chrome.storage.local` 桩，看每个 sessionKey 的 target |
 | `/chrome` 命令 | `src/commands/` 的子命令处理函数 | 给桥桩，看打印文本与会话状态 |
 | 页面脚本自包含 | `browser-extension/page/*.js` | 静态扫描源码，断无 `import`、`export`、`require`、动态 `import()` |
-| 扩展错误前缀 | `browser-extension/` 的 `.js` | 静态扫描 `new Error(`<class>: …`)`，断类别都在 `protocol/` 的表里 |
+| 扩展错误前缀 | `browser-extension/` 的 `.js` | 静态扫描 ``new Error(`<class>: …`)``，断类别都在 `protocol/` 的表里 |

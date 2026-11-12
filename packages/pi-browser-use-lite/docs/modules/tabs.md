@@ -8,7 +8,7 @@
 - 一个 sessionKey 一个窗口，窗口 id 记在台账里。
 - 窗口被用户关掉后，下一次 `tab.new` 重开一个，台账改记新窗口。
 - `tab.list` 只列本会话窗口里的标签。
-- 参数用 camelCase：宿主执行器已把 SPEC 的 `init_script`、`timeout_ms` 转好，dispatch 原样转发。
+- 参数用 camelCase：宿主执行器已把 SPEC-0001 的 `init_script`、`timeout_ms` 转好，dispatch 原样转发。
 
 ## 取舍
 
