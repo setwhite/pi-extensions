@@ -4,15 +4,17 @@
 
 ![A pi session: web_search returns 5 results via exa, then web_fetch extracts the first page](https://raw.githubusercontent.com/setwhite/pi-extensions/main/packages/pi-web-search-lite/assets/cover.png)
 
-Two tools for pi: `web_search` finds pages. `web_fetch` extracts text from a page. Every request the extension makes uses one proxy setting.
+Two tools for pi: `web_search` finds pages, `web_fetch` extracts text from a page. The extension's own requests all leave through one proxy setting.
 
 ## Features
 
-- One search provider out of eight (tavily / brave / exa / firecrawl / perplexity / parallel / keenable / deepseek). The extension does not fall back to another provider.
-- Fetching tries each entry of `fetch.extractors` in order. The default order is `html` → `jina`. Neither entry needs a key. GitHub repo, file, directory, issue, pull, release, commit, compare and actions-run pages go through `gh`, which is optional. Other GitHub pages take the extractor chain, and the reason goes to `details.handlerSkips`. Reddit only swaps in a redlib host.
-- The extension rejects private and loopback addresses. The extension re-checks every redirect hop. The check reads the URL literal only. The check does no DNS lookup.
-- The extension truncates oversize results. If `context.spillToFile` is true, the full text goes to a temp file and the path comes back for `read`.
-- You can rename a tool, disable a tool or defer a tool. The built-in prompts are single-line English. `guidance` overrides any field.
+- One search provider out of eight (tavily / brave / exa / firecrawl / perplexity / parallel / keenable / deepseek), with no fallback to another provider.
+- Fetching tries each entry of `fetch.extractors` in order. The default order is `html` → `jina`, and neither entry needs a key.
+- GitHub repo, file, directory, issue, pull, release, commit, compare and actions-run pages go through `gh`, which is optional. Other GitHub pages take the extractor chain, and the reason goes to `details.handlerSkips`.
+- Reddit only swaps in a redlib host, and the extractor chain still fetches the text.
+- Private and loopback addresses are rejected, and every redirect hop is re-checked. The check reads the URL literal only and does no DNS lookup.
+- An oversize result is truncated. With `context.spillToFile`, the full text goes to a temp file and the path comes back for `read`.
+- A tool can be renamed, disabled or deferred. `guidance` overrides any field of the built-in English prompts.
 
 ## Install
 
@@ -20,11 +22,13 @@ Two tools for pi: `web_search` finds pages. `web_fetch` extracts text from a pag
 pi install npm:pi-web-search-lite
 ```
 
-The old repository moved into this monorepo. Install from npm.
+The old repository moved into this monorepo, so install from npm.
 
 ## Configuration
 
-One JSON file holds the configuration: `<PI_CODING_AGENT_DIR or ~/.pi/agent>/pi-web-search-lite/config.json`. Without the file, every value is the default. A wrong type, a wrong enum value or an unknown key fails startup and names the field. The extension clamps an out-of-range number. The `//` comments only explain. A real file must be strict JSON.
+One JSON file holds the configuration: `<PI_CODING_AGENT_DIR or ~/.pi/agent>/pi-web-search-lite/config.json`. Without the file, every value is the default.
+
+A wrong type, a wrong enum value or an unknown key fails startup and names the field. An out-of-range number clamps to the allowed range. The `//` comments only explain, so a real file must be strict JSON.
 
 **Minimal configuration**: select one search provider and set the key of that provider. The default provider is tavily.
 
@@ -138,7 +142,7 @@ The model calls both tools directly. No extra command is needed.
 | [nicobailon/pi-web-access](https://github.com/nicobailon/pi-web-access) | The extractor chain and the dedicated page handlers |
 | [juicesharp/rpiv-mono · rpiv-web-tools](https://github.com/juicesharp/rpiv-mono/tree/main/packages/rpiv-web-tools) | The thin provider layer and the prompt surface |
 
-Both projects are open source. Thank you for the code.
+Both projects are open source. This extension builds on them; thanks to the authors.
 
 ## Docs
 

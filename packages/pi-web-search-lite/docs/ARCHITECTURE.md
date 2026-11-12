@@ -1,21 +1,21 @@
 # 架构 · pi-web-search-lite
 
-本文件写模块职责与对外契约边界。模块内部的签名、字段、异常以代码与测试为准，本文不复述。
+本文件写模块职责、依赖方向与目录 / 文档约定。模块内部的签名、字段、异常以代码与测试为准，本文不复述。
 
 ## 1. 模块
 
-源码全部在 `src/` 下。模块以目录为单位。
+源码全部在 `src/` 下，模块以目录为单位。下表只写职责边界。
 
-| 模块 | 职责 | 契约边界 | 模块文档 |
-|---|---|---|---|
-| `src/index.ts` | 读配置，按 `tools.*` / `activation` / `guidance.*` 注册两个工具。deferred 时在 `session_start` 激活内置 `tool_search`。宿主没有 `tool_search` 时，激活自身工具并 `console.warn` | 仅扩展入口：默认导出工厂函数。不导出可复用 API | — |
-| `src/config/` | 加载、校验、clamp 配置文件。校验 provider 取值。合并 key 来源，env 优先 | `ResolvedConfig` 类型 + 解析函数 + 配置路径。不碰网络 | [config.md](modules/config.md) |
-| `src/http/` | 扩展自身出站 HTTP 的唯一出口：代理、超时、UA、`AbortSignal`、错误归一化 | `fetchText` / `fetchJson` 一族。不认 provider 语义 | [http.md](modules/http.md) |
-| `src/ssrf/` | 抓取前的静态 URL 判定：协议、主机名、字面量 IP。不做端口白名单 | `assertPublicUrl` + 回环判定。不解析 DNS、不发请求 | [ssrf.md](modules/ssrf.md) |
-| `src/providers/{types,index,tavily,brave,exa,firecrawl,perplexity,parallel,keenable,deepseek}.ts` | 把一次查询翻译成某搜索 API 的请求与统一结果形状 | `SearchProvider` 接口 + 注册表 + 工厂。不认识提取器与工具层 | [providers.md](modules/providers.md) |
-| `src/handlers/{types,index}.ts`、`src/handlers/github/{index,gh,render}.ts`、`src/handlers/reddit/index.ts` | 识别专用页面 URL。github 产出已清洗正文。reddit 只换域名后交给链。不命中返回 `null`。跳过返回 `skipped` | `PageHandler` 接口 + 注册表。github 子目录自管 `gh` 子进程 | [handlers.md](modules/handlers.md) |
-| `src/extractors/{types,index,tavily,exa,firecrawl,jina,html,parallel,keenable,deepseek}.ts` | 按配置顺序尝试多个正文提取器。失败时汇总原因 | `Extractor` 接口 + 链式执行器。不关心 URL 是普通页还是专用页 | [extractors.md](modules/extractors.md) |
-| `src/tools/{search,fetch,result,render}.ts` | 编排以上模块，产出模型可读的 `content` 与渲染用 `details`。`render.ts` 负责 TUI 调用行与结果行 | 两个工具定义对象。模型文案在 `search` / `fetch`，界面文案在 `render`。`result.ts` 是宿主能力的唯一 import 点 | [tools.md](modules/tools.md) |
+| 模块 | 职责 | 模块文档 |
+|---|---|---|
+| `src/index.ts` | 读配置，按 `tools.*` / `activation` / `guidance.*` 注册两个工具。deferred 时在 `session_start` 激活内置 `tool_search`；宿主没有 `tool_search` 时，激活自身工具并 `console.warn`。只做扩展入口，不导出可复用 API | — |
+| `src/config/` | 加载、校验、clamp 配置文件，校验 provider 取值，合并 key 来源（env 优先）。不碰网络 | [config.md](modules/config.md) |
+| `src/http/` | 扩展自身出站 HTTP 的唯一出口：代理、超时、UA、`AbortSignal`、错误归一化。不认 provider 语义 | [http.md](modules/http.md) |
+| `src/ssrf/` | 抓取前的静态 URL 判定：协议、主机名、字面量 IP，不做端口白名单。不解析 DNS、不发请求 | [ssrf.md](modules/ssrf.md) |
+| `src/providers/` | 把一次查询翻译成某搜索 API 的请求与统一结果形状。不认识提取器与工具层 | [providers.md](modules/providers.md) |
+| `src/handlers/` | 识别专用页面 URL。github 产出已清洗正文，自带 `gh` 子进程；reddit 只换域名后交给链。不命中返回 `null`，跳过返回 `skipped` | [handlers.md](modules/handlers.md) |
+| `src/extractors/` | 按配置顺序尝试多个正文提取器，失败时汇总原因。不关心 URL 是普通页还是专用页 | [extractors.md](modules/extractors.md) |
+| `src/tools/` | 编排以上模块，产出模型可读的 `content` 与渲染用 `details`。`render.ts` 负责 TUI 调用行与结果行，`result.ts` 是宿主能力的唯一 import 点 | [tools.md](modules/tools.md) |
 
 ## 2. 依赖方向
 
@@ -41,21 +41,20 @@ tools/{search,fetch}.ts ─→ tools/result.ts（宿主截断工具） / tools/r
 - 只能沿图中箭头依赖，禁止反向 import。`src/config/` 不 import 业务模块。`src/ssrf/` 不依赖仓库内其它模块。`src/http/` 只依赖仓库内的 `src/ssrf/`。
 - `src/providers/` / `src/extractors/` / `src/handlers/` 三者互不依赖。需要组合时由 `src/tools/` 编排。
 - 宿主包 `@earendil-works/pi-coding-agent` 在生产代码里只出现两处：`src/index.ts` 的 `import type { ExtensionAPI }`（扩展入口签名），与 `src/tools/result.ts`（截断工具与 `AgentToolResult` / `ToolDefinition` / `Theme` 类型）。`@earendil-works/pi-tui` 只在 `src/tools/render.ts`。其余模块不依赖宿主 API，便于单测。
-- 工具描述与结果信封只由 `src/tools/` 组装。下层只产出结构化错误与原因片段：handler 的 skip reason、extractor 的链失败汇总、provider 的缺 key 文案。模型可见的最终文本由工具层决定。界面文案只出现在 `src/tools/render.ts`。两者统一用英文。注释与文档用中文。
+- 工具描述与结果信封只由 `src/tools/` 组装。下层只产出结构化错误与原因片段：handler 的 skip reason、extractor 的链失败汇总、provider 的缺 key 文案。模型可见的最终文本由工具层决定，界面文案只出现在 `src/tools/render.ts`。两者统一用英文，注释与文档用中文。
 - 能力边界与「不做什么」见 `docs/adr/`。新增能力不得改动上述依赖方向。必须改动时，先更新本文件。
-- 上述边与「单一出口」由仓库根的 `scripts/check-imports.mjs` 执行（`pnpm check:imports`）。改这张图时，同步改本包 `scripts/import-graph.mjs` 的 `edges` / `singleImport`。两边不一致时 CI 红。
+- 上述边与「单一出口」由仓库根的 `scripts/check-imports.mjs` 执行（`pnpm check:imports`）。改图时同步改本包 `scripts/import-graph.mjs` 的 `edges` / `singleImport`。两边不一致时 CI 红。
 
 ## 3. 目录与测试约定
 
 - 源码在 `src/`，测试在 `test/`，仓库脚本在 `scripts/`，文档在 `docs/`，README 用的图在 `assets/`。发布产物只有 `src/` 与根 `CHANGELOG.md`（`files` 列这两项）。`CHANGELOG.md` 进包，pi 才能读它显示更新日志。
-- 模块以目录为单位。单文件模块用 `<name>/index.ts`。多文件模块在目录内平铺（如 `src/providers/tavily.ts`）。
-- 模块文档统一放 `docs/modules/`，与模块同名（`src/config/` → `docs/modules/config.md`）。写什么见 §4。改动时同 PR 更新（[ADR-0011](adr/0011-contracts-in-code.md)）。术语见 `docs/GLOSSARY.md`。
-- 测试统一放包根 `test/`。单个测试文件放根（如 `test/http.test.ts`）。同一模块多个文件时建子目录（如 `test/providers/tavily.test.ts`）。跨模块回归放 `test/regression/`。共享夹具用 `fixtures.ts` / `stub.ts`。测试不进 npm 发布产物。测试标题与夹具可用中文（不进 pi）。断言运行时文案时，必须与源码英文一致。
-- 需要 key 与外网的真链路冒烟放 `test/e2e/`，只由 `pnpm test:e2e` 拉起。`vitest.config.ts` 把它排除在 `pnpm test` 之外。永不进 CI（[ADR-0012](adr/0012-e2e-manual-only.md)）。
-- 根 README 的封面图放 `assets/`。它同样不进 npm 发布产物，所以 README 里用 GitHub raw 绝对地址引用。
-- 仓库级守卫是仓库根 `scripts/` 下的零依赖 node 脚本。它驱动 `check-imports.mjs` 与本包的表 `scripts/import-graph.mjs`。发布物由 `test/package.test.ts` 与发布流水线的 tarball 断言守。
-- 提交前闸是仓库根的 `.githooks/pre-commit`。它跑上述四条。启用方式见根 `README.md`。它与 CI 跑同一批命令，不另立规则。
-- 收工 QA 固定四条：`pnpm lint`、`pnpm check:imports`、`pnpm test`、`pnpm typecheck`（与 CI 同款，见根 README「开发」）。发版前另跑 `pnpm test:e2e`。
+- 单文件模块用 `<name>/index.ts`，多文件模块在目录内平铺（如 `src/providers/tavily.ts`）。
+- 模块文档统一放 `docs/modules/`，与模块同名（`src/config/` → `docs/modules/config.md`）。改动时同 PR 更新（[ADR-0011](adr/0011-contracts-in-code.md)）。术语见 `docs/GLOSSARY.md`。
+- 测试统一放包根 `test/`。单个测试文件放根（如 `test/http.test.ts`），同一模块多个文件时建子目录（如 `test/providers/tavily.test.ts`），跨模块回归放 `test/regression/`，共享夹具用 `fixtures.ts` / `stub.ts`。测试不进发布产物。测试标题与夹具可用中文。断言运行时文案时，必须与源码英文一致。
+- 需要 key 与外网的真链路冒烟放 `test/e2e/`，只由 `pnpm test:e2e` 拉起，永不进 CI（[ADR-0012](adr/0012-e2e-manual-only.md)）。
+- 根 README 的封面图放 `assets/`。它不进发布产物，所以 README 里用 GitHub raw 绝对地址引用。
+- 发布物由 `test/package.test.ts` 与发布流水线的 tarball 断言守。
+- 四条闸是 `pnpm lint`、`pnpm check:imports`、`pnpm typecheck`、`pnpm test`，提交前钩子与 CI 跑同一批，组成见根 `README.md`「开发」。交付前跑这四条，发版前另跑 `pnpm test:e2e`。
 - 手动验收用隔离 agent 目录：`PI_CODING_AGENT_DIR=<临时目录> pi --extension ./src/index.ts -p "<prompt>"`。临时目录只放真实 `auth.json` 与最小 `settings.json`，避免与本机同名工具冲突。
 
 ## 4. 文档职责（防止重复）

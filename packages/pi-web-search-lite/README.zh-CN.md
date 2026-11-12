@@ -4,15 +4,17 @@
 
 ![pi 会话：web_search 用 exa 搜到 5 条结果，web_fetch 紧接着抓到第一页正文](https://raw.githubusercontent.com/setwhite/pi-extensions/main/packages/pi-web-search-lite/assets/cover.png)
 
-本扩展给 pi 两个工具。`web_search` 搜网页。`web_fetch` 抓正文。所有请求只经过一个代理配置点。
+本扩展给 pi 两个工具：`web_search` 搜网页，`web_fetch` 抓正文。扩展自己的请求只经过一个代理配置点。
 
 ## 功能
 
 - 搜索源八选一：tavily / brave / exa / firecrawl / perplexity / parallel / keenable / deepseek。不自动切换搜索源。
-- 按 `fetch.extractors` 的顺序抓取。默认顺序是 `html` → `jina`。两者都不需要 key。GitHub 的仓库、文件、目录、issue、pull、release、commit、compare、actions run 页面走 `gh`，可选。其余 GitHub 页面走提取器链，原因记在 `details.handlerSkips`。reddit 只换 redlib 域名。
-- 拒绝内网与回环地址。每一跳重定向都复查。判定只看 URL 字面量，不解析 DNS。
-- 超过上限就截断。`context.spillToFile` 为真时，全文落临时文件，路径回填，供 `read` 续读。
-- 工具可改名、可关、可改成按需发现。内置提示词是英文单行。`guidance` 可逐字段覆盖。
+- 按 `fetch.extractors` 的顺序抓取，默认 `html` → `jina`，两者都不需要 key。
+- GitHub 的仓库、文件、目录、issue、pull、release、commit、compare、actions run 页面走 `gh`，可选。其余 GitHub 页面走提取器链，原因记在 `details.handlerSkips`。
+- reddit 只换 redlib 域名，正文仍由提取器链抓。
+- 拒绝内网与回环地址，每一跳重定向都复查。判定只看 URL 字面量，不解析 DNS。
+- 超过上限就截断。`context.spillToFile` 为真时，全文落临时文件，路径回填进结果，供 `read` 续读。
+- 工具可改名、可关、可改成按需发现。`guidance` 可逐字段覆盖内置提示词。
 
 ## 安装
 
@@ -20,11 +22,13 @@
 pi install npm:pi-web-search-lite
 ```
 
-旧仓已并入 monorepo。请用 npm 安装。
+旧仓已并入 monorepo，请从 npm 装。
 
 ## 配置
 
-配置只有一个 JSON 文件：`<PI_CODING_AGENT_DIR 或 ~/.pi/agent>/pi-web-search-lite/config.json`。文件不存在时，全部用默认值。类型错、枚举值错或未知键会让启动失败，消息指出字段。数值越界时 clamp 到允许区间。示例里的 `//` 只用于讲解。实际文件必须是严格 JSON。
+配置只有一个 JSON 文件：`<PI_CODING_AGENT_DIR 或 ~/.pi/agent>/pi-web-search-lite/config.json`。文件不存在时全部取默认值。
+
+类型错、枚举值错或未知键都会让启动失败，消息指出字段。数值越界 clamp 到允许区间。示例里的 `//` 只用于讲解，实际文件必须是严格 JSON。
 
 **最小配置**：选择一个搜索源，填入这个搜索源的 key。默认搜索源是 tavily。
 
@@ -37,7 +41,7 @@ pi install npm:pi-web-search-lite
 
 key 也可以放在环境变量中：`TAVILY_API_KEY` / `BRAVE_API_KEY` / `EXA_API_KEY` / `FIRECRAWL_API_KEY` / `PERPLEXITY_API_KEY` / `PARALLEL_API_KEY` / `KEENABLE_API_KEY` / `DEEPSEEK_API_KEY` / `JINA_API_KEY`。环境变量优先于文件。`WEB_SEARCH_PROVIDER` 可临时覆盖 `provider`。
 
-**完整示例**：下面列出全部配置项。每个键都有注释。除 key、`userAgent`、`proxy` 与 guidance 是示例值外，其余取值就是默认值。
+**完整示例**：下面列出全部配置项，每个键都有注释。除 key、`userAgent`、`proxy` 与 guidance 是示例值外，其余取值就是默认值。
 
 ```jsonc
 {
@@ -124,7 +128,7 @@ key 也可以放在环境变量中：`TAVILY_API_KEY` / `BRAVE_API_KEY` / `EXA_A
 
 ## 用法
 
-模型侧只有这两个工具。调用由模型发起，不需要额外命令。
+模型直接调用这两个工具，不需要额外命令。
 
 - `tools.*.name` 改名可避开与其它扩展重名。`enabled: false` 关掉工具。
 - `activation: "deferred"` 交给宿主 `tool_search` 按需发现，节省常驻上下文。
@@ -138,7 +142,7 @@ key 也可以放在环境变量中：`TAVILY_API_KEY` / `BRAVE_API_KEY` / `EXA_A
 | [nicobailon/pi-web-access](https://github.com/nicobailon/pi-web-access) | 提取器链、专用页面 handler 的思路 |
 | [juicesharp/rpiv-mono · rpiv-web-tools](https://github.com/juicesharp/rpiv-mono/tree/main/packages/rpiv-web-tools) | 薄 provider 层、提示词配置面 |
 
-这两个项目都是开源的。感谢它们的代码。
+两个项目都是开源的。本扩展建在它们之上，谢谢作者。
 
 ## 文档
 
