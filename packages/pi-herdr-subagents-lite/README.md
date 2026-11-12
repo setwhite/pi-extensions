@@ -2,15 +2,15 @@
 
 [简体中文](README.zh-CN.md) | **English**
 
-The extension runs subagents as separate pi processes in herdr panes. One tool has two actions: `run` starts a subagent, and `send` continues a subagent. Results come back asynchronously. The behavior follows the [v1 contract](docs/specs/0001-v1-contract.md).
+The extension runs each subagent as a separate pi process in its own herdr pane. The tool has two actions: `run` starts a subagent, `send` delivers a follow-up message. Results come back asynchronously. Behavior follows the [v1 contract](docs/specs/0001-v1-contract.md).
 
 ## Features
 
-- A subagent is a separate process. A human can take over its pane. If the subagent cwd equals the parent cwd, the subagent opens a tab in the same workspace. Otherwise the subagent opens a new workspace.
-- Profiles have two layers: Markdown with frontmatter. One layer is global. One layer is per project.
-- Results are async and merged. `run` returns at once. Each finished turn reports one `subagent_result`. Results inside `aggregateWindowMs` merge into one result. Oversize results go to an artifact file.
-- Questions stay with the human. A child prompt only emits `herdr:blocked`. Nothing reaches the parent. The human answers in the child pane.
-- Nesting is off by default. The extension is not a sandbox. If the profile does not name this tool, child tool sets drop this tool.
+- A subagent is a separate process, and a human can take over its pane. When the child cwd matches the parent cwd, it opens a tab in the same workspace. Otherwise it opens a new workspace.
+- Profiles have two layers, global and per project, each a Markdown file with frontmatter.
+- `run` returns at once. Each finished turn reports one `subagent_result`. Results inside `aggregateWindowMs` merge into one message, and an oversize result goes to an artifact file.
+- Questions stay with the human. When a child opens a prompt, only `herdr:blocked` is emitted, and nothing reaches the parent. The human answers in the child pane.
+- Nesting is off by default, and the extension is no sandbox. Unless the profile names this tool, a child tool set drops it.
 
 ## Install
 
@@ -20,17 +20,19 @@ pi install /path/to/pi-herdr-subagents-lite         # local checkout
 pi -e /path/to/pi-herdr-subagents-lite/src/index.ts # this process only
 ```
 
-The old repository moved into this monorepo. Install from npm.
+The old repository moved into this monorepo, so install from npm.
 
-Do not pass `-l`. `-l` writes project settings only, so children started in another workspace never load the package. `pi -e` is single-process too.
+Do not pass `-l`. `-l` writes project settings only, so a child started in another workspace never loads the package. `pi -e` applies to the current process only.
 
-Tested with herdr `0.9.5` and pi `1.4.0`, Node `>= 22.19`. The parent must run inside a herdr pane. Otherwise calls fail with `not_in_herdr`. Upgrade with `pi update --extensions`. Remove with `pi remove <source>`.
+Requires Node `>= 22.19`. Tested with herdr `0.9.5` and pi `1.4.0`. The parent must run inside a herdr pane; otherwise calls fail with `not_in_herdr`.
+
+Upgrade with `pi update --extensions`, remove with `pi remove <source>`.
 
 ## Configuration
 
-One global file holds the configuration: `<agent-dir>/pi-herdr-subagents-lite/config.json`. `<agent-dir>` defaults to `~/.pi/agent`. `PI_CODING_AGENT_DIR` sets `<agent-dir>`. The extension does not read a project config.
+The extension reads one global file: `<agent-dir>/pi-herdr-subagents-lite/config.json`. `<agent-dir>` defaults to `~/.pi/agent` and follows `PI_CODING_AGENT_DIR`. There is no project config.
 
-Defaults and clamp boundaries: `src/config/index.ts` and `test/config/config.test.ts`. Key meaning: [contract §1](docs/specs/0001-v1-contract.md#1-配置).
+Keys and their meaning: [contract §1](docs/specs/0001-v1-contract.md#1-配置). Defaults and clamp bounds: `src/config/index.ts` and `test/config/config.test.ts`.
 
 ### Minimal config
 
@@ -44,7 +46,7 @@ A missing file means all defaults. To change one value, write only that value:
 
 ### Full configuration
 
-The block below lists every key. Each value is the default.
+Every key follows, and each value is the default.
 
 ```jsonc
 {
@@ -91,19 +93,21 @@ The block below lists every key. Each value is the default.
 }
 ```
 
-The file is strict JSON and the extension reads it once, so delete the comments and restart pi after a change. An unknown key, a wrong type or an unknown enum value stops the extension at load: pi prints `invalid config <path>: <field>: unknown key` and exits. A number outside its range clamps to the boundary.
+The file must be strict JSON, and the extension reads it once at load. Delete the comments and restart pi after a change.
+
+An unknown key, a wrong type or an unknown enum value stops the extension at load: pi prints `invalid config <path>: <field>: unknown key` and exits. A number outside its range clamps to the boundary without an error.
 
 ## Usage
 
 1. Start `pi` in a herdr pane.
-2. Write a profile (next section). `run` takes the frontmatter `name` of the profile.
+2. Write a profile (see the next section). `run` takes the profile frontmatter `name`.
 3. Ask the model to call the tool:
 
 ```json
 {"action":"run","profile":"explore","task":"Read README.md and answer with its first heading."}
 ```
 
-The call returns `{"state":"running",...}`. The subagent runs in its own tab. A `[subagent explore-1] done` message arrives later. Do not wait for the message in the same turn. Continue that child with:
+The call returns `{"state":"running",...}`. The subagent runs in its own tab, and a `[subagent explore-1] done` message arrives later. Do not wait for it in the same turn. Deliver a follow-up with:
 
 ```json
 {"action":"send","name":"explore-1","message":"Also check the Windows branch."}
@@ -111,7 +115,7 @@ The call returns `{"state":"running",...}`. The subagent runs in its own tab. A 
 
 ### Profile
 
-Global profiles live in `<agent-dir>/pi-herdr-subagents-lite/profiles/*.md`. Project profiles live in `.pi/pi-herdr-subagents-lite/profiles/*.md` and load once the project is trusted. If a project profile and a global profile share a `name`, the project profile wins.
+Global profiles live in `<agent-dir>/pi-herdr-subagents-lite/profiles/*.md`. Project profiles live in `.pi/pi-herdr-subagents-lite/profiles/*.md` and load once the project is trusted. A project profile wins over a global profile with the same `name`.
 
 ```markdown
 ---
@@ -144,9 +148,11 @@ disable-model-invocation: false
 You are a read-only explorer. Answer with file paths and line numbers.
 ```
 
-Error codes: [contract section 2](docs/specs/0001-v1-contract.md#2-profile). Defaults: `src/profile/frontmatter.ts` and `test/profile/`. A file without `name` or with an invalid field stays out of the list. The extension rejects all duplicate names in one layer. `run` returns `profile_invalid` with the file, the field and the reason.
+Error codes: [contract section 2](docs/specs/0001-v1-contract.md#2-profile). Defaults: `src/profile/frontmatter.ts` and `test/profile/`.
 
-The extension ships a bundled example. The file name and the `name` of the example are both `worker`. Loading reads `profiles/*.md` only. On every load the extension makes `profiles/examples/` match the bundled examples: it rewrites the bundled files and deletes extra files. So copy the example one level up:
+A profile stays out of the list when it has no `name`, an invalid field or a duplicate name in its layer. `run` on it returns `profile_invalid` with the file, the field and the reason.
+
+The extension ships one example, with file name and `name` both `worker`. Loading reads `profiles/*.md` only, and on every load it makes `profiles/examples/` match the bundled example: it rewrites the bundled files and deletes extra ones. So copy the example one level up:
 
 ```bash
 cd <agent-dir>/pi-herdr-subagents-lite/profiles && cp examples/worker.md worker.md
@@ -161,7 +167,7 @@ cd <agent-dir>/pi-herdr-subagents-lite/profiles && cp examples/worker.md worker.
 | [modem-dev/pi-herdr-subagents](https://github.com/modem-dev/pi-herdr-subagents) | herdr launch and lifecycle; derived end states |
 | [purboo/pi-durable-subagents](https://github.com/purboo/pi-durable-subagents) | Async delivery, idempotency, report-once results |
 
-Thank you for the code.
+This extension builds on these projects. Thanks to their authors.
 
 ## Docs
 

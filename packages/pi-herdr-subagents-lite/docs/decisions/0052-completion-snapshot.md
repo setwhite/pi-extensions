@@ -8,9 +8,9 @@
 
 ## 修订：两档间隔与单一时钟
 
-固定 `pollIntervalMs` 会让空闲 run 也按活跃档轮询。这类 run 已收工，但 `auto-exit: false` 因而仍占槽。实测每次 `agent list` 31–46 ms，长时间空闲就是每秒一次进程启动。
+固定 `pollIntervalMs` 会让空闲 run 也按活跃档轮询。这类 run 回合已结束，但因 `auto-exit: false` 仍占槽。实测每次 `agent list` 31–46 ms，长时间空闲就是每秒一次进程启动。
 
-改为按同一拍的结果选档。上一拍看到 run 在 working / blocked / unknown（折成 `run.busy`），或最近 30 秒内 `run` / `send` 过，用 `pollIntervalMs`。所有 live run 都只是收工等 `send`，用 `idlePollIntervalMs`（默认 8000）。代价是 pane 死亡的最晚发现时间从 `pollIntervalMs` 变成 `idlePollIntervalMs`。这只影响 `pane_exited` 通知的时效，不影响结算正确性。
+改为按同一拍的结果选档。上一拍看到 run 在 working / blocked / unknown（折成 `run.busy`），或最近 30 秒内 `run` / `send` 过，用 `pollIntervalMs`。所有 live run 都只在等 `send`，用 `idlePollIntervalMs`（默认 8000）。代价是 pane 死亡的最晚发现时间从 `pollIntervalMs` 变成 `idlePollIntervalMs`。这只影响 `pane_exited` 通知的时效，不影响结算正确性。
 
 `run` / `send` 会重置活跃窗口，但不排 0 延迟的第一拍。首拍太早只会多一次 `agent list`。第一拍仍按 `pollIntervalMs`。
 

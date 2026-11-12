@@ -24,7 +24,7 @@ function hasToolCall(content: unknown): boolean {
   });
 }
 
-// 只回答 send 续跑前的一个问题：最后一条 assistant 是不是停在工具调用上。
+// 只回答 send 投递前的一个问题：最后一条 assistant 是不是停在工具调用上。
 export function parseTail(raw: string): TailSnapshot {
   const lines = raw.split("\n");
   for (let index = lines.length - 1; index >= 0; index -= 1) {

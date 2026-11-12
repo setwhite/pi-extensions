@@ -80,7 +80,7 @@ function hasToolCall(content: unknown): boolean {
   });
 }
 
-// 只取最后一条 user 消息之后的内容：/tree、压缩、续跑都不能把旧答案算进这一轮。
+// 只取最后一条 user 消息之后的内容：/tree、压缩、重启都不能把旧答案算进这一轮。
 export function lastTurnOf(entries: TurnEntry[]): TurnSlice {
   let start = 0;
   for (let index = entries.length - 1; index >= 0; index -= 1) {

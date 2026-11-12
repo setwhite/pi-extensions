@@ -11,7 +11,7 @@ export type SessionTailReader = (path: string) => SessionTail;
 
 const UNREADABLE: SessionTail = { pendingToolCall: false, unreadable: true };
 
-// 读最后一条 assistant，只为了判断 send 能不能安全续跑。
+// 读最后一条 assistant，只为了判断 send 能不能安全投递。
 export const readSessionTail: SessionTailReader = (path) => {
   try {
     const size = statSync(path).size;

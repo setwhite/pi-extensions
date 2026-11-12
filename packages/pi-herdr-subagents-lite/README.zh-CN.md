@@ -2,15 +2,15 @@
 
 **[简体中文](README.zh-CN.md)** | [English](README.md)
 
-本扩展让子代理作为独立 pi 进程，跑在 herdr pane 里。一个工具有两个 action：`run` 起子代理，`send` 续聊。结果异步回投。行为以 [v1 契约](docs/specs/0001-v1-contract.md) 为准。
+本扩展把子代理跑成独立的 pi 进程，一个子代理占一个 herdr pane。工具有两个 action：`run` 起子代理，`send` 投递后续消息。结果异步回投。行为以 [v1 契约](docs/specs/0001-v1-contract.md) 为准。
 
 ## 功能
 
-- 独立进程，可人工接管。每个子代理是 herdr pane 里的独立 pi 进程。子代理的 cwd 与父相同时，它在同一个 workspace 新开 tab。cwd 不同时，它新建 workspace。
-- 两层 profile：Markdown + frontmatter。全局一层，项目一层。
-- 结果异步，可合并。`run` 立即返回。每次收工投一条 `subagent_result`。落在 `aggregateWindowMs` 内的结果合并成一条。超长结果落 artifact 文件。
-- 反问留在人这边。子代理弹对话框只发 `herdr:blocked`。父侧收不到这个消息。人在子 pane 里回答。
-- 默认不嵌套，也不是沙箱。子代理的工具集默认去掉本工具。只有 profile 点名，才授予本工具。
+- 子代理是独立进程，人可以接管它的 pane。cwd 与父会话相同时，它在同一 workspace 新开 tab；不同则新建 workspace。
+- profile 两层：全局一层，项目一层，都是 Markdown 加 frontmatter。
+- `run` 立即返回。每个回合结束投一条 `subagent_result`，落在 `aggregateWindowMs` 内的合并成一条，超长的落 artifact 文件。
+- 反问留在子 pane。子代理弹对话框只发 `herdr:blocked`，父会话收不到。人在子 pane 里回答。
+- 默认不嵌套，也不是沙箱。profile 不点名，子代理的工具集就没有本工具。
 
 ## 安装
 
@@ -20,21 +20,23 @@ pi install /path/to/pi-herdr-subagents-lite         # 本地源码
 pi -e /path/to/pi-herdr-subagents-lite/src/index.ts # 只对当前进程生效
 ```
 
-旧仓已并入 monorepo。请用 npm 安装。
+旧仓已并入 monorepo，请从 npm 装。
 
-不要加 `-l`。`-l` 只写项目设置，在别的 workspace 里起的子代理就加载不到。`pi -e` 同样是单进程。
+不要加 `-l`。`-l` 只写项目设置，别的 workspace 里起的子代理就加载不到。`pi -e` 同样只对当前进程生效。
 
-在 herdr `0.9.5` 与 pi `1.4.0` 上测过，Node `>= 22.19`。父会话必须在 herdr pane 里。不在时返回 `not_in_herdr`。升级用 `pi update --extensions`。卸载用 `pi remove <source>`。
+要求 Node `>= 22.19`。在 herdr `0.9.5` 与 pi `1.4.0` 上测过。父会话必须跑在 herdr pane 里，否则工具返回 `not_in_herdr`。
+
+升级用 `pi update --extensions`，卸载用 `pi remove <source>`。
 
 ## 配置
 
-只有一个全局文件：`<agent-dir>/pi-herdr-subagents-lite/config.json`。`<agent-dir>` 默认 `~/.pi/agent`，跟随 `PI_CODING_AGENT_DIR`。扩展不读项目级配置。
+全局只有一个文件：`<agent-dir>/pi-herdr-subagents-lite/config.json`。`<agent-dir>` 默认 `~/.pi/agent`，跟随 `PI_CODING_AGENT_DIR`。扩展不读项目级配置。
 
-默认值与 clamp 边界见 `src/config/index.ts` 与 `test/config/config.test.ts`。键与语义见[契约 §1](docs/specs/0001-v1-contract.md#1-配置)。
+键与语义见[契约 §1](docs/specs/0001-v1-contract.md#1-配置)。默认值与 clamp 边界见 `src/config/index.ts` 与 `test/config/config.test.ts`。
 
 ### 最小配置
 
-文件不存在时，全部用默认值。只改一项，就只写这一项：
+文件不存在时全部取默认值。只改一项，就只写这一项：
 
 ```json
 {
@@ -44,7 +46,7 @@ pi -e /path/to/pi-herdr-subagents-lite/src/index.ts # 只对当前进程生效
 
 ### 完整配置
 
-下面这份列出全部键。每个取值就是默认值。
+下面列出全部键，每个取值就是默认值。
 
 ```jsonc
 {
@@ -91,19 +93,21 @@ pi -e /path/to/pi-herdr-subagents-lite/src/index.ts # 只对当前进程生效
 }
 ```
 
-文件必须是严格 JSON。扩展只读一次，所以保存前删掉注释，改完重启 pi。未知键、类型不对或枚举值非法都会让扩展加载失败：pi 打出 `invalid config <路径>: <字段>: unknown key` 后退出。超范围的数字会被夹到边界，不报错。
+文件必须是严格 JSON，扩展只在加载时读一次。改完删掉注释，重启 pi。
+
+未知键、类型不对或枚举值非法都会让扩展加载失败：pi 打出 `invalid config <路径>: <字段>: unknown key` 后退出。越界的数字夹到边界，不报错。
 
 ## 用法
 
 1. 在 herdr pane 里启动 `pi`。
-2. 写一个 profile（下一节）。frontmatter 的 `name` 就是 `run` 的寻址名。
+2. 写一个 profile（见下一节）。frontmatter 的 `name` 就是 `run` 的寻址名。
 3. 让模型调用工具：
 
 ```json
 {"action":"run","profile":"explore","task":"读 README.md，回答它的第一个标题。"}
 ```
 
-工具返回 `{"state":"running",...}`。子代理在自己的 tab 里跑。稍后收到 `[subagent explore-1] done` 消息。不要在同一轮里等结果。续聊那个子代理：
+工具返回 `{"state":"running",...}`。子代理在自己的 tab 里跑，稍后收到 `[subagent explore-1] done`。不要在同一轮里等结果。之后向它投递消息：
 
 ```json
 {"action":"send","name":"explore-1","message":"也看一下 Windows 那条分支。"}
@@ -111,7 +115,7 @@ pi -e /path/to/pi-herdr-subagents-lite/src/index.ts # 只对当前进程生效
 
 ### Profile
 
-全局 profile 在 `<agent-dir>/pi-herdr-subagents-lite/profiles/*.md`。项目 profile 在 `.pi/pi-herdr-subagents-lite/profiles/*.md`，项目受信任后才读。`name` 相同时，项目覆盖全局。
+全局 profile 放 `<agent-dir>/pi-herdr-subagents-lite/profiles/*.md`。项目 profile 放 `.pi/pi-herdr-subagents-lite/profiles/*.md`，项目受信后才读。同名时项目覆盖全局。
 
 ```markdown
 ---
@@ -144,9 +148,11 @@ disable-model-invocation: false
 你是一名只读探索者。回答时给出文件路径与行号。
 ```
 
-错误码见[契约 §2](docs/specs/0001-v1-contract.md#2-profile)。默认值见 `src/profile/frontmatter.ts` 与 `test/profile/`。没写 `name` 的文件、字段非法的文件与同层同名的文件都不进列表。对它调用 `run`，返回 `profile_invalid`，带文件、字段与原因。
+错误码见[契约 §2](docs/specs/0001-v1-contract.md#2-profile)。默认值见 `src/profile/frontmatter.ts` 与 `test/profile/`。
 
-扩展自带一个示例 profile。文件名和 `name` 都是 `worker`。加载只读 `profiles/*.md`。每次加载都把 `profiles/examples/` 对齐到扩展自带的示例：重写自带文件，删掉多余文件。所以复制一份到上一层即可：
+没写 `name`、字段非法、同层同名的 profile 都不进列表。`run` 点到它时返回 `profile_invalid`，带文件、字段与原因。
+
+扩展自带一个示例，文件名和 `name` 都是 `worker`。加载只读 `profiles/*.md`，同时把 `profiles/examples/` 对齐到包内示例：重写自带文件，删掉多余文件。所以把示例复制到上一层：
 
 ```bash
 cd <agent-dir>/pi-herdr-subagents-lite/profiles && cp examples/worker.md worker.md
@@ -157,11 +163,11 @@ cd <agent-dir>/pi-herdr-subagents-lite/profiles && cp examples/worker.md worker.
 | 项目 | 借鉴内容 |
 |---|---|
 | [earendil-works/pi](https://github.com/earendil-works/pi) | 扩展 API、包布局、官方示例 |
-| [fyang93/pi-herdr-subagents](https://github.com/fyang93/pi-herdr-subagents) | profile 字段形状。隔离 herdr session 的集成测试 |
-| [modem-dev/pi-herdr-subagents](https://github.com/modem-dev/pi-herdr-subagents) | herdr 启动与生命周期。终态归类 |
+| [fyang93/pi-herdr-subagents](https://github.com/fyang93/pi-herdr-subagents) | profile 字段形状；隔离 herdr session 的集成测试 |
+| [modem-dev/pi-herdr-subagents](https://github.com/modem-dev/pi-herdr-subagents) | herdr 启动与生命周期；终态归类 |
 | [purboo/pi-durable-subagents](https://github.com/purboo/pi-durable-subagents) | 异步投递、幂等、只上报一次 |
 
-感谢这些项目的代码。
+本扩展建在这些项目之上。谢谢各位作者。
 
 ## 文档
 

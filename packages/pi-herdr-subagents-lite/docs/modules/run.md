@@ -2,6 +2,10 @@
 
 run 生命周期内核：启动、send、回合事件、结算、关闭。对外行为见 [v1 契约](../specs/0001-v1-contract.md)。本文只写取舍。
 
+## 结构
+
+`index.ts` 是门面，其余 18 个文件各管一件事：`start`、`slot`、`naming`、`resolve`、`truncate`、`spawn-args`、`paths`、`pane`、`settle`、`watch`、`result`、`send`、`state`、`errors`、`close`、`find`、`aggregate`、`artifact`。
+
 ## 状态
 
 每个 run 只有四个状态。
@@ -9,8 +13,8 @@ run 生命周期内核：启动、send、回合事件、结算、关闭。对外
 | 状态 | 含义 | 占并发槽 |
 |---|---|---|
 | `running` | 有回合在飞 | 是 |
-| `idle` | 回合收工，等 `send`。pane 可能已关（`paneClosed`） | 否 |
-| `dead` | 判定失去联系，记录留着等 `send` 续跑 | 否 |
+| `idle` | 回合结束，等 `send`。pane 可能已关（`paneClosed`） | 否 |
+| `dead` | 判定失去联系，记录留着等 `send` 重启 | 否 |
 | `closed` | 已从服务移除 | 否 |
 
 ## 回合事件
@@ -32,12 +36,12 @@ run 生命周期内核：启动、send、回合事件、结算、关闭。对外
 
 - 只有 `running` 占槽。`idle` 与 `dead` 不占，父代理还能继续派活。
 - `run` 在第一次 await 之前占槽，并发的 `run()` 立刻看到它。
-- `send` 续跑也要占槽。已满时返回 `max_concurrent`，不投递、不重启。
+- `send` 触发的重启也要占槽。已满时返回 `max_concurrent`，不投递、不重启。
 
 ## send
 
 - `running`：直接写 inbox，不再查 `agent list`。
-- `idle`：查一次 `agent list`。找到就写 inbox；找不到就按 `dead` 续跑。
+- `idle`：查一次 `agent list`。找到就写 inbox，找不到就按 `dead` 重启。
 - `dead`：从同一个 session 文件重启。先查尾部有没有未完成的工具调用。
 - 只有显式 `send` 才重启，死亡不自动重启（DEC-0031）。
 - 重启重读 profile，不用快照。

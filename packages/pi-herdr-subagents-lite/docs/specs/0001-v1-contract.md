@@ -19,7 +19,7 @@
 | `enabled` | boolean | — | 只控制工具注册。bridge 由 `bridge.enabled` 独立控制。已跑子代理不受影响 |
 | `toolName` | string | `^[a-z][a-z0-9_]{0,31}$` | 跨扩展重名不处理 |
 | `herdrBin` | string | 非空 | herdr 可执行文件。裸名按 PATH 解析。用绝对路径可指定版本 |
-| `maxConcurrent` | integer | 越界 clamp | 每个父会话同时在跑的回合上限。只有下界，无上限。收工等 `send` 的子代理不占 |
+| `maxConcurrent` | integer | 越界 clamp | 每个父会话同时在跑的回合上限，只有下界。回合已结束、等 `send` 的子代理不占 |
 | `maxResultChars` | integer | 越界 clamp | 字符数。超过则全文落 artifact |
 | `aggregateWindowMs` | integer | 越界 clamp | 0 = 不聚合，逐个回投 |
 | `closeChildrenOn` | string[] | `new` / `resume` / `fork` / `quit` / `reload` | 默认 `["quit", "reload"]`。命中 `session_shutdown.reason` 时关该父会话的子 pane |
@@ -110,7 +110,7 @@
 | `not_in_herdr` | 父会话不在 herdr pane | 必须在 herdr 里运行。无降级 |
 | `unknown_profile` | run 的 profile 不存在 | 当前 profile 列表（name + description） |
 | `unknown_agent` | send 的 name 不在 run 记录里 | 当前可用名称 |
-| `max_concurrent` | live 子代理已达 maxConcurrent：run 新建，或 send 到已收工、已退出的 run。此时不投递，不重启 | 当前 live 名称。等结果或关一个 |
+| `max_concurrent` | live 子代理已达 maxConcurrent：run 新建，或 send 到回合已结束、已退出的 run。此时不投递，不重启 | 当前 live 名称。等结果或关一个 |
 | `profile_invalid` | profile 字段解析失败，或 `skills` 里的名字找不到 | 文件 + 字段 + 原因，或 skill 名 + cwd |
 | `spawn_failed` | tab / pane / agent start 失败、会话正在关闭、重启前关旧 tab 失败。含未就绪与 trust 对话框拦住 | 底层错误。已创建的 pane id 保留。未就绪时附「去 pane 处理对话框」 |
 | `name_exhausted` | 自动命名重试用尽仍冲突 | 尝试 100 次仍无空闲名 |
@@ -144,7 +144,7 @@
 
 ## 5. send 语义
 
-`send` 把消息送到子代理。子代理已退出时，用同一 session 重启续聊。inbox 轮询由子进程里的本包完成。全局安装是前提。
+`send` 把消息送到子代理。子代理已退出时，用同一 session 重启后再投递。inbox 轮询由子进程里的本包完成，全局安装是前提。
 
 | 子代理状态 | send 做什么 | 返回 |
 |---|---|---|
