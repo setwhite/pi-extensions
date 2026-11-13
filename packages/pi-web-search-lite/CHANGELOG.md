@@ -2,6 +2,10 @@
 
 本文件记录已发布版本的用户可见变更。更细的过程见 git log。0.x 期间破坏性变更走 minor 号，条目里标 **BREAKING**。
 
+## 0.13.1 — 2026-11-13
+
+- reddit 默认 redlib 实例改成 `https://redlib.nadeko.net`。旧的 catsarch 实例不可用。想换实例或关掉改写仍走 `handlers.reddit`。
+
 ## 0.13.0 — 2026-11-10
 
 - GitHub 页面多认三类：`commit/<sha>`、`compare/a...b`、`actions/runs/<id>`。commit 与 compare 只给摘要（作者、时间、增删行数、提交与文件清单），不给 patch：完整 diff 在本地 `git clone` 更合适。actions run 先取任务表，再补一次只看失败步骤的日志，没有失败步骤就只留任务表。
