@@ -97,7 +97,7 @@ export function ghStub(options: GhStubOptions = {}): { exec: GhExecutor; calls: 
 export function baseContext(overrides: Partial<HandlerContext> = {}): HandlerContext {
 	return {
 		github: { enabled: true, command: "gh", timeoutMs: 10_000, maxChars: 150_000 },
-		reddit: { enabled: true, baseUrl: "https://redlib.catsarch.com" },
+		reddit: { enabled: true, baseUrl: "https://redlib.nadeko.net" },
 		...overrides,
 	};
 }

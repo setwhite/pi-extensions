@@ -118,7 +118,7 @@ You can also set keys in environment variables (`TAVILY_API_KEY` / `BRAVE_API_KE
     },
     "reddit": {
       "enabled": true,    // false = no host substitution. reddit URLs take the extractor chain as-is. Turn it off if you do not want links handed to a third-party instance
-      "baseUrl": "https://redlib.catsarch.com"  // reddit only swaps the host (the path is copied) for a redlib instance. The extractor chain still fetches the text. Point it at your own instance. Subpaths are fine
+      "baseUrl": "https://redlib.nadeko.net"  // reddit only swaps the host (the path is copied) for a redlib instance. The extractor chain still fetches the text. Point it at your own instance. Subpaths are fine
     }
   }
 }

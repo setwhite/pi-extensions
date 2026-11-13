@@ -66,7 +66,7 @@ describe("loadConfig", () => {
 			},
 			handlers: {
 				github: { enabled: true, command: "gh", timeoutMs: 30_000, maxChars: 150_000 },
-				reddit: { enabled: true, baseUrl: "https://redlib.catsarch.com" },
+				reddit: { enabled: true, baseUrl: "https://redlib.nadeko.net" },
 			},
 		});
 		expect(config.userAgent).toBe(`pi-web-search-lite/${pkg.version}`);

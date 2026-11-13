@@ -168,9 +168,9 @@ describe("executeFetch：reddit URL 改写", () => {
 		const result = await executeFetch(makeConfig(), { url: REDDIT_POST }, undefined, { http });
 
 		expect(http.calls.map((call) => call.url)).toEqual([
-			"https://redlib.catsarch.com/r/rust/comments/1abc/title/",
+			"https://redlib.nadeko.net/r/rust/comments/1abc/title/",
 		]);
-		expect(result.details.url).toBe("https://redlib.catsarch.com/r/rust/comments/1abc/title/");
+		expect(result.details.url).toBe("https://redlib.nadeko.net/r/rust/comments/1abc/title/");
 		expect(result.details.rewrittenFrom).toBe(REDDIT_POST);
 		expect(firstText(result)).toContain(`Rewritten from: ${REDDIT_POST}`);
 	});

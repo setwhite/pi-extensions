@@ -118,7 +118,7 @@ key 也可以放在环境变量中：`TAVILY_API_KEY` / `BRAVE_API_KEY` / `EXA_A
     },
     "reddit": {
       "enabled": true,    // false = 不换域名。reddit URL 原样走提取器链。不想把链接交给第三方实例就关掉
-      "baseUrl": "https://redlib.catsarch.com"  // reddit 只换域名（path 照抄）交给 redlib 实例，正文仍由提取器链抓。可填自建实例，带子路径也行
+      "baseUrl": "https://redlib.nadeko.net"  // reddit 只换域名（path 照抄）交给 redlib 实例，正文仍由提取器链抓。可填自建实例，带子路径也行
     }
   }
 }

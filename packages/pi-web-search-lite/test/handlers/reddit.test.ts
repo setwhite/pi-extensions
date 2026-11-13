@@ -3,7 +3,7 @@ import { runPageHandlers } from "../../src/handlers/index.ts";
 import type { HandlerContext } from "../../src/handlers/types.ts";
 import { baseContext } from "./fixtures.ts";
 
-const BASE = "https://redlib.catsarch.com";
+const BASE = "https://redlib.nadeko.net";
 const POST =
 	"https://www.reddit.com/r/PiCodingAgent/comments/1ue3hsb/pi_herdr_and_gondolin_combo_has_been_a_great/";
 
