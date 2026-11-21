@@ -55,23 +55,133 @@ function nextTabHint(id: string): string {
 	return `(next: tab=${id})`;
 }
 
-/**
- * `eval` 的返回值按字符预算截断。超了照旧给出前半段，
- * 但附一句下一步：让模型改用 JS 里过滤，而不是照半截结果猜。
- */
-export function evalText(
-	value: unknown,
-	limit: number,
-): { text: string; truncated: boolean } {
-	const raw = valueText(value);
-	if (raw.length <= limit) return { text: raw, truncated: false };
-	const dropped = raw.length - limit;
-	return {
-		text: `${raw.slice(0, limit)}\n[eval output cut at ${limit} characters: ${dropped} more dropped; filter or slice in JS and return only what you need]`,
-		truncated: true,
-	};
+/** 剪枝后的文本与是否剪过。 */
+export interface Cut {
+	text: string;
+	truncated: boolean;
 }
 
+/**
+ * `eval` 的返回值按字符预算截断。能 parse 成 JSON 的按结构剪，
+ * 预览仍是合法 JSON；剪不动结构的退回按字符切，末尾补一句下一步。
+ */
+export function evalText(value: unknown, limit: number): Cut {
+	return cutText(
+		value,
+		limit,
+		(dropped) =>
+			`[eval output cut at ${limit} characters: ${dropped} more dropped; filter or slice in JS and return only what you need]`,
+	);
+}
+
+/**
+ * `cdp` 的返回值与 `eval` 共用 `output.evalChars`：两者都是模型自己要的
+ * 原始数据，同一个预算就够，不必再加一个配置项。
+ */
+export function cdpText(value: unknown, limit: number): Cut {
+	return cutText(
+		value,
+		limit,
+		(dropped) =>
+			`[cdp output cut at ${limit} characters: ${dropped} more dropped; ask the expression for less, or use chrome_act eval]`,
+	);
+}
+
+/** 超预算时的公共剪法。`tail` 只给按字符切这条路用：按结构剪的说明在 JSON 里。 */
+function cutText(
+	value: unknown,
+	limit: number,
+	tail: (dropped: number) => string,
+): Cut {
+	const raw = valueText(value);
+	if (raw.length <= limit) return { text: raw, truncated: false };
+	const parsed = parsedJson(value);
+	if (parsed !== undefined) {
+		const text = JSON.stringify(prune(parsed, limit));
+		if (text !== undefined && text.length <= limit) {
+			return { text, truncated: true };
+		}
+	}
+	const dropped = raw.length - limit;
+	return { text: `${raw.slice(0, limit)}\n${tail(dropped)}`, truncated: true };
+}
+
+/** 剪枝时塞进 JSON 里的丢弃标记：一串字符，JSON 照样合法，模型也读得出少了什么。 */
+function droppedMarker(dropped: number): string {
+	return `… ${dropped} more dropped`;
+}
+
+/** 给标记留的余量：宁可少留一条，也不超预算。 */
+function markerReserve(dropped: number): number {
+	return droppedMarker(dropped).length + 4;
+}
+
+/** 把值剪进预算：数组留前几项、对象留前几个键，末尾补一条丢弃标记。 */
+function prune(value: unknown, budget: number): unknown {
+	const text = JSON.stringify(value);
+	if (text !== undefined && text.length <= budget) return value;
+	if (typeof value === "string") {
+		return `${value.slice(0, Math.max(0, budget - 2))}…`;
+	}
+	if (Array.isArray(value)) return pruneItems(value, budget);
+	if (typeof value === "object" && value !== null) {
+		return pruneEntries(value as Record<string, unknown>, budget);
+	}
+	return value;
+}
+
+function pruneItems(items: readonly unknown[], budget: number): unknown[] {
+	const kept: unknown[] = [];
+	let used = 2;
+	for (let index = 0; index < items.length; index += 1) {
+		const reserve = markerReserve(items.length - index);
+		const allowance = budget - used - reserve - 1;
+		if (allowance <= 4) break;
+		const item = prune(items[index], allowance);
+		const size = (JSON.stringify(item) ?? "null").length;
+		if (used + size + 1 + reserve > budget) break;
+		kept.push(item);
+		used += size + 1;
+	}
+	const dropped = items.length - kept.length;
+	if (dropped > 0) kept.push(droppedMarker(dropped));
+	return kept;
+}
+
+function pruneEntries(
+	entries: Record<string, unknown>,
+	budget: number,
+): Record<string, unknown> {
+	const kept: Record<string, unknown> = {};
+	const keys = Object.keys(entries);
+	let used = 2;
+	for (let index = 0; index < keys.length; index += 1) {
+		const key = keys[index] as string;
+		const reserve = markerReserve(keys.length - index);
+		const keySize = JSON.stringify(key).length + 1;
+		const allowance = budget - used - reserve - keySize - 1;
+		if (allowance <= 4) break;
+		const item = prune(entries[key], allowance);
+		const size = (JSON.stringify(item) ?? "null").length;
+		if (used + keySize + size + 1 + reserve > budget) break;
+		kept[key] = item;
+		used += keySize + size + 1;
+	}
+	const dropped = keys.length - Object.keys(kept).length;
+	if (dropped > 0) kept["…"] = droppedMarker(dropped);
+	return kept;
+}
+
+/** 对象直接用，字符串先试着 parse；parse 不了的当普通文本。 */
+function parsedJson(value: unknown): unknown {
+	if (typeof value === "object" && value !== null) return value;
+	if (typeof value !== "string") return undefined;
+	try {
+		return JSON.parse(value) as unknown;
+	} catch {
+		return undefined;
+	}
+}
 /** 值转文本：字符串原样给，其余按 JSON。`undefined` 按 `null`，与 JSON 一致。 */
 export function valueText(value: unknown): string {
 	if (typeof value === "string") return value;

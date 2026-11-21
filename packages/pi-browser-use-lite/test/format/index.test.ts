@@ -1,6 +1,7 @@
 import { expect, it } from "vitest";
 import {
 	candidatesText,
+	cdpText,
 	changedLine,
 	errorText,
 	evalText,
@@ -55,6 +56,56 @@ it("evalText 超限时截断并报出丢弃的字数", () => {
 			"abcd\n[eval output cut at 4 characters: 6 more dropped;",
 		),
 	).toBe(true);
+});
+
+it("evalText 遇到 JSON 按结构剪，预览仍是合法 JSON", () => {
+	const value = {
+		items: Array.from({ length: 40 }, (_, index) => ({
+			id: index,
+			name: `item ${index}`,
+		})),
+	};
+	const limit = 300;
+	const cut = evalText(value, limit);
+	expect(cut.truncated).toBe(true);
+	expect(cut.text.length).toBeLessThanOrEqual(limit);
+	const parsed = JSON.parse(cut.text) as { items: unknown[] };
+	expect(Array.isArray(parsed.items)).toBe(true);
+	expect(cut.text).toContain("more dropped");
+});
+
+it("evalText 遇到 JSON 字符串也按结构剪", () => {
+	const cut = evalText(
+		JSON.stringify(Array.from({ length: 50 }, (_, i) => i)),
+		120,
+	);
+	expect(cut.truncated).toBe(true);
+	expect(Array.isArray(JSON.parse(cut.text))).toBe(true);
+	expect(cut.text.length).toBeLessThanOrEqual(120);
+});
+
+it("evalText 剪不动结构时退回按字符切", () => {
+	const cut = evalText("x".repeat(50), 10);
+	expect(cut.truncated).toBe(true);
+	expect(
+		cut.text.startsWith("xxxxxxxxxx\n[eval output cut at 10 characters"),
+	).toBe(true);
+});
+
+it("cdpText 与 evalText 同一条剪法，尾巴指向 CDP 的下一步", () => {
+	const cut = cdpText(
+		{ rows: Array.from({ length: 30 }, (_, i) => `row-${i}`.repeat(4)) },
+		200,
+	);
+	expect(cut.truncated).toBe(true);
+	expect(cut.text.length).toBeLessThanOrEqual(200);
+	expect(
+		Array.isArray((JSON.parse(cut.text) as { rows: unknown[] }).rows),
+	).toBe(true);
+	const plain = cdpText("y".repeat(50), 10);
+	expect(plain.text).toContain(
+		"[cdp output cut at 10 characters: 40 more dropped;",
+	);
 });
 
 it("limitElements 按渲染后的行长度裁，整块不超过预算", () => {

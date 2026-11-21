@@ -90,13 +90,13 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 | 工具 | `content` | `details` |
 |---|---|---|
 | `chrome_act` 的交互类 | 判定行（`ok: click ref=e12`）、变更行（`changed: +1 -0 ~2`）、新标签行（`opened: +1 8 * 标题 url (next: tab=8)`，只在开了新页时出现）、可选快照 | `{ ok, action, changed: { added, removed, updated }, opened?, snapshot?, ref? }` |
-| `chrome_act` 的 `eval`、`wait` | 判定行，接返回值（`eval` 给 JSON 或文本，超 `output.evalChars` 时截断并说明丢了多少，`wait` 给耗时） | `{ ok, action, value?, truncated? }` |
+| `chrome_act` 的 `eval`、`wait` | 判定行，接返回值（`eval` 给 JSON 或文本，超 `output.evalChars` 时按结构剪：数组留前几项、对象留前几个键，末尾补一条丢弃标记，预览仍是合法 JSON；剪不动结构的退回按字符切并说明丢了多少；`wait` 给耗时） | `{ ok, action, value?, truncated? }` |
 | `chrome_see` | 该 `mode` 的正文 | `{ mode, url, title, elements?, text?, changes?, truncated }` |
 | `chrome_see` 的 `logs` | 每条记录一行 JSON；抓取关闭或存储写不进时把说明前置一行 | `{ logs, count? }` |
 | `chrome_tab` 的 `list` | 每行一个标签：id、`*` 表示活动页、标题、URL | `{ tabs }` |
 | `chrome_tab` 其余动作 | 一行结果 | `{ result }` |
 | `chrome_vision` | `Saved <path>`。分块时每个文件一行 | `{ path, tiles? }` |
-| `chrome_cdp` | 返回值的 JSON | `{ result }` |
+| `chrome_cdp` | 返回值的 JSON，超 `output.evalChars` 时与 `eval` 同一套剪法 | `{ result, truncated? }` |
 
 变更量是元素三元组的计数：标签、角色、可见文本。比较器与 `chrome_see` 的 `changes` 共用一份实现。变更量只给数字，不给明细。要明细就在 `chrome_act` 里传 `see: changes`。
 
@@ -170,7 +170,7 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 | `output.maxElements` | `80` | 元素太多，context 吃不消 |
 | `output.refsChars` | `8000` | 元素清单太长，一轮快照吃掉太多 context |
 | `output.textChars` | `18000` | 正文太长 |
-| `output.evalChars` | `4000` | `eval` 返回整页 DOM 或大数组 |
+| `output.evalChars` | `4000` | `eval` 或 `cdp` 返回整页 DOM、大数组 |
 | `screenshot.dir` | `<agent dir>/pi-browser-use-lite/screenshots` | 想换盘 |
 | `screenshot.format` | `"png"` | 想省磁盘，换 jpeg |
 | `screenshot.keepNewest` | `20` | 截图占满磁盘 |
@@ -239,7 +239,7 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 - 快照：`refs` 摘要 500 字符、元素 80 个；`text` 18,000 字符；`full` 30,000 字符；元素清单 8,000 字符。`content` 截断线 32,000 字符，比 `full` 留 2,000 字符信封余量。console 500 条。请求体 200,000 字符。
 - 采集范围是文档与 open shadow root：closed root 与 iframe 里的内容进不去。shadow root 里的元素只认 ref，selector 停在 light tree。
 - 元素清单的字符预算在宿主算：只有拼正文的地方知道一行最后多长。裁过就补一行 hint 说明是 `output.refsChars` 裁的，不留「页面只有这些元素」的误读空间。
-- 写死但配置可覆盖：拖动 10 步（`input.dragSteps`）、滚动 5 步（`input.scrollSteps`）、导航 15 秒（`timing.navigateTimeoutMs`）、元素清单 8,000 字符（`output.refsChars`）、`eval` 返回值 4,000 字符（`output.evalChars`）。
+- 写死但配置可覆盖：拖动 10 步（`input.dragSteps`）、滚动 5 步（`input.scrollSteps`）、导航 15 秒（`timing.navigateTimeoutMs`）、元素清单 8,000 字符（`output.refsChars`）、`eval` 与 `cdp` 返回值 4,000 字符（`output.evalChars`）。
 - 整页截图高度超过 4 倍视口时按屏分段。
 - 写死且不可配置：`wait` 轮询间隔 250 毫秒、`eval` 等 Promise、网络默认保留跨导航请求。
 - `wait` 默认超时 15 秒。`batch` 最多 50 步。

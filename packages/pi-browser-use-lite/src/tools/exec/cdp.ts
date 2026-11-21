@@ -2,7 +2,7 @@
  * `chrome_cdp`：原始 CDP 逃生口。方法名与参数原样转给扩展，结果按 JSON 回。
  */
 
-import { valueText } from "../../format/index.ts";
+import { cdpText } from "../../format/index.ts";
 import { okResult, type ToolResult } from "../result.ts";
 import { call, type RunContext, tabParams } from "./common.ts";
 
@@ -23,5 +23,9 @@ export async function runCdp(
 		params: params.params,
 	})) as { result?: unknown };
 	const value = result?.result ?? null;
-	return okResult(valueText(value), { result: value });
+	const cut = cdpText(value, ctx.deps.config.output.evalChars);
+	return okResult(cut.text, {
+		result: value,
+		...(cut.truncated ? { truncated: true } : {}),
+	});
 }

@@ -12,7 +12,7 @@
 - `batch` 用一次调用的预算（30 秒）分给各步：每步的超时取剩余时间，超预算就停在当时那一步并报 `timeout`。
 - 截图的落盘函数可注入，默认 `src/fs/` 的实现：扩展只回 base64，写盘与修剪归宿主，测试因此不用碰磁盘。
 - 元素清单的字符预算（`output.refsChars`）在宿主算，不在扩展：一行最后长什么样只有拼正文的 `format/` 知道，放到扩展就得抄一份拼法。裁过由 `snapshotOf` 补一行 hint，`details.elements` 与正文同一份。
-- `eval` 的返回值同样按字符预算截断（`output.evalChars`），交给 `format/` 的 `evalText`：截断说明也算进预算，换个说法只改一处。
+- `eval` 与 `cdp` 的返回值共用字符预算（`output.evalChars`），交给 `format/` 的 `evalText`、`cdpText`。超预算时按结构剪：数组留前几项、对象留前几个键，末尾塞一条 `… N more dropped`，预览仍是合法 JSON，模型还能 parse 后继续取。剪不动结构（普通长字符串）才退回按字符切。`cdp` 不再单开配置项：两者都是模型自己要的原始数据，一个预算就够。
 
 ## 发给扩展的 wire 契约
 

@@ -86,7 +86,7 @@ pi install npm:pi-browser-use-lite
     "maxElements": 80,          // 快照元素上限
     "refsChars": 8000,          // see 的 refs / full 模式元素清单字符预算，其余带提示丢掉
     "textChars": 18000,         // see 的 text 模式正文上限，其余带提示丢掉
-    "evalChars": 4000           // chrome_act eval 返回值上限，其余带提示丢掉
+    "evalChars": 4000           // chrome_act eval 与 chrome_cdp 返回值上限，长 JSON 按结构剪，不切半
   },
 
   // 截图
