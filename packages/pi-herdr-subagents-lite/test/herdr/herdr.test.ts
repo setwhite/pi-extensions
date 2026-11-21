@@ -1,5 +1,6 @@
 import { expect, it } from "vitest";
-import { type ExecHerdr, HerdrHostError } from "../../src/herdr/cli.ts";
+import { createAgentCommands } from "../../src/herdr/agent.ts";
+import { type ExecHerdr, type ExecOptions, HerdrHostError } from "../../src/herdr/cli.ts";
 import { createPaneCommands } from "../../src/herdr/pane.ts";
 
 const result = {
@@ -10,11 +11,13 @@ const result = {
 
 function fakeCommands() {
   const calls: string[][] = [];
-  const exec: ExecHerdr = async <T>(args: string[]): Promise<T> => {
+  const kinds: Array<ExecOptions["kind"]> = [];
+  const exec: ExecHerdr = async <T>(args: string[], options: ExecOptions): Promise<T> => {
     calls.push(args);
+    kinds.push(options.kind);
     return result as unknown as T;
   };
-  return { calls, commands: createPaneCommands(exec) };
+  return { calls, kinds, commands: createPaneCommands(exec) };
 }
 
 it("creates a workspace and returns its first tab", async () => {
@@ -50,6 +53,24 @@ it("rethrows other close failures", async () => {
   };
 
   await expect(createPaneCommands(exec).closePane("w1:p2")).rejects.toThrow("herdr did not answer");
+});
+
+it("declares which commands are queries and which mutate", async () => {
+  const kinds: Array<ExecOptions["kind"]> = [];
+  const paneExec: ExecHerdr = async <T>(args: string[], options: ExecOptions): Promise<T> => {
+    kinds.push(options.kind);
+    return (args[1] === "list" ? { panes: [] } : result) as unknown as T;
+  };
+  const agentExec: ExecHerdr = async <T>(_args: string[], options: ExecOptions): Promise<T> => {
+    kinds.push(options.kind);
+    return { agents: [] } as unknown as T;
+  };
+
+  await createPaneCommands(paneExec).createTab({ cwd: "/repo", label: "explore-1" });
+  await createPaneCommands(paneExec).hasPane("w1:p2");
+  await createAgentCommands(agentExec).listAgents();
+
+  expect(kinds).toEqual(["mutation", "query", "query"]);
 });
 
 it("creates a tab in the current workspace", async () => {

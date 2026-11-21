@@ -3,7 +3,8 @@ import { expect, it, vi } from "vitest";
 import { writeTurn } from "../../src/turn/index.ts";
 import { fakeHost } from "../support/host.ts";
 import { baseOf } from "../support/paths.ts";
-import { firstText, flushDelivery, parseStarted } from "../support/result.ts";
+import { writeProfile } from "../support/profiles.ts";
+import { eventually, firstText, flushDelivery, parseStarted } from "../support/result.ts";
 import { runTask, sendTask } from "../support/run.ts";
 import { loadSession, loadTimedSession } from "../support/session.ts";
 import { settleTurn } from "../support/turn.ts";
@@ -98,6 +99,26 @@ it("reports lost after three absences and closes the pane", async () => {
 
   expect(sent[0]?.message.content).toContain("[subagent worker-1] lost contact");
   expect(calls).toContain("closePane");
+});
+
+it("rejects a second send while the first is still restarting", async () => {
+  process.env.HERDR_ENV = "1";
+  writeProfile("worker.md", "---\nauto-exit: true\n---\n\nWorker body.\n");
+  const fake = fakeHost();
+  const { sent, tool } = loadSession(fake.host);
+  const started = parseStarted(await runTask(tool, "say hello"));
+  writeFileSync(started.sessionFile, "");
+  settleTurn(started.sessionFile, { text: "hello" });
+  await flushDelivery(sent);
+  await eventually(() => fake.calls.includes("closePane"));
+
+  const first = sendTask(tool, "worker-1", "again");
+  const second = await sendTask(tool, "worker-1", "and again");
+
+  expect(second.isError).toBe(true);
+  expect(second.details).toMatchObject({ code: "spawn_failed" });
+  expect(firstText(second)).toContain("still starting");
+  await expect(first).resolves.toMatchObject({ isError: false });
 });
 
 it("keeps a quitted run resumable", async () => {

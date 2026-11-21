@@ -16,6 +16,15 @@ export async function settleTurn(state: RunState, run: RunRecord, file: string, 
     removeTurn(file);
     return;
   }
+  // 回合已收尾的子代理随后退出：静默收尾，不再向父模型补一条「没汇报结果」。
+  if (turn.outcome === "quit" && run.phase !== "running") {
+    run.lastTurn = turn.turn;
+    removeTurn(file);
+    if (shouldClose(state, run, turn)) {
+      await closeOrReport(state, run);
+    }
+    return;
+  }
   const result = await makeResult(
     run,
     { state: turn.outcome, text: turn.text, errorMessage: turn.errorMessage },

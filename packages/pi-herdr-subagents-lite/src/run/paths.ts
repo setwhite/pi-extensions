@@ -15,6 +15,19 @@ export function runBaseOf(sessionFile: string): string {
   return join(runsDir(), basename(sessionFile, ".jsonl"));
 }
 
+export interface RunFiles {
+  sessionFile: string;
+  runBase: string;
+  briefFile: string;
+  identityFile: string;
+}
+
+export function runFiles(sessionsDir: string, name: string, runId: string): RunFiles {
+  const sessionFile = join(sessionsDir, `${name}-${runId}.jsonl`);
+  const runBase = runBaseOf(sessionFile);
+  return { sessionFile, runBase, briefFile: `${runBase}.brief.md`, identityFile: `${runBase}.identity.md` };
+}
+
 // 子会话进父会话所在的桶，与父会话同为 sessions 下的目录。
 export function childSessionsDir(parentSessionFile: string | undefined): string {
   const sessionsDir = parentSessionFile === undefined ? join(agentDir(), "sessions") : dirname(parentSessionFile);

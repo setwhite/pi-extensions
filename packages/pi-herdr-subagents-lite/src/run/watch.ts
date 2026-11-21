@@ -1,8 +1,10 @@
 import { mkdirSync } from "node:fs";
+import { basename } from "node:path";
 import { errorText } from "../error/index.ts";
 import { listTurns, readTurn, turnsDir } from "../turn/index.ts";
 import { findAgent } from "./find.ts";
 import { runsDir } from "./paths.ts";
+import { pruneRuns } from "./prune.ts";
 import { settleLost, settleTurn } from "./settle.ts";
 import type { RunRecord, RunState } from "./state.ts";
 
@@ -11,7 +13,14 @@ const SCAN_MS = 500;
 const LOST_CHECKS = 3;
 
 export function startWatch(state: RunState): void {
-  mkdirSync(runsDir(), { recursive: true });
+  const runs = runsDir();
+  mkdirSync(runs, { recursive: true });
+  pruneRuns(
+    runs,
+    state.runRetentionMs,
+    state.now(),
+    state.runs.map((run) => basename(run.runBase)),
+  );
   state.scanTimer = setInterval(() => void scan(state).catch((error) => state.onProblem(errorText(error))), SCAN_MS);
   state.scanTimer.unref?.();
   state.livenessTimer = setInterval(
@@ -65,31 +74,40 @@ async function scan(state: RunState): Promise<void> {
 }
 
 async function checkLiveness(state: RunState): Promise<void> {
+  // listAgents 慢于轮询间隔时不能叠加：叠加会把 absentChecks 多记一遍，三次就误判 lost。
+  if (state.checkingLiveness) {
+    return;
+  }
   const running = state.runs.filter((run) => run.phase === "running");
   if (running.length === 0) {
     return;
   }
-  let agents: Awaited<ReturnType<RunState["host"]["listAgents"]>>;
+  state.checkingLiveness = true;
   try {
-    agents = await state.host.listAgents();
-  } catch {
-    return;
-  }
-  for (const run of running) {
-    if (run.phase !== "running") {
-      continue;
+    let agents: Awaited<ReturnType<RunState["host"]["listAgents"]>>;
+    try {
+      agents = await state.host.listAgents();
+    } catch {
+      return;
     }
-    if (findAgent(agents, run)) {
-      run.absentChecks = 0;
-      continue;
+    for (const run of running) {
+      if (run.phase !== "running") {
+        continue;
+      }
+      if (findAgent(agents, run)) {
+        run.absentChecks = 0;
+        continue;
+      }
+      if (run.pane === undefined || !(await state.host.hasPane(run.pane.paneId))) {
+        await settleLost(state, run);
+        continue;
+      }
+      run.absentChecks += 1;
+      if (run.absentChecks >= LOST_CHECKS) {
+        await settleLost(state, run);
+      }
     }
-    if (run.pane === undefined || !(await state.host.hasPane(run.pane.paneId))) {
-      await settleLost(state, run);
-      continue;
-    }
-    run.absentChecks += 1;
-    if (run.absentChecks >= LOST_CHECKS) {
-      await settleLost(state, run);
-    }
+  } finally {
+    state.checkingLiveness = false;
   }
 }

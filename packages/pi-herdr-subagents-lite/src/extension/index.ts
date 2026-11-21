@@ -119,6 +119,7 @@ export function createExtension(deps: ExtensionDeps): (pi: ExtensionRegistrar) =
         maxResultChars: config.maxResultChars,
         aggregateWindowMs: config.aggregateWindowMs,
         livenessPollMs: config.livenessPollMs,
+        runRetentionMs: config.runRetentionMs,
         closeOnFailure: config.closeOnFailure,
         toolName: config.toolName,
         onProblem: (message) => ctx.ui.notify(message, "error"),

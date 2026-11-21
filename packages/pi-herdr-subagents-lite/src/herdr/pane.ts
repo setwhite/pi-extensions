@@ -1,4 +1,4 @@
-import { type ExecHerdr, HerdrHostError } from "./cli.ts";
+import { type ExecHerdr, type HerdrCall, HerdrHostError } from "./cli.ts";
 
 export interface CreatedTab {
   tabId: string;
@@ -43,16 +43,11 @@ interface PaneInfo {
 
 export function createPaneCommands(exec: ExecHerdr) {
   return {
-    async createWorkspace({ cwd, label }: CreateWorkspaceInput): Promise<CreatedWorkspace> {
-      const result = await exec<{ workspace: WorkspaceInfo; tab: TabInfo; root_pane: PaneInfo }>([
-        "workspace",
-        "create",
-        "--cwd",
-        cwd,
-        "--label",
-        label,
-        "--no-focus",
-      ]);
+    async createWorkspace({ cwd, label }: CreateWorkspaceInput, call: HerdrCall = {}): Promise<CreatedWorkspace> {
+      const result = await exec<{ workspace: WorkspaceInfo; tab: TabInfo; root_pane: PaneInfo }>(
+        ["workspace", "create", "--cwd", cwd, "--label", label, "--no-focus"],
+        { kind: "mutation", signal: call.signal },
+      );
       return {
         workspaceId: result.workspace.workspace_id,
         tabId: result.tab.tab_id,
@@ -60,36 +55,31 @@ export function createPaneCommands(exec: ExecHerdr) {
       };
     },
 
-    async createTab({ cwd, label }: CreateTabInput): Promise<CreatedTab> {
-      const result = await exec<{ tab: TabInfo; root_pane: PaneInfo }>([
-        "tab",
-        "create",
-        "--cwd",
-        cwd,
-        "--label",
-        label,
-        "--no-focus",
-      ]);
+    async createTab({ cwd, label }: CreateTabInput, call: HerdrCall = {}): Promise<CreatedTab> {
+      const result = await exec<{ tab: TabInfo; root_pane: PaneInfo }>(
+        ["tab", "create", "--cwd", cwd, "--label", label, "--no-focus"],
+        { kind: "mutation", signal: call.signal },
+      );
       return { tabId: result.tab.tab_id, paneId: result.root_pane.pane_id };
     },
 
-    async renameTab({ tabId, label }: RenameTabInput) {
-      await exec(["tab", "rename", tabId, label]);
+    async renameTab({ tabId, label }: RenameTabInput, call: HerdrCall = {}) {
+      await exec(["tab", "rename", tabId, label], { kind: "mutation", signal: call.signal });
     },
 
-    async renamePane({ paneId, label }: RenamePaneInput) {
-      await exec(["pane", "rename", paneId, label]);
+    async renamePane({ paneId, label }: RenamePaneInput, call: HerdrCall = {}) {
+      await exec(["pane", "rename", paneId, label], { kind: "mutation", signal: call.signal });
     },
 
-    async hasPane(paneId: string): Promise<boolean> {
-      const result = await exec<{ panes: PaneInfo[] }>(["pane", "list"]);
+    async hasPane(paneId: string, call: HerdrCall = {}): Promise<boolean> {
+      const result = await exec<{ panes: PaneInfo[] }>(["pane", "list"], { kind: "query", signal: call.signal });
       return result.panes.some((pane) => pane.pane_id === paneId);
     },
 
     // 只关自己记下的 pane，不看 tab 里还有什么。pane 已经不在了也算关掉。
-    async closePane(paneId: string): Promise<void> {
+    async closePane(paneId: string, call: HerdrCall = {}): Promise<void> {
       try {
-        await exec(["pane", "close", paneId]);
+        await exec(["pane", "close", paneId], { kind: "mutation", signal: call.signal });
       } catch (error) {
         if (!(error instanceof HerdrHostError && error.code === "pane_not_found")) {
           throw error;

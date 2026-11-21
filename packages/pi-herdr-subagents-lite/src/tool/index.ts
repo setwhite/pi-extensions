@@ -29,15 +29,15 @@ export function createTool({ config, profiles, service }: ToolDeps) {
     label: "Subagent",
     ...toolText(config, profiles),
     parameters,
-    async execute(_toolCallId: string, params: SubagentParameters) {
+    async execute(_toolCallId: string, params: SubagentParameters, signal?: AbortSignal) {
       if (process.env.HERDR_ENV !== "1") {
         return notInHerdr();
       }
       try {
         if (params.action === "run") {
-          return envelope(await service().run(params.profile, params.task, params.cwd));
+          return envelope(await service().run(params.profile, params.task, params.cwd, signal));
         }
-        return envelope(await service().send(params.name, params.message));
+        return envelope(await service().send(params.name, params.message, signal));
       } catch (error) {
         if (error instanceof ToolError) {
           return toolFailed(error);

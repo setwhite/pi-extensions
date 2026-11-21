@@ -11,6 +11,15 @@ export class ToolError extends Error {
   }
 }
 
+export function cancelled(): ToolError {
+  return new ToolError("spawn_failed", "the run was cancelled before it was ready");
+}
+
+// 会话在关，或者调用方中止了这一轮：两条路都走 cancelled()。
+export function shouldCancel(state: { stopped: boolean }, signal: AbortSignal | undefined): boolean {
+  return state.stopped || signal?.aborted === true;
+}
+
 export function spawnFailed(error: unknown, paneId: string | undefined, created = true): ToolError {
   const detail = errorText(error);
   const createdNote = created && paneId ? `. A pane was created: ${paneId}.` : "";

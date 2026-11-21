@@ -15,6 +15,7 @@ const specDefaults = {
   closeOnFailure: false,
   inboxPollMs: 250,
   livenessPollMs: 15000,
+  runRetentionMs: 2592000000,
   prompts: {},
   bridge: { enabled: true, blockedOn: ["custom", "select", "confirm", "input", "editor"] },
 };
@@ -60,6 +61,8 @@ it.each([
   [{ inboxPollMs: 99999 }, { inboxPollMs: 5000 }],
   [{ livenessPollMs: 1 }, { livenessPollMs: 1000 }],
   [{ livenessPollMs: 9999999 }, { livenessPollMs: 300000 }],
+  [{ runRetentionMs: -1 }, { runRetentionMs: 0 }],
+  [{ runRetentionMs: 1e15 }, { runRetentionMs: 31536000000 }],
 ])("clamps %o", (patch, expected) => {
   expect(readConfig(patch)).toMatchObject(expected);
 });

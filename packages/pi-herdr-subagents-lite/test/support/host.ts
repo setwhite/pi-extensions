@@ -9,7 +9,7 @@ export function fakeHost(
       createTab?: (attempt: number) => Error | undefined;
       startAgent?: (attempt: number) => Error | undefined;
     };
-    hooks?: { renamePane?: () => Promise<void> };
+    hooks?: { createTab?: () => Promise<void>; renamePane?: () => Promise<void> };
     closePane?: (paneId: string) => Error | undefined;
   } = {},
 ) {
@@ -35,6 +35,7 @@ export function fakeHost(
     async createTab(input) {
       calls.push("createTab");
       tabs.push(input);
+      await options.hooks?.createTab?.();
       const error = options.failures?.createTab?.(tabs.length);
       if (error) {
         throw error;

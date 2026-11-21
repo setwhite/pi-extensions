@@ -1,6 +1,6 @@
 import type { AgentEntry, AgentSnapshot, StartAgentInput } from "./agent.ts";
 import { createAgentCommands } from "./agent.ts";
-import { createHerdrExec, HerdrHostError } from "./cli.ts";
+import { createHerdrExec, type HerdrCall, HerdrHostError } from "./cli.ts";
 import type {
   CreatedTab,
   CreatedWorkspace,
@@ -11,17 +11,18 @@ import type {
 } from "./pane.ts";
 import { createPaneCommands } from "./pane.ts";
 
+export type { HerdrCall };
 export { HerdrHostError };
 
 export interface HerdrHost {
-  createWorkspace(input: CreateWorkspaceInput): Promise<CreatedWorkspace>;
-  createTab(input: CreateTabInput): Promise<CreatedTab>;
-  renameTab(input: RenameTabInput): Promise<void>;
-  renamePane(input: RenamePaneInput): Promise<void>;
-  startAgent(input: StartAgentInput): Promise<void>;
-  hasPane(paneId: string): Promise<boolean>;
-  listAgents(): Promise<AgentEntry[]>;
-  closePane(paneId: string): Promise<void>;
+  createWorkspace(input: CreateWorkspaceInput, call?: HerdrCall): Promise<CreatedWorkspace>;
+  createTab(input: CreateTabInput, call?: HerdrCall): Promise<CreatedTab>;
+  renameTab(input: RenameTabInput, call?: HerdrCall): Promise<void>;
+  renamePane(input: RenamePaneInput, call?: HerdrCall): Promise<void>;
+  startAgent(input: StartAgentInput, call?: HerdrCall): Promise<void>;
+  hasPane(paneId: string, call?: HerdrCall): Promise<boolean>;
+  listAgents(call?: HerdrCall): Promise<AgentEntry[]>;
+  closePane(paneId: string, call?: HerdrCall): Promise<void>;
 }
 
 export type { AgentEntry, AgentSnapshot, StartAgentInput };

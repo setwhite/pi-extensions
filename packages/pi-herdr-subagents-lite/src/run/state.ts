@@ -4,7 +4,8 @@ import type { SessionTailReader } from "../session-file/index.ts";
 import type { Aggregator } from "./aggregate.ts";
 import type { ResultHandler, RunResult } from "./result.ts";
 
-export type RunPhase = "running" | "idle" | "dead" | "closed";
+// starting = 已占槽，pane 或 agent 还没就绪。存活对账不看它。
+export type RunPhase = "starting" | "running" | "idle" | "dead" | "closed";
 
 export interface RunServiceDeps {
   host: HerdrHost;
@@ -17,6 +18,7 @@ export interface RunServiceDeps {
   maxResultChars: number;
   aggregateWindowMs: number;
   livenessPollMs: number;
+  runRetentionMs: number;
   closeOnFailure: boolean;
   onProblem: (message: string) => void;
   now?: () => number;
@@ -56,6 +58,7 @@ export interface RunState extends RunServiceDeps {
   livenessTimer?: ReturnType<typeof setInterval>;
   scanning: boolean;
   scanAgain: boolean;
+  checkingLiveness: boolean;
   now: () => number;
   delay: (ms: number) => Promise<void>;
   nextName(profile: string): string;

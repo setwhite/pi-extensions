@@ -41,6 +41,7 @@ export interface Config {
   closeChildrenOn: ShutdownReason[];
   inboxPollMs: number;
   livenessPollMs: number;
+  runRetentionMs: number;
   closeOnFailure: boolean;
   prompts: PromptOverrides;
   bridge: { enabled: boolean; blockedOn: BlockedKind[] };
@@ -79,6 +80,8 @@ function parse(raw: Raw, file: string): Config {
     closeOnFailure: boolean(top, "closeOnFailure", false),
     inboxPollMs: integer(top, "inboxPollMs", 250, 50, 5000),
     livenessPollMs: integer(top, "livenessPollMs", 15000, 1000, 300000),
+    // 0 = 永不清理。默认 30 天。
+    runRetentionMs: integer(top, "runRetentionMs", 2592000000, 0, 31536000000),
     prompts: promptOverrides(top),
     bridge: {
       enabled: boolean(bridge, "enabled", true),

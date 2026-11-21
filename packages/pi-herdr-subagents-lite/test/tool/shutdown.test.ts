@@ -77,17 +77,6 @@ it("does not close a failed turn by default", async () => {
   expect(fake.calls).not.toContain("closePane");
 });
 
-it("closes the pane when the child quits", async () => {
-  process.env.HERDR_ENV = "1";
-  const fake = fakeHost();
-  const { sent, tool } = loadSession(fake.host);
-  const started = parseStarted(await runTask(tool, "quit soon"));
-  settleTurn(started.sessionFile, { outcome: "quit", stopReason: "quit" });
-  await eventually(() => fake.calls.includes("closePane"));
-
-  expect(sent[0]?.message.content).toContain("stopped before reporting a result");
-});
-
 it("stops after session shutdown", async () => {
   process.env.HERDR_ENV = "1";
   writeConfig({ closeChildrenOn: [] });

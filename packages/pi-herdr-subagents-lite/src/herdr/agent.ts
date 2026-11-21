@@ -1,4 +1,4 @@
-import type { ExecHerdr } from "./cli.ts";
+import type { ExecHerdr, HerdrCall } from "./cli.ts";
 
 export type AgentStatus = "idle" | "working" | "blocked" | "done" | "unknown";
 
@@ -51,12 +51,12 @@ function sessionPath(agent: AgentInfo): string | null {
 
 export function createAgentCommands(exec: ExecHerdr) {
   return {
-    async startAgent(input: StartAgentInput) {
-      await exec(agentStartCommand(input));
+    async startAgent(input: StartAgentInput, call: HerdrCall = {}) {
+      await exec(agentStartCommand(input), { kind: "mutation", signal: call.signal });
     },
 
-    async listAgents(): Promise<AgentEntry[]> {
-      const result = await exec<{ agents: AgentInfo[] }>(["agent", "list"]);
+    async listAgents(call: HerdrCall = {}): Promise<AgentEntry[]> {
+      const result = await exec<{ agents: AgentInfo[] }>(["agent", "list"], { kind: "query", signal: call.signal });
       return result.agents.map((agent) => ({
         name: agent.name ?? null,
         paneId: agent.pane_id,

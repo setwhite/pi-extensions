@@ -9,8 +9,8 @@ import type { RunRecord, RunServiceDeps, RunState } from "./state.ts";
 import { startWatch, stopWatch } from "./watch.ts";
 
 export interface RunService {
-  run(profile: string, task: string, cwd?: string): Promise<RunStarted>;
-  send(name: string, message: string): Promise<SendResult>;
+  run(profile: string, task: string, cwd?: string, signal?: AbortSignal): Promise<RunStarted>;
+  send(name: string, message: string, signal?: AbortSignal): Promise<SendResult>;
   onResult(handler: ResultHandler): void;
   shutdown(): void;
   closeChildren(): Promise<CloseChildrenResult>;
@@ -35,6 +35,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
     results: undefined,
     scanning: false,
     scanAgain: false,
+    checkingLiveness: false,
     now: deps.now ?? Date.now,
     delay:
       deps.delay ??
@@ -45,7 +46,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
         })),
     nextName: createNamer(),
     active() {
-      return state.runs.filter((run) => run.phase === "running").map((run) => run.name);
+      return state.runs.filter((run) => run.phase === "starting" || run.phase === "running").map((run) => run.name);
     },
     available() {
       return state.runs.map((run) => run.name);
@@ -66,19 +67,21 @@ export function createRunService(deps: RunServiceDeps): RunService {
   startWatch(state);
 
   return {
-    run: (profile, task, cwd) => start(state, profile, task, cwd),
-    send: (name, message) => send(state, name, message),
+    run: (profile, task, cwd, signal) => start(state, profile, task, cwd, signal),
+    send: (name, message, signal) => send(state, name, message, signal),
     onResult(handler) {
       state.resultHandler = handler;
     },
     shutdown() {
       state.stopped = true;
       stopWatch(state);
+      state.results?.stop();
       takeRuns(state);
     },
     async closeChildren() {
       state.stopped = true;
       stopWatch(state);
+      state.results?.stop();
       await Promise.allSettled([...state.pending]);
       const runs = takeRuns(state);
       return closeRuns(state, runs);

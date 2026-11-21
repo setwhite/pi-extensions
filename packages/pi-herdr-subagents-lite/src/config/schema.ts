@@ -9,6 +9,7 @@ export const CONFIG_KEYS = [
   "closeOnFailure",
   "inboxPollMs",
   "livenessPollMs",
+  "runRetentionMs",
   "prompts",
   "bridge",
 ];
