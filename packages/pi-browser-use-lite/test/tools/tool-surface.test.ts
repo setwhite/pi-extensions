@@ -6,6 +6,11 @@ import { buildSurface, TOOL_SPECS } from "../../src/tools/index.ts";
 const BUDGET = 6_500;
 /** AC5 的第二个断言：加 2,000 字符就必须撞线，所以默认体积要贴近预算。 */
 const BUDGET_FLOOR = BUDGET - 2_000;
+/**
+ * 规则并成文本的上限。规则不进序列化的工具面，所以那边量不到；
+ * 现状 10 条 811 字符（含 `<name>: ` 前缀），上限压在这里逼着换字而不是加字。
+ */
+const RULES_BUDGET = 1_000;
 
 /** 默认配置下的工具开关：全开、名字等于原名。 */
 function defaultSettings(): Record<string, { enabled: boolean; name: string }> {
@@ -55,6 +60,12 @@ function descriptionChars(schema: unknown): number {
 	}
 	return total;
 }
+
+it("AC2: 规则总长不超过预算", () => {
+	const rules = surface.flatMap((tool) => tool.promptGuidelines);
+	expect(rules.length).toBe(10);
+	expect(rules.join("\n").length).toBeLessThanOrEqual(RULES_BUDGET);
+});
 
 it("AC2: 默认配置下恰好 5 个工具，顺序与工具 id 一致", () => {
 	expect(surface.map((tool) => tool.name)).toStrictEqual([...TOOL_IDS]);
