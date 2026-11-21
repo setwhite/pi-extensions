@@ -2,6 +2,19 @@
 
 本文件记录已发布版本的用户可见变更。更细的过程见 git log。破坏性变更标 **BREAKING**。0.5.2 及更早的变更见旧仓 `setwhite/pi-herdr-subagents-lite` 的 tag `v0.3.0`–`v0.5.2`。
 
+## 0.10.0 — 2026-11-21
+
+- **BREAKING**：profile 里出现不认识的字段不再忽略。该 profile 不加载，`run` 返回 `profile_invalid` 并指出字段（DEC-0069）。拼错 `auto_exit` 这类键以前是静默失效。
+- **BREAKING**：新增配置 `runRetentionMs`（默认 30 天，`0` = 永不清理）。`runs/` 下的 brief、identity、inbox、回合事件、artifact 按修改时间在会话启动时清理（DEC-0068）。过期后结果消息里的 `Full result:` 路径失效。
+- 修：子代理还在启动（pane 或 agent 没就绪）时，存活对账会提前判它失去联系，父模型收到一条假的 `lost contact; no result`。run 新增 `starting` 状态（DEC-0066）。
+- 修：回合已收尾的子代理随后退出，会再给父模型补一条「stopped before reporting a result」。现在只静默关 pane。
+- 修：用户中止工具调用时，启动流程照旧跑完并建出 pane，父侧却记为中止。abort 信号现在贯穿到 herdr 调用（DEC-0067）。
+- 修：herdr CLI 卡住会吃掉整轮工具调用。查询 20 秒、变更 120 秒上限，变更超时报 `herdr_timeout` 并提示可能已生效。
+- 修：并行两条 `send` 打同一个待重启的 run 会在同一个 pane 上起两次 agent。第二条现在报 `spawn_failed`。
+- 修：会话关闭时聚合器还会把排队结果投给已经结束的会话。
+- 修：`listAgents` 慢于轮询间隔时存活对账会叠加，把缺席多记一遍，三拍就误判。
+- `turn` 模块拆成 `classify.ts`（纯判定）与 `store.ts`（读写），`send` 拆出 `resume.ts`，启动的换名重试拆出 `retry.ts`。
+
 ## 0.9.0 — 2026-11-12
 
 - **BREAKING**：完成不再从 session 尾部推断。子代理在每个 `agent_settled` 写一个回合事件（`<runBase>.turns/<n>.json`），父代理只认这个文件。失败轮、中断轮不会再被当成完成；消息明确写 `failed` / `interrupted`，并附已有部分文本。
