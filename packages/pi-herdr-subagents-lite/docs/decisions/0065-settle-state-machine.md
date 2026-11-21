@@ -1,6 +1,6 @@
 # 0065 结算收敛成一个状态机
 
-每个 run 只有四个状态：
+每个 run 只有四个状态（DEC-0066 另加 `starting`：启动中也占槽，不参与存活对账）：
 
 ~~~text
 running --回合事件--> idle --send--> running

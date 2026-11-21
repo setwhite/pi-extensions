@@ -27,6 +27,7 @@
 - [0060](0060-close-pane-not-tab.md) 关闭按 pane，不按 tab。投递判据已由 0062 取代
 - [0032](0032-death-detection.md) died 判定。已由 0064 取代
 - [0053](0053-session-dir.md) 子 session 进父会话的桶，run 文件进扩展目录的 runs/
+- [0068](0068-run-retention.md) run 附属文件按保留期清理
 - [0056](0056-auto-exit-channel.md) auto-exit 用 pane env 传。已由 0063 取代
 
 ## 任务与上下文
@@ -50,6 +51,7 @@
 - [0062](0062-turn-event-contract.md) 终止用回合事件，父代理不推断
 - [0063](0063-close-pane-owner.md) 关 pane 只由父代理做
 - [0064](0064-liveness-by-agent-absence.md) 存活按 agent 缺席三次判定
+- [0066](0066-starting-phase.md) 启动中也是状态，不参与存活对账
 - [0065](0065-settle-state-machine.md) 结算收敛成一个状态机
 
 ## 身份与展示
@@ -74,6 +76,8 @@
 ## 工具与配置
 
 - [0011](0011-config-surface.md) 可配置项
+- [0067](0067-herdr-call-bounds.md) herdr 调用有超时，abort 贯穿
+- [0069](0069-profile-unknown-fields.md) profile 未知字段报错
 - [0034](0034-single-tool.md) 模型面只有一个工具，两个 action
 - [0037](0037-config-layers.md) 只有全局配置
 - [0042](0042-profile-layers.md) profile 全局 + 项目

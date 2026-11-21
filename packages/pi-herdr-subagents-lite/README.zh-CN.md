@@ -70,6 +70,8 @@ pi -e /path/to/pi-herdr-subagents-lite/src/index.ts # 只对当前进程生效
   "inboxPollMs": 250,
   // 默认 15000，范围 1000 到 300000，单位毫秒。多久查一次进行中的子代理还活着没有。连续三次缺席判为失去联系。
   "livenessPollMs": 15000,
+  // 默认 2592000000（30 天），范围 0 到 31536000000，单位毫秒。超过保留期的 run 附属文件在会话启动时删除。0 = 永不清理。
+  "runRetentionMs": 2592000000,
   // 工具文案覆盖。每个键默认未设置，用下面这份内置文案。
   "prompts": {
     // 替换内置描述。
@@ -150,7 +152,7 @@ disable-model-invocation: false
 
 错误码见[契约 §2](docs/specs/0001-v1-contract.md#2-profile)。默认值见 `src/profile/frontmatter.ts` 与 `test/profile/`。
 
-没写 `name`、字段非法、同层同名的 profile 都不进列表。`run` 点到它时返回 `profile_invalid`，带文件、字段与原因。
+没写 `name`、字段非法、字段名不认识、同层同名的 profile 都不进列表。`run` 点到它时返回 `profile_invalid`，带文件、字段与原因。
 
 扩展自带一个示例，文件名和 `name` 都是 `worker`。加载只读 `profiles/*.md`，同时把 `profiles/examples/` 对齐到包内示例：重写自带文件，删掉多余文件。所以把示例复制到上一层：
 

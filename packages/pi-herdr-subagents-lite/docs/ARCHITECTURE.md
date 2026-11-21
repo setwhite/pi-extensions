@@ -22,13 +22,13 @@
 | [`error`](modules/error.md) | 把 `unknown` 错误转成文本 | `index.ts` |
 | [`extension`](modules/extension.md) | pi 装配：注册工具、挂 `session_start` / `session_shutdown`、子侧 inbox 泵与回合上报、父会话收尾 | `index.ts` `report.ts` `shutdown.ts` |
 | [`tool`](modules/tool.md) | 模型面：参数 schema、文案、错误渲染、结果消息信封 | `index.ts` `schema.ts` `text.ts` `errors.ts` `message.ts` |
-| [`run`](modules/run.md) | run 生命周期：槽位、命名、启动、回合结算、存活、send、关闭 | `index.ts` 加 18 个职责文件，见 [run](modules/run.md#结构) |
+| [`run`](modules/run.md) | run 生命周期：槽位、命名、启动、回合结算、存活、send、关闭、清理 | `index.ts` 加 21 个职责文件，见 [run](modules/run.md#结构) |
 | [`herdr`](modules/herdr.md) | herdr CLI 端口 | `index.ts` `cli.ts` `agent.ts` `pane.ts` |
-| [`turn`](modules/turn.md) | 回合事件：判定、原子读写、消费 | `index.ts` |
+| [`turn`](modules/turn.md) | 回合事件：判定、原子读写、消费 | `index.ts` `classify.ts` `store.ts` |
 | [`session-file`](modules/session-file.md) | 读子 session 尾部，只判断 send 前有没有未完成的工具调用 | `index.ts` `jsonl.ts` `tail.ts` |
 | [`inbox`](modules/inbox.md) | `<runBase>.inbox/` 文件协议与子侧泵 | `index.ts` `pump.ts` |
 | [`config`](modules/config.md) | 全局配置读取与严格校验 | `index.ts` `schema.ts` |
-| [`profile`](modules/profile.md) | profile 读取、校验、分层、示例落盘 | `index.ts` `frontmatter.ts` `layers.ts` `examples.ts` `seed.ts` `skills.ts` |
+| [`profile`](modules/profile.md) | profile 读取、校验、分层、示例落盘 | `index.ts` `frontmatter.ts` `fields.ts` `layers.ts` `examples.ts` `seed.ts` `skills.ts` |
 | [`bridge`](modules/bridge.md) | `ui_prompt_*` → `herdr:blocked`，按 `bridge.enabled` / `blockedOn` 过滤 | `index.ts` |
 
 入口不是模块。它构造真实 host、配置、profile 加载器与 session 读取器，注入 `createExtension`。加载时还调一次 `seedExampleProfile(globalProfilesDir())`，把 `profiles/examples/` 对齐到包内示例（DEC-0057）。
@@ -74,7 +74,7 @@ profile -> error
 
 ## 4. 测试 seam
 
-`test/` 按被测模块分目录：`config/` `profile/` `herdr/` `session-file/` `inbox/`。bridge 的测试在 `inbox/` 下，两者共用一个 session 路径。经扩展工具跑的行为测试放 `test/tool/`。装配与组合根的测试是 `test/index.test.ts`。共享夹具放 `test/support/`。一个文件一个行为面，单文件同样 150 行上限。
+`test/` 按被测模块分目录：`config/` `profile/` `herdr/` `session-file/` `inbox/` `run/` `turn/`。bridge 的测试在 `inbox/` 下，两者共用一个 session 路径。经扩展工具跑的行为测试放 `test/tool/`。装配与组合根的测试是 `test/index.test.ts`。共享夹具放 `test/support/`。一个文件一个行为面，单文件同样 150 行上限。
 
 | seam | 用法 | 覆盖 |
 |---|---|---|

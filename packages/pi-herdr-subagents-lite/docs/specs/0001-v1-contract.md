@@ -26,6 +26,7 @@
 | `closeOnFailure` | boolean | — | 默认 false。失败或中断的回合结束后是否关 pane。false 留着，`send` 可以续 |
 | `inboxPollMs` | integer | 越界 clamp | 子侧 inbox 轮询间隔 |
 | `livenessPollMs` | integer | 越界 clamp | 进行中的 run 多久查一次 `agent list`。连续三次缺席判失去联系 |
+| `runRetentionMs` | integer | 越界 clamp | run 附属文件的保留期，单位毫秒。默认 30 天。`0` = 永不清理（DEC-0068） |
 | `prompts` | object | — | 提示词覆盖。键与展开见 `src/tool/text.ts` |
 | `bridge` | object | — | 见第 7 节 |
 
@@ -45,13 +46,15 @@
 
 子侧不靠环境变量找 `<runBase>`：用自己 session 文件的主名拼同一个前缀。
 
+`runs/` 下的所有条目按修改时间保留 `runRetentionMs`，每次会话启动清一次。本次会话在跑的 run 一律不删。
+
 ## 2. Profile
 
 路径：全局 `<agent-dir>/pi-herdr-subagents-lite/profiles/*.md`，项目 `.pi/pi-herdr-subagents-lite/profiles/*.md`。同名（frontmatter `name`）时项目覆盖全局。项目 profile 只在项目受信任后读取。
 
 格式：YAML frontmatter + Markdown body。profile 名 = frontmatter `name`，必填，去首尾空白后不能为空。文件名不参与寻址。guidelines 与 `run` 都只用这个名字。
 
-省略时的取值见 `src/profile/frontmatter.ts` 与 `test/profile/`。
+省略时的取值见 `src/profile/` 与 `test/profile/`。
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
@@ -67,7 +70,7 @@
 
 - `ask_user_question` 不自动加入。想反问就写进 `tools`。
 - 子代理默认没有本工具。嵌套要显式打开：纯名字列表里写上工具名，或在 `+name` 列表里写 `+<toolName>`。不管理嵌套深度。
-- 未知字段忽略。解析失败只跳过该 profile，并在工具错误里说明。
+- 未知字段报错（DEC-0069）。拼错键名会让该 profile 不加载，`run` 返回 `profile_invalid` 并指出字段。解析失败同样只跳过该 profile。
 - `name` 缺失、不是字符串或为空白：该 profile 不加载。`run` 返回 `profile_invalid`，按文件名定位。
 - 同一层两个文件同名：两个都不加载。`profile_invalid` 列出两个文件。项目层与全局层同名仍是项目覆盖。
 - 扩展每次加载都把 `profiles/examples/` 对齐到包内示例：自带文件重写，多余文件删除。`profiles/*.md` 不写。示例的文件名与 `name` 都是 `worker`。加载只看 `profiles/*.md`，所以示例默认不生效。复制一层即用。
@@ -112,7 +115,7 @@
 | `unknown_agent` | send 的 name 不在 run 记录里 | 当前可用名称 |
 | `max_concurrent` | live 子代理已达 maxConcurrent：run 新建，或 send 到回合已结束、已退出的 run。此时不投递，不重启 | 当前 live 名称。等结果或关一个 |
 | `profile_invalid` | profile 字段解析失败，或 `skills` 里的名字找不到 | 文件 + 字段 + 原因，或 skill 名 + cwd |
-| `spawn_failed` | tab / pane / agent start 失败、会话正在关闭、重启前关旧 tab 失败。含未就绪与 trust 对话框拦住 | 底层错误。已创建的 pane id 保留。未就绪时附「去 pane 处理对话框」 |
+| `spawn_failed` | tab / pane / agent start 失败、会话正在关闭、工具调用被中止、另一个 send 正在重启同一个 run、重启前关旧 tab 失败。含未就绪与 trust 对话框拦住 | 底层错误。已创建的 pane id 保留。未就绪时附「去 pane 处理对话框」。重启中附「等它 running 再试」 |
 | `name_exhausted` | 自动命名重试用尽仍冲突 | 尝试 100 次仍无空闲名 |
 | `tail_dirty` | 需要重启，但 session 尾部有未完成 toolCall | 不重启。先检查，避免重放副作用 |
 | `session_missing` | send 的 run 记录存在，但子 session 文件不存在 | 用 run 新建 |
@@ -171,6 +174,7 @@
 `outcome` 只有 `done` / `error` / `aborted` / `quit`。判定表见 DEC-0062。父代理只读这个文件，不读 session 尾部，不看 `completion_seq`。
 
 - 同一回合号只投一次。投递成功后删除文件。
+- 回合已经收尾（run 不是 `running`）之后才到达的 `quit` 事件不再投递：子代理退出是收尾的后果，不是新结果。只按关闭判据关 pane。
 - 投递失败保留文件，下一拍重试；三次失败后丢弃并通知。
 - 异步结果是一条 `subagent_result` 自定义消息：
 
@@ -194,7 +198,7 @@ Partial answer (not a completed result):
 ~~~
 
 - 其余状态：`aborted` → `interrupted`；`quit` → `stopped before reporting a result`；`lost` → `lost contact; no result`。
-- 只有超过 `maxResultChars` 才写 artifact，并带 `Full result:` 行。`seq` 按 run 内已写成的 artifact 递增。artifact 不清理。
+- 只有超过 `maxResultChars` 才写 artifact，并带 `Full result:` 行。`seq` 按 run 内已写成的 artifact 递增。artifact 与其余 run 附属文件一起按 `runRetentionMs` 清理，过期后 `Full result:` 路径失效。
 - 聚合时一条消息里放多个块。
 - 存活：只有 `running` 的 run 每 `livenessPollMs` 查一次 `agent list`。连续三次找不到该 agent、且 pane 还在，判 `dead` 并投 `lost`。pane 不在则立即判。机制见 DEC-0064。
 - 关闭判据见 DEC-0063：`done` + `auto-exit` + `children === 0`，或 `quit` / `dead`，或 `closeOnFailure`。关闭失败只通知一次，不改结果。

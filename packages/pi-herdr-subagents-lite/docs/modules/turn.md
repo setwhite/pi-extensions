@@ -9,6 +9,8 @@
 <runBase>.turns/000001.json
 ```
 
+两个文件：`classify.ts` 是纯判定，`store.ts` 是读写，`index.ts` 只做出口。判定要能脱离 fs 单测，读写要能脱离判定复用。
+
 字段见 [DEC-0062](../decisions/0062-turn-event-contract.md)。
 
 ## 接口

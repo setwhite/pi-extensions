@@ -16,7 +16,7 @@
 | **任务简报** | `<runBase>.brief.md`，内容是 `# Task` 段加任务正文。`system-prompt: task` 时 profile body 在前（DEC-0009） | 不是 profile body，也不是 session 文件 |
 | **身份文件** | `<runBase>.identity.md`，存 profile body。`system-prompt: task` 时不写（DEC-0051） | 不是任务简报，也不是 session 文件 |
 | **槽位** | `maxConcurrent` 的一个名额。只有 `running` 占槽 | 不是 herdr 的 pane 数 |
-| **run 状态** | `running` / `idle` / `dead` / `closed`（DEC-0065）。只有 `running` 占槽 | 不是 herdr 的 `agent_status` |
+| **run 状态** | `starting` / `running` / `idle` / `dead` / `closed`（DEC-0065、DEC-0066）。`starting` 与 `running` 占槽 | 不是 herdr 的 `agent_status` |
 | **profile** | 角色模板。全局与项目各一层 `profiles/*.md`，frontmatter `name` 是唯一键（必填）。同名时项目覆盖，同层同名全无效（路径见契约 §2） | 不是 agent name |
 | **子代理名** | `<profile>-<n>`，herdr live agent name。`run` 返回它，`send` 用它寻址 | 不是 profile 名，也不是 pane 标题 |
 | **tab label** | tab 栏文字。v1 等于子代理名 | 不是 agent name 字段 |

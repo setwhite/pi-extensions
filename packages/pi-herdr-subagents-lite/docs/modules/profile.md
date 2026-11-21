@@ -13,6 +13,11 @@ profile 的读取、校验、分层与示例落盘。字段表见契约 §2。�
 - profile 名只取 frontmatter `name`，必填。文件名只用于诊断与示例复制（DEC-0058）。
 - 示例放在 `profiles/examples/`，复制一层上去才生效（DEC-0057）。
 
+## 字段
+
+- 字段名单只有一份：`PROFILE_KEYS`（`src/profile/frontmatter.ts`）。契约 §2 与它一一对应，加字段两边一起改（DEC-0069）。
+- 不认识的键让该 profile 不加载，`run` 报 `profile_invalid` 并指出字段。静默忽略会让拼错的 `auto_exit` 看起来生效了。
+
 ## skills
 
 - `skills` 列表交给 pi 的发现器解析，不复制发现规则。名字查不到报 `profile_invalid`（DEC-0059）。

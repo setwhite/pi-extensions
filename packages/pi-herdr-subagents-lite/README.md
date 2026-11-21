@@ -70,6 +70,8 @@ Every key follows, and each value is the default.
   "inboxPollMs": 250,
   // Default 15000, range 1000 to 300000 milliseconds. How often a running child is checked for liveness. Three absences in a row mark it lost.
   "livenessPollMs": 15000,
+  // Default 2592000000 (30 days), range 0 to 31536000000 milliseconds. Run files older than this are deleted at session start. 0 = never.
+  "runRetentionMs": 2592000000,
   // Tool text overrides. Each key defaults to unset, which keeps the built-in text shown below.
   "prompts": {
     // Replaces the built-in description.
@@ -150,7 +152,7 @@ You are a read-only explorer. Answer with file paths and line numbers.
 
 Error codes: [contract section 2](docs/specs/0001-v1-contract.md#2-profile). Defaults: `src/profile/frontmatter.ts` and `test/profile/`.
 
-A profile stays out of the list when it has no `name`, an invalid field or a duplicate name in its layer. `run` on it returns `profile_invalid` with the file, the field and the reason.
+A profile stays out of the list when it has no `name`, an invalid or unknown field, or a duplicate name in its layer. `run` on it returns `profile_invalid` with the file, the field and the reason.
 
 The extension ships one example, with file name and `name` both `worker`. Loading reads `profiles/*.md` only, and on every load it makes `profiles/examples/` match the bundled example: it rewrites the bundled files and deletes extra ones. So copy the example one level up:
 
