@@ -145,11 +145,64 @@ it("AC5: type 发出成对的 keydown/keyup，Ctrl+A 全选", async () => {
 		afterType.keys.filter((key) => key === "a").length,
 	).toBeGreaterThanOrEqual(2);
 
+	// 按键在 CHANGED_ACTIONS 里，所以就算什么都没变也带一行全零的变更量：
+	// 「按了但页面没动」比「没有这一行」信息多。
 	const pressed = await run({ action: "press", key: "Ctrl+A" });
-	expect(textOf(pressed)).toBe("ok: press Ctrl+A");
+	expect(textOf(pressed)).toBe("ok: press Ctrl+A\nchanged: +0 -0 ~0");
 	const selected = await readKbd();
 	expect([selected.start, selected.end]).toEqual([0, 2]);
 	expect(selected.ctrlUp).toBeGreaterThanOrEqual(1);
+});
+
+it("AC5: shadow root 里的元素采得到，ref 也点得动", async () => {
+	await ready();
+	const nav = await run({
+		action: "navigate",
+		url: `${origin}/02-shadow-heavy.html`,
+	});
+	expect(textOf(nav)).toBe(`ok: navigate ${origin}/02-shadow-heavy.html`);
+
+	// 先采一次：页面脚本由扩展注入，后面的 eval 才能量到同一份 collect。
+	const seen = await executors.execute(
+		"chrome_see",
+		{ mode: "refs", maxElements: 200 },
+		SESSION,
+	);
+	const line = textOf(seen)
+		.split("\n")
+		.find((row) => /button "Open \d+"/.test(row));
+	expect(line, textOf(seen).slice(0, 400)).toBeDefined();
+	const ref = line?.trim().split(" ")[0];
+
+	const timed = await run({
+		action: "eval",
+		js: `(() => {
+			const page = globalThis.__piChromeSnapshotPage;
+			page.collect();
+			const started = performance.now();
+			const collected = page.collect();
+			return {
+				ms: Math.round(performance.now() - started),
+				elements: collected.elements.length,
+				bodyChars: collected.bodyText.length,
+			};
+		})()`,
+	});
+	const measured = detailsOf(timed).value as {
+		ms: number;
+		elements: number;
+		bodyChars: number;
+	};
+	console.log(
+		`shadow 采集：${measured.elements} 个元素，${measured.bodyChars} 字正文，${measured.ms} ms`,
+	);
+	expect(measured.elements).toBeGreaterThan(900);
+	expect(measured.ms).toBeLessThan(3_000);
+
+	const clicked = await run({ action: "click", ref });
+	expect(detailsOf(clicked).ok).toBe(true);
+	const verdict = await run({ action: "eval", js: "globalThis.__clicked" });
+	expect(String(detailsOf(verdict).value)).toMatch(/^Open \d+$/);
 });
 
 it("AC5: 截屏落盘且文件存在", async () => {

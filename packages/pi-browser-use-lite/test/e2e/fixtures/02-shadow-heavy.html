@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<title>shadow heavy</title>
+	</head>
+	<body>
+		<h1>shadow heavy</h1>
+		<div id="root"></div>
+		<script>
+			// 组件化页面的形状：每个卡片把内容放进自己的 shadow root。
+			// 采集不进去的话，这一页在快照里只有一排空壳。
+			const root = document.getElementById("root");
+			for (let index = 0; index < 500; index += 1) {
+				const host = document.createElement("x-card");
+				const shadow = host.attachShadow({ mode: "open" });
+				shadow.innerHTML = `<h2>Card ${index}</h2><p>body ${index}</p><button>Open ${index}</button>`;
+				shadow.querySelector("button").addEventListener("click", () => {
+					globalThis.__clicked = `Open ${index}`;
+				});
+				root.append(host);
+			}
+		</script>
+	</body>
+</html>
