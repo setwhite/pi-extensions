@@ -53,7 +53,12 @@ export function buildConfig(
 	const timing = asObject(raw.timing, "timing", errors);
 	checkUnknownKeys(timing, ["navigateTimeoutMs"], "timing", errors);
 	const output = asObject(raw.output, "output", errors);
-	checkUnknownKeys(output, ["maxElements", "textChars"], "output", errors);
+	checkUnknownKeys(
+		output,
+		["maxElements", "refsChars", "textChars", "evalChars"],
+		"output",
+		errors,
+	);
 	const screenshot = asObject(raw.screenshot, "screenshot", errors);
 	checkUnknownKeys(
 		screenshot,
@@ -118,12 +123,26 @@ export function buildConfig(
 				errors,
 				RANGES.maxElements,
 			),
+			refsChars: readNumber(
+				output.refsChars,
+				DEFAULTS.output.refsChars,
+				"output.refsChars",
+				errors,
+				RANGES.refsChars,
+			),
 			textChars: readNumber(
 				output.textChars,
 				DEFAULTS.output.textChars,
 				"output.textChars",
 				errors,
 				RANGES.textChars,
+			),
+			evalChars: readNumber(
+				output.evalChars,
+				DEFAULTS.output.evalChars,
+				"output.evalChars",
+				errors,
+				RANGES.evalChars,
 			),
 		},
 		screenshot: {

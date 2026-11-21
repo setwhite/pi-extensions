@@ -35,7 +35,7 @@ function readConfig(value: unknown): ResolvedConfig {
 	);
 }
 
-it("AC2: 文件缺失时 11 个标量取默认值，工具全开且保留原名", () => {
+it("AC2: 文件缺失时 13 个标量取默认值，工具全开且保留原名", () => {
 	let root = "";
 	const config = withAgentDir(undefined, (agentDir) => {
 		root = agentDir;
@@ -93,7 +93,7 @@ it("AC3: screenshot.dir 写空串报错，不当成默认目录", () => {
 	);
 });
 
-it("AC2: 11 个标量逐项等于 schema 默认值", () => {
+it("AC2: 13 个标量逐项等于 schema 默认值", () => {
 	let root = "";
 	const config = withAgentDir(JSON.stringify({}), (agentDir) => {
 		root = agentDir;
@@ -107,7 +107,9 @@ it("AC2: 11 个标量逐项等于 schema 默认值", () => {
 		scrollSteps: config.input.scrollSteps,
 		navigateTimeoutMs: config.timing.navigateTimeoutMs,
 		maxElements: config.output.maxElements,
+		refsChars: config.output.refsChars,
 		textChars: config.output.textChars,
+		evalChars: config.output.evalChars,
 		dir: config.screenshot.dir,
 		format: config.screenshot.format,
 		keepNewest: config.screenshot.keepNewest,
@@ -119,11 +121,24 @@ it("AC2: 11 个标量逐项等于 schema 默认值", () => {
 		scrollSteps: DEFAULTS.input.scrollSteps,
 		navigateTimeoutMs: DEFAULTS.timing.navigateTimeoutMs,
 		maxElements: DEFAULTS.output.maxElements,
+		refsChars: DEFAULTS.output.refsChars,
 		textChars: DEFAULTS.output.textChars,
+		evalChars: DEFAULTS.output.evalChars,
 		dir: join(root, "pi-browser-use-lite", "screenshots"),
 		format: DEFAULTS.screenshot.format,
 		keepNewest: DEFAULTS.screenshot.keepNewest,
 	});
+});
+
+it("output.refsChars 与 output.evalChars 越界时 clamp 到区间边界", () => {
+	expect(readConfig({ output: { refsChars: 10 } }).output.refsChars).toBe(500);
+	expect(readConfig({ output: { refsChars: 99_999 } }).output.refsChars).toBe(
+		32_000,
+	);
+	expect(readConfig({ output: { evalChars: 10 } }).output.evalChars).toBe(200);
+	expect(readConfig({ output: { evalChars: 99_999 } }).output.evalChars).toBe(
+		32_000,
+	);
 });
 
 it("AC4: port 越界 clamp 到 65535，合法值保留", () => {

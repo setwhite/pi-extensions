@@ -5,6 +5,7 @@
 
 import {
 	changedLine,
+	evalText,
 	openedLine,
 	snapshotText,
 	valueText,
@@ -68,7 +69,16 @@ export async function runAct(
 	const opened = openedOf(result);
 	if (opened.length > 0) lines.push(openedLine(opened));
 	const value = resultValue(result);
-	if (value !== undefined) lines.push(valueText(value));
+	let evalTruncated = false;
+	if (value !== undefined) {
+		if (params.action === "eval") {
+			const formatted = evalText(value, ctx.deps.config.output.evalChars);
+			lines.push(formatted.text);
+			evalTruncated = formatted.truncated;
+		} else {
+			lines.push(valueText(value));
+		}
+	}
 	const note = noteOf(result);
 	if (note !== undefined) lines.push(note);
 	const details: Record<string, unknown> = {
@@ -78,6 +88,7 @@ export async function runAct(
 	if (changed !== undefined) details.changed = changed;
 	if (opened.length > 0) details.opened = opened;
 	if (value !== undefined) details.value = value;
+	if (evalTruncated) details.truncated = true;
 	if (plan.ref !== undefined) details.ref = plan.ref;
 	if (params.see !== undefined) {
 		const snapshot = await snapshotOf(ctx, {

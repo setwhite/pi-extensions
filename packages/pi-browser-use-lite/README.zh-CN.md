@@ -84,7 +84,9 @@ pi install npm:pi-browser-use-lite
   // 模型可见的输出
   "output": {
     "maxElements": 80,          // 快照元素上限
-    "textChars": 18000          // see 的 text 模式正文上限，其余带提示丢掉
+    "refsChars": 8000,          // see 的 refs / full 模式元素清单字符预算，其余带提示丢掉
+    "textChars": 18000,         // see 的 text 模式正文上限，其余带提示丢掉
+    "evalChars": 4000           // chrome_act eval 返回值上限，其余带提示丢掉
   },
 
   // 截图

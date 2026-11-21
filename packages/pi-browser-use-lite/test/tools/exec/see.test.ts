@@ -31,6 +31,51 @@ it("refs 是默认模式，上限取配置", async () => {
 	});
 });
 
+it("元素超过 output.refsChars 时裁掉，并说明是配置剪的", async () => {
+	// 不说明的话模型会把「只看到 20 个」读成「页面只有 20 个」。
+	const elements = Array.from({ length: 40 }, (_, index) => ({
+		ref: `e${index + 1}`,
+		tag: "button",
+		name: `按钮 ${index}`,
+		text: "x".repeat(300),
+	}));
+	const { run } = harness({
+		reply: () => ({
+			mode: "refs",
+			url: "https://a",
+			title: "A",
+			elements,
+			hints: ["nothing else"],
+		}),
+	});
+
+	const result = await run("chrome_see", {});
+	const text = textOf(result);
+	const shown = text.split("\n").filter((line) => line.startsWith("  e"));
+
+	expect(shown.length).toBeLessThan(elements.length);
+	expect(text).toContain("hint: nothing else");
+	expect(text).toContain(
+		`hint: ${elements.length - shown.length} more elements omitted (output.refsChars=${CONFIG.output.refsChars}); narrow with query`,
+	);
+	expect(result.details?.elements).toHaveLength(shown.length);
+});
+
+it("元素在预算内时不加 hint", async () => {
+	const { run } = harness({
+		reply: () => ({
+			mode: "refs",
+			url: "https://a",
+			title: "A",
+			elements: [{ ref: "e1", tag: "button", name: "Go" }],
+		}),
+	});
+
+	const result = await run("chrome_see", {});
+
+	expect(textOf(result)).not.toContain("more elements omitted");
+});
+
 it("changes 模式把变更量放进 details", async () => {
 	const { run } = harness({
 		reply: () => ({

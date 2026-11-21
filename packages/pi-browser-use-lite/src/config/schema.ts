@@ -48,7 +48,9 @@ export const RANGES = {
 	scrollSteps: [1, 100],
 	navigateTimeoutMs: [1_000, 120_000],
 	maxElements: [1, 1_000],
+	refsChars: [500, 32_000],
 	textChars: [1_000, 200_000],
+	evalChars: [200, 32_000],
 	keepNewest: [1, 1_000],
 } as const satisfies Record<string, readonly [number, number]>;
 
@@ -72,14 +74,19 @@ export interface ResolvedConfig {
 	};
 	input: { dragSteps: number; scrollSteps: number };
 	timing: { navigateTimeoutMs: number };
-	output: { maxElements: number; textChars: number };
+	output: {
+		maxElements: number;
+		refsChars: number;
+		textChars: number;
+		evalChars: number;
+	};
 	screenshot: { dir: string; format: ScreenshotFormat; keepNewest: number };
 	tools: Record<ToolId, ToolSettings>;
 	guidance: Partial<Record<ToolId, GuidanceFields>>;
 }
 
 /**
- * 配置里 11 个标量字段中，10 个的默认值在这里。
+ * 配置里 13 个标量字段中，12 个的默认值在这里。
  * `screenshot.dir` 跟着 agent 目录走，由 buildConfig 补。工具记录与文案覆盖不在其中。
  */
 export const DEFAULTS: Omit<
@@ -95,7 +102,12 @@ export const DEFAULTS: Omit<
 	},
 	input: { dragSteps: 10, scrollSteps: 5 },
 	timing: { navigateTimeoutMs: 15_000 },
-	output: { maxElements: 80, textChars: 18_000 },
+	output: {
+		maxElements: 80,
+		refsChars: 8_000,
+		textChars: 18_000,
+		evalChars: 4_000,
+	},
 	screenshot: { format: "png", keepNewest: 20 },
 };
 

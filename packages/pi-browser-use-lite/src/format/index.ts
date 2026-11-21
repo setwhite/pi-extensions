@@ -47,6 +47,23 @@ export function openedLine(opened: readonly TabInfo[]): string {
 	].join("\n");
 }
 
+/**
+ * `eval` 的返回值按字符预算截断。超了照旧给出前半段，
+ * 但附一句下一步：让模型改用 JS 里过滤，而不是照半截结果猜。
+ */
+export function evalText(
+	value: unknown,
+	limit: number,
+): { text: string; truncated: boolean } {
+	const raw = valueText(value);
+	if (raw.length <= limit) return { text: raw, truncated: false };
+	const dropped = raw.length - limit;
+	return {
+		text: `${raw.slice(0, limit)}\n[eval output cut at ${limit} characters: ${dropped} more dropped; filter or slice in JS and return only what you need]`,
+		truncated: true,
+	};
+}
+
 /** 值转文本：字符串原样给，其余按 JSON。`undefined` 按 `null`，与 JSON 一致。 */
 export function valueText(value: unknown): string {
 	if (typeof value === "string") return value;
@@ -77,13 +94,7 @@ export interface Snapshot {
 	title?: string;
 	summary?: string;
 	headings?: { level: number; text: string }[];
-	elements?: {
-		ref: string;
-		tag?: string;
-		role?: string;
-		name?: string;
-		text?: string;
-	}[];
+	elements?: SnapshotElement[];
 	fields?: {
 		ref: string;
 		tag?: string;
@@ -96,6 +107,37 @@ export interface Snapshot {
 	text?: string;
 	truncated?: boolean;
 	element?: Record<string, unknown>;
+}
+
+/** 一条元素行用到的字段。渲染与预算都只看这几个字段。 */
+export interface SnapshotElement {
+	ref: string;
+	tag?: string;
+	role?: string;
+	name?: string;
+	text?: string;
+}
+
+/** 元素块的表头。预算按渲染后的整块算，所以表头与换行也要计入。 */
+const ELEMENTS_TITLE_CHARS = "elements:".length + 1;
+
+/**
+ * 把元素清单裁到 `budget` 字符内，按渲染后的行长度算。
+ * 至少留一条：一条都留不下时模型看不到任何元素，比超预算更糟。
+ */
+export function limitElements(
+	elements: readonly SnapshotElement[],
+	budget: number,
+): { elements: SnapshotElement[]; omitted: number } {
+	const kept: SnapshotElement[] = [];
+	let used = ELEMENTS_TITLE_CHARS;
+	for (const element of elements) {
+		const cost = elementLine(element).length + 3; // 两格缩进 + 换行
+		if (kept.length > 0 && used + cost > budget) break;
+		kept.push(element);
+		used += cost;
+	}
+	return { elements: kept, omitted: elements.length - kept.length };
 }
 
 /** 快照的正文：标题行、摘要、标题树、元素、表单、hints、变更，最后是正文或深查结果。 */
@@ -141,13 +183,7 @@ function headingLine(heading: { level: number; text: string }): string {
 	return `h${heading.level} ${heading.text}`;
 }
 
-function elementLine(element: {
-	ref: string;
-	tag?: string;
-	role?: string;
-	name?: string;
-	text?: string;
-}): string {
+function elementLine(element: SnapshotElement): string {
 	const parts = [element.ref, element.role || element.tag || ""];
 	if (element.name !== undefined && element.name !== "") {
 		parts.push(quote(element.name));

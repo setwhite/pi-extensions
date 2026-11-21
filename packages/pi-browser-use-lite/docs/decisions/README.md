@@ -29,6 +29,7 @@
 |---|---|
 | [0012](0012-trusted-input-via-debugger.md) | 输入走 chrome.debugger 受信任事件 |
 | [0013](0013-structured-result-error.md) | 结果信封带结构化错误类别 |
+| [0016](0016-output-char-budgets.md) | 元素与 eval 的字符预算放宿主 |
 
 ## 仓库
 

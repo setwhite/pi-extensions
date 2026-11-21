@@ -1,9 +1,15 @@
 /**
  * `chrome_see`：读页面。快照四个模式、深查、日志三条路。
- * 快照的裁剪在扩展侧做，这里只把结构化结果翻成正文与 details。
+ * 元素个数与正文上限在扩展侧裁；元素清单的字符预算在这里裁，
+ * 因为只有这里知道每一行最后长什么样。
  */
 
-import { type Snapshot, snapshotText, valueText } from "../../format/index.ts";
+import {
+	limitElements,
+	type Snapshot,
+	snapshotText,
+	valueText,
+} from "../../format/index.ts";
 import { okResult, type ToolResult } from "../result.ts";
 import { call, type RunContext, tabParams } from "./common.ts";
 
@@ -55,7 +61,25 @@ export async function snapshotOf(
 		},
 		timeoutMs,
 	)) as Snapshot;
-	return snapshot;
+	return withElementBudget(snapshot, ctx.deps.config.output.refsChars);
+}
+
+/**
+ * 元素清单按 `output.refsChars` 裁一遍，剪过就补一行 hint。
+ * 不补的话模型会把「只看到 40 个」当成「页面只有 40 个」，漏掉被裁掉的元素。
+ */
+function withElementBudget(snapshot: Snapshot, refsChars: number): Snapshot {
+	if (snapshot.elements === undefined) return snapshot;
+	const limited = limitElements(snapshot.elements, refsChars);
+	if (limited.omitted === 0) return snapshot;
+	return {
+		...snapshot,
+		elements: limited.elements,
+		hints: [
+			...(snapshot.hints ?? []),
+			`${limited.omitted} more elements omitted (output.refsChars=${refsChars}); narrow with query`,
+		],
+	};
 }
 
 /** 日志：console、network 列表、单条请求详情。`clear` 读完就清。 */

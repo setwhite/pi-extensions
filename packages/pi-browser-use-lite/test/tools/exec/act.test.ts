@@ -212,6 +212,31 @@ it("eval 省掉超长字段时把 note 放进正文", async () => {
 	expect(result.details).toMatchObject({ value: { src: "x" } });
 });
 
+it("eval 返回值超过 output.evalChars 时截断并标 details.truncated", async () => {
+	const big = "x".repeat(CONFIG.output.evalChars + 500);
+	const { run } = harness({ reply: () => ({ value: big }) });
+
+	const result = await run("chrome_act", { action: "eval", js: "big()" });
+
+	expect(textOf(result)).toContain(
+		"[eval output cut at 4000 characters: 500 more dropped;",
+	);
+	expect(result.details).toMatchObject({
+		ok: true,
+		action: "eval",
+		truncated: true,
+	});
+});
+
+it("短 eval 结果不截断，也不标 truncated", async () => {
+	const { run } = harness({ reply: () => ({ value: "ok" }) });
+
+	const result = await run("chrome_act", { action: "eval", js: "1" });
+
+	expect(textOf(result).split("\n").at(-1)).toBe("ok");
+	expect(result.details?.truncated).toBeUndefined();
+});
+
 it("缺定位方式时报 bad_args", async () => {
 	const { run, sent } = harness();
 

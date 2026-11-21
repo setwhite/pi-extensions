@@ -171,6 +171,7 @@ export const TOOL_SPECS = {
 			"this is the user's real browser; confirm before destructive actions.",
 			"prefer refs from a snapshot; a ref from an older page fails.",
 			"pass see to get a snapshot back; it costs tokens, so ask only when the page just changed.",
+			"eval output over output.evalChars is cut; filter or slice in JS instead of returning the whole DOM.",
 		],
 	},
 	chrome_see: {

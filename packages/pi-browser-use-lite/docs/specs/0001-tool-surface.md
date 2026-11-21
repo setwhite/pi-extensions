@@ -90,7 +90,7 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 | 工具 | `content` | `details` |
 |---|---|---|
 | `chrome_act` 的交互类 | 判定行（`ok: click ref=e12`）、变更行（`changed: +1 -0 ~2`）、新标签行（`opened: +1 8 * 标题 url`，只在开了新页时出现）、可选快照 | `{ ok, action, changed: { added, removed, updated }, opened?, snapshot?, ref? }` |
-| `chrome_act` 的 `eval`、`wait` | 判定行，接返回值（`eval` 给 JSON 或文本，`wait` 给耗时） | `{ ok, action, value? }` |
+| `chrome_act` 的 `eval`、`wait` | 判定行，接返回值（`eval` 给 JSON 或文本，超 `output.evalChars` 时截断并说明丢了多少，`wait` 给耗时） | `{ ok, action, value?, truncated? }` |
 | `chrome_see` | 该 `mode` 的正文 | `{ mode, url, title, elements?, text?, changes?, truncated }` |
 | `chrome_see` 的 `logs` | 每条记录一行 JSON；抓取关闭或存储写不进时把说明前置一行 | `{ logs, count? }` |
 | `chrome_tab` 的 `list` | 每行一个标签：id、`*` 表示活动页、标题、URL | `{ tabs }` |
@@ -168,7 +168,9 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 | `input.scrollSteps` | `5` | 无限滚动页滚不动一屏 |
 | `timing.navigateTimeoutMs` | `15000` | 网站慢，导航老超时 |
 | `output.maxElements` | `80` | 元素太多，context 吃不消 |
+| `output.refsChars` | `8000` | 元素清单太长，一轮快照吃掉太多 context |
 | `output.textChars` | `18000` | 正文太长 |
+| `output.evalChars` | `4000` | `eval` 返回整页 DOM 或大数组 |
 | `screenshot.dir` | `<agent dir>/pi-browser-use-lite/screenshots` | 想换盘 |
 | `screenshot.format` | `"png"` | 想省磁盘，换 jpeg |
 | `screenshot.keepNewest` | `20` | 截图占满磁盘 |
@@ -176,7 +178,7 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 | `tools.<id>.name` | 工具原名 | 与别的扩展撞名 |
 | `guidance.<id>.description`、`.promptSnippet`、`.promptGuidelines` | 内置文案 | 想改工具自己的说法与规则 |
 
-11 个标量字段，加 `tools`（5 个工具 × 2 项）与 `guidance`（5 个工具 × 3 项）两个记录。
+13 个标量字段，加 `tools`（5 个工具 × 2 项）与 `guidance`（5 个工具 × 3 项）两个记录。
 
 文件缺失取全默认值。JSON 损坏或字段非法抛 `Error`，消息带文件路径与字段路径。数值越界只 clamp，枚举越界取默认值。
 
@@ -234,8 +236,9 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 
 - 工具面序列化体积 ≤ 12,000 字符（上限）。默认配置按 6,500 断言，见「工具开关与提示词」。其中 5 个工具的 `description` 合计 ≤ 4,000 字符，参数描述合计 ≤ 5,500 字符。
 - 单次工具调用超时 30 秒。`navigate` 按 `timing.navigateTimeoutMs` 加 2 秒。整页截图 120 秒。
-- 快照：`refs` 摘要 500 字符、元素 80 个；`text` 18,000 字符；`full` 30,000 字符。`content` 截断线 32,000 字符，比 `full` 留 2,000 字符信封余量。console 500 条。请求体 200,000 字符。
-- 写死但配置可覆盖：拖动 10 步（`input.dragSteps`）、滚动 5 步（`input.scrollSteps`）、导航 15 秒（`timing.navigateTimeoutMs`）。
+- 快照：`refs` 摘要 500 字符、元素 80 个；`text` 18,000 字符；`full` 30,000 字符；元素清单 8,000 字符。`content` 截断线 32,000 字符，比 `full` 留 2,000 字符信封余量。console 500 条。请求体 200,000 字符。
+- 元素清单的字符预算在宿主算：只有拼正文的地方知道一行最后多长。裁过就补一行 hint 说明是 `output.refsChars` 裁的，不留「页面只有这些元素」的误读空间。
+- 写死但配置可覆盖：拖动 10 步（`input.dragSteps`）、滚动 5 步（`input.scrollSteps`）、导航 15 秒（`timing.navigateTimeoutMs`）、元素清单 8,000 字符（`output.refsChars`）、`eval` 返回值 4,000 字符（`output.evalChars`）。
 - 整页截图高度超过 4 倍视口时按屏分段。
 - 写死且不可配置：`wait` 轮询间隔 250 毫秒、`eval` 等 Promise、网络默认保留跨导航请求。
 - `wait` 默认超时 15 秒。`batch` 最多 50 步。

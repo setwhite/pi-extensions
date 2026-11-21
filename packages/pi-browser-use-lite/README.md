@@ -84,7 +84,9 @@ A wrong type or an unknown key fails startup and names every bad field at once. 
   // Model-visible output
   "output": {
     "maxElements": 80,          // snapshot element cap
-    "textChars": 18000          // body text cap in see mode=text; the rest is dropped with a note
+    "refsChars": 8000,          // character budget for the element list in see mode=refs/full; the rest is dropped with a hint
+    "textChars": 18000,         // body text cap in see mode=text; the rest is dropped with a note
+    "evalChars": 4000           // cap for the value chrome_act eval returns; the rest is dropped with a hint
   },
 
   // Screenshots
