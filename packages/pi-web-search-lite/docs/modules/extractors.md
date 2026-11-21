@@ -4,7 +4,9 @@
 
 ## 取舍与坑
 
+- 调用方中断立刻上抛，不顺延：继续试只会把「用户取消」伪装成「全链失败」。
 - 隐私：默认链里的 `jina` 会把目标 URL 交给 `r.jina.ai`（匿名 20 RPM）。在意隐私就把它移出 `fetch.extractors`。
+- 本地 `html` 先剥注释、内联 svg 与 nav/footer/aside，减少导航与版权噪音。剥完没正文时退回未剥版本。这是启发式：正文恰好放在 `aside` 里的页面会被削掉。
 - 端点常量由本层自持（`*_API_BASE`）。key 只读 `config.apiKeys`。`src/providers/` 与 `src/extractors/` 互不依赖。缺 key 在本层的语义是跳过，不是报错（DEC-0002）。
 - `parallel`：要 `advanced_settings.full_content` 才返回整页 markdown。单 URL 的失败在响应的 `errors[]` 里，取第一个抛错。走 v1 路径。v1beta 的顶层 `full_content` 会 422。
 - `keenable`：固定 `live=true`。默认档只给索引副本，未索引的 URL 直接报错。提取器的契约是拿到源站正文。代价是该请求按 `fetch.live` 这个 SKU 单独计费。

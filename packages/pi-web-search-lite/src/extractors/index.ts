@@ -71,6 +71,8 @@ export async function extractWithChain(
 				truncated,
 			};
 		} catch (error) {
+			// 调用方取消不是「这家提取器不行」：继续试只会把取消伪装成全链失败
+			if (ctx.signal?.aborted === true) throw error;
 			attempts.push({
 				extractor: id,
 				status: "failed",

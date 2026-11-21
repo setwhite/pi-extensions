@@ -3,7 +3,7 @@ import type { ExtractorId } from "../../src/config/index.ts";
 import { EXTRACTORS, ExtractError, extractWithChain } from "../../src/extractors/index.ts";
 import type { ExtractedContent, Extractor, ExtractorContext } from "../../src/extractors/types.ts";
 import type { HttpClient } from "../../src/http/index.ts";
-import { createHttpClient } from "../../src/http/index.ts";
+import { createHttpClient, HttpError } from "../../src/http/index.ts";
 
 function baseContext(overrides: Partial<ExtractorContext> = {}): ExtractorContext {
 	return {
@@ -206,5 +206,28 @@ describe("extractWithChain", () => {
 		expect(page.truncated).toBe(true);
 		expect(page.content.startsWith("x".repeat(1_000))).toBe(true);
 		expect(page.content).toContain("[... truncated:");
+	});
+
+	it("调用方中断时立刻上抛 abort，不继续尝试后续提取器", async () => {
+		const controller = new AbortController();
+		const first: Extractor = {
+			id: "html",
+			unavailableReason: () => null,
+			async extract(url) {
+				controller.abort();
+				throw new HttpError("abort", url, `request aborted: GET ${url}`);
+			},
+		};
+		const second = fake("jina", { content: "x".repeat(300) });
+
+		await expect(
+			extractWithChain(
+				"https://example.com/a",
+				["html", "jina"],
+				baseContext({ signal: controller.signal }),
+				table({ extractor: first }, second),
+			),
+		).rejects.toMatchObject({ type: "abort" });
+		expect(second.calls()).toBe(0);
 	});
 });

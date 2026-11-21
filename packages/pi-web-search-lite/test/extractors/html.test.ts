@@ -72,6 +72,17 @@ describe("htmlToText", () => {
 	it("非法码点（NUL / 孤立代理）被丢弃", () => {
 		expect(htmlToText("A&#0;B&#xD800;C")).toBe("ABC");
 	});
+
+	it("剥离注释、内联 svg 以及导航/页脚噪音，仅剩主文", () => {
+		const html =
+			"<!-- secret > comment --><nav>Home Docs</nav><svg><title>Icon</title></svg><main><p>Real body</p></main><footer>Copyright</footer>";
+
+		expect(htmlToText(html)).toBe("Real body");
+	});
+
+	it("正文整个都在被剥标签里时退回未剥版本", () => {
+		expect(htmlToText("<nav>Only content here</nav>")).toBe("Only content here");
+	});
 });
 
 describe("htmlExtractor", () => {

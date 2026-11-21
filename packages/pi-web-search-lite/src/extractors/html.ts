@@ -1,4 +1,4 @@
-/** 本地 HTML 提取：零依赖正则五步法（剥 script/style/noscript → 块级标签转换行 → 去标签 → 解实体 → 压空白）。 */
+/** 本地 HTML 提取：零依赖正则（剥注释与噪音标签 → 剥导航/页脚 → 块级标签转换行 → 去标签 → 解实体 → 压空白）。 */
 
 import type { ExtractedContent, Extractor } from "./types.ts";
 
@@ -40,9 +40,17 @@ export function extractTitle(html: string): string | undefined {
 
 export function htmlToText(html: string): string {
 	const withoutNoise = html
-		.replace(/<(script|style|noscript|head|title)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, " ")
+		.replace(/<!--[\s\S]*?-->/g, " ")
+		.replace(/<(script|style|noscript|head|title|svg)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, " ")
 		.replace(/<(?:meta|link)\b[^>]*\/?>/gi, " ");
-	const withBreaks = withoutNoise.replace(BLOCK_TAGS, "\n");
+	// 导航、页脚、侧栏的函数名与版权声明都是噪音。整页正文正好全在这些标签里时退回未剥版本。
+	const withoutChrome = withoutNoise.replace(/<(nav|footer|aside)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, " ");
+	const cleaned = renderFragment(withoutChrome);
+	return cleaned === "" ? renderFragment(withoutNoise) : cleaned;
+}
+
+function renderFragment(html: string): string {
+	const withBreaks = html.replace(BLOCK_TAGS, "\n");
 	const stripped = withBreaks.replace(/<[^>]*>/g, " ");
 	return collapse(decodeEntities(stripped));
 }
