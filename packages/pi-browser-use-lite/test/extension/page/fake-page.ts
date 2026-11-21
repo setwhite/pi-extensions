@@ -16,6 +16,8 @@ export type FakeOptions = {
 	value?: string;
 	checked?: boolean;
 	attrs?: Record<string, string>;
+	/** open shadow root 的子节点；不传就是没有影子树，与关闭的 root 一样读不出东西 */
+	shadowChildren?: Array<FakeElement | string>;
 };
 
 export type FakeElement = {
@@ -26,6 +28,8 @@ export type FakeElement = {
 	children: FakeElement[];
 	childNodes: FakeNode[];
 	parentElement: FakeElement | null;
+	/** 真 DOM 里关闭的 shadow root 读成 null，这里默认也是 */
+	shadowRoot: FakeRoot | null;
 	textContent: string;
 	isConnected: boolean;
 	scrollCalls: number;
@@ -37,6 +41,24 @@ export type FakeElement = {
 };
 
 export type FakeNode = FakeElement | { nodeType: 3; textContent: string };
+
+/** shadow root 不是元素，没有 tagName 与几何，只有子节点。 */
+export type FakeRoot = {
+	nodeType: 11;
+	childNodes: FakeNode[];
+	children: FakeElement[];
+};
+
+function root(children: Array<FakeElement | string>): FakeRoot {
+	const node = { nodeType: 11 as const, childNodes: [] as FakeNode[] };
+	Object.defineProperty(node, "children", {
+		get: () => node.childNodes.filter((child) => child.nodeType === 1),
+	});
+	for (const child of children) {
+		node.childNodes.push(typeof child === "string" ? text(child) : child);
+	}
+	return node as unknown as FakeRoot;
+}
 
 function text(content: string) {
 	return { nodeType: 3 as const, textContent: content };
@@ -80,6 +102,9 @@ export function el(
 	Object.defineProperty(node, "children", {
 		get: () => node.childNodes.filter((child) => child.nodeType === 1),
 	});
+	(node as Record<string, unknown>).shadowRoot = options.shadowChildren
+		? root(options.shadowChildren)
+		: null;
 	(node as Record<string, unknown>).scrollIntoView = () => {
 		node.scrollCalls += 1;
 	};
@@ -143,6 +168,11 @@ export function loadSnapshotPage(options: {
 		title: options.title ?? "Test page",
 		body: options.body,
 		getElementById: (id: string) => findById(options.body, id),
+		// 只认 light tree 的 `#id`：真 DOM 的 querySelector 也看不进 shadow root。
+		querySelector: (selector: string) =>
+			selector.startsWith("#")
+				? findById(options.body, selector.slice(1))
+				: null,
 	};
 	const context: Record<string, unknown> = {
 		document,

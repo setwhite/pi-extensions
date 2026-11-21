@@ -191,13 +191,18 @@
 		};
 	}
 
-	/** 先序遍历可见子树。隐藏子树整棵跳过，与 Chrome 的可见性一致。 */
+	/**
+	 * 先序遍历可见子树。隐藏子树整棵跳过，与 Chrome 的可见性一致。
+	 * 有影子树就先走影子树：组件把内容放在 shadow root 里，不进去只能看到空壳。
+	 * 关闭的 shadow root 读出来是 null，静默跳过。
+	 */
 	function walk(element, visit) {
 		for (const child of element.children ?? []) {
 			if (child.nodeType !== 1) continue;
 			if (SKIP_TAGS.has(child.tagName.toLowerCase())) continue;
 			if (!isVisible(child)) continue;
 			visit(child);
+			if (child.shadowRoot) walk(child.shadowRoot, visit);
 			walk(child, visit);
 		}
 	}
@@ -220,6 +225,7 @@
 			if (child.nodeType !== 1) continue;
 			if (SKIP_TAGS.has(child.tagName.toLowerCase())) continue;
 			if (!isVisible(child)) continue;
+			if (child.shadowRoot) readText(child.shadowRoot, parts);
 			readText(child, parts);
 		}
 	}
@@ -266,7 +272,7 @@
 			throw new Error(
 				ref
 					? `ref ${ref} is stale; take a new snapshot`
-					: `selector matched no element: ${selector}`,
+					: `selector matched no element: ${selector}; shadow DOM content needs a ref from the snapshot`,
 			);
 		}
 		// rect 是视口坐标。折叠线外先滚到中间，指针动作才点得到；已经看得见就别动页面。

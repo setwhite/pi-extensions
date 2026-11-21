@@ -237,6 +237,7 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 - 工具面序列化体积 ≤ 12,000 字符（上限）。默认配置按 6,500 断言，见「工具开关与提示词」。其中 5 个工具的 `description` 合计 ≤ 4,000 字符，参数描述合计 ≤ 5,500 字符。
 - 单次工具调用超时 30 秒。`navigate` 按 `timing.navigateTimeoutMs` 加 2 秒。整页截图 120 秒。
 - 快照：`refs` 摘要 500 字符、元素 80 个；`text` 18,000 字符；`full` 30,000 字符；元素清单 8,000 字符。`content` 截断线 32,000 字符，比 `full` 留 2,000 字符信封余量。console 500 条。请求体 200,000 字符。
+- 采集范围是文档与 open shadow root：closed root 与 iframe 里的内容进不去。shadow root 里的元素只认 ref，selector 停在 light tree。
 - 元素清单的字符预算在宿主算：只有拼正文的地方知道一行最后多长。裁过就补一行 hint 说明是 `output.refsChars` 裁的，不留「页面只有这些元素」的误读空间。
 - 写死但配置可覆盖：拖动 10 步（`input.dragSteps`）、滚动 5 步（`input.scrollSteps`）、导航 15 秒（`timing.navigateTimeoutMs`）、元素清单 8,000 字符（`output.refsChars`）、`eval` 返回值 4,000 字符（`output.evalChars`）。
 - 整页截图高度超过 4 倍视口时按屏分段。

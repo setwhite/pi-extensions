@@ -111,6 +111,68 @@ it("ref 指向的元素已经掉出文档时报 stale，不拿旧坐标去点", 
 	);
 });
 
+it("open shadow root 里的元素进清单，ref 也能定位到它", () => {
+	// 组件把按钮放进 shadow root，不进去只能看到一个空壳。
+	const reply = el("button", {}, ["Reply"]);
+	const page = loadSnapshotPage({
+		body: el("body", {}, [
+			el("bili-comments", { shadowChildren: [reply] }),
+			el("p", {}, ["light text"]),
+		]),
+	});
+
+	const collected = page.collect();
+	const found = collected.elements.find((element) => element.name === "Reply");
+
+	expect(found).toBeDefined();
+	expect(
+		page.page.inspect({ ref: found?.ref, scroll: true }).element.name,
+	).toBe("Reply");
+	expect(collected.bodyText).toContain("Reply");
+});
+
+it("shadow root 里的隐藏元素照样跳过，嵌套两层也进去", () => {
+	const page = loadSnapshotPage({
+		body: el("body", {}, [
+			el("bili-comments", {
+				shadowChildren: [
+					el("bili-comment-renderer", {
+						shadowChildren: [
+							el("style", {}, [".hidden-by-css {}"]),
+							el("button", {}, ["Like"]),
+							el("button", { visible: false }, ["Hidden"]),
+						],
+					}),
+				],
+			}),
+		]),
+	});
+
+	const collected = page.collect();
+
+	expect(collected.elements.map((element) => element.name)).toContain("Like");
+	expect(collected.elements.map((element) => element.name)).not.toContain(
+		"Hidden",
+	);
+	expect(collected.bodyText).toContain("Like");
+	expect(collected.bodyText).not.toContain("hidden-by-css");
+	expect(collected.bodyText).not.toContain("Hidden");
+});
+
+it("shadow root 里的元素不认 selector，报错指出要用快照的 ref", () => {
+	const page = loadSnapshotPage({
+		body: el("body", {}, [
+			el("bili-comments", {
+				shadowChildren: [el("button", { attrs: { id: "reply" } }, ["Reply"])],
+			}),
+		]),
+	});
+
+	expect(() => page.page.inspect({ selector: "#reply" })).toThrow(
+		"selector matched no element: #reply; shadow DOM content needs a ref from the snapshot",
+	);
+});
+
 it("AC6: 页面没装上全局时抛错，消息里有名字", async () => {
 	const stub = stubChrome({
 		executeScript: runInPage,

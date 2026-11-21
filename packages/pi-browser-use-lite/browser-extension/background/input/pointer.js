@@ -192,7 +192,9 @@ async function elementCenter(tabId, selector) {
 })()`;
 	const center = await evaluate(tabId, expression);
 	if (!isFiniteNumber(center?.x) || !isFiniteNumber(center?.y))
-		throw new Error(`page_error: selector matched no element: ${selector}`);
+		throw new Error(
+			`page_error: selector matched no element: ${selector}; shadow DOM content needs a ref from the snapshot`,
+		);
 	return { x: center.x, y: center.y };
 }
 

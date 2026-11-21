@@ -307,7 +307,7 @@ it("质量: selector 匹配不到元素时抛 page_error", async () => {
 	const stub = stubPointer({ element: false });
 
 	await expect(click({ tabId: 605, selector: "#nope" })).rejects.toThrow(
-		"page_error: selector matched no element: #nope",
+		"page_error: selector matched no element: #nope; shadow DOM content needs a ref from the snapshot",
 	);
 
 	expect(mouseEvents(stub)).toHaveLength(0);
