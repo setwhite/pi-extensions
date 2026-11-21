@@ -3,18 +3,14 @@ import { basename, join } from "node:path";
 import { getAgentDir, parseFrontmatter } from "@earendil-works/pi-coding-agent";
 import { dataDir, isRaw } from "../config/index.ts";
 import { errorText } from "../error/index.ts";
+import { booleanField, enumField, nameField, skillsField, stringField, toolsField } from "./fields.ts";
 import {
-  booleanField,
-  enumField,
   type Fields,
-  nameField,
   type Profile,
   type ProfileProblem,
   SYSTEM_PROMPT_MODES,
-  skillsField,
-  stringField,
   THINKING_LEVELS,
-  toolsField,
+  unknownFields,
 } from "./frontmatter.ts";
 
 export interface ProfileCatalog {
@@ -46,6 +42,7 @@ function parseProfile(file: string, source: string): { profile?: Profile; proble
     return { problems };
   }
   fields.name = name;
+  unknownFields(fields);
   const profile: Profile = {
     name,
     description: stringField(fields, "description") ?? "",

@@ -3,13 +3,13 @@ import { catalog, useProfileDirs, writeProfile, writeProjectProfile } from "../s
 
 useProfileDirs();
 
-it("ignores unknown fields", () => {
-  writeProfile("explore.md", "---\nname: explore\nsession-mode: yolo\ndenyWrites: true\n---\n\nbody\n");
+it("rejects unknown fields", () => {
+  const file = writeProfile("explore.md", "---\nname: explore\nauto_exit: true\n---\n\nbody\n");
 
   const { profiles, problems } = catalog();
 
-  expect(problems).toEqual([]);
-  expect(profiles.map((profile) => profile.name)).toEqual(["explore"]);
+  expect(profiles).toEqual([]);
+  expect(problems).toEqual([{ name: "explore", file, field: "auto_exit", reason: "unknown field" }]);
 });
 
 it("reports a bad thinking level", () => {
