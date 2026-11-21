@@ -2,6 +2,16 @@
 
 本文件记录已发布版本的用户可见变更。更细的过程见 git log。0.x 期间破坏性变更走 minor 号，条目里标 **BREAKING**。
 
+## 0.14.0 — 2026-11-21
+
+- 截断后的全文改落到 `<agent dir>/pi-web-search-lite/spill/<会话 id>/<工具>-<时间戳>.md`，与 `config.json` 同层，跟着 `PI_CODING_AGENT_DIR` 走。每个会话一个子目录，启动时删掉 7 天没动过的会话目录。旧版本写在系统临时目录；那些 `%TEMP%/pi-web-search-lite-*` 目录不由扩展清理，留给你自己删（DEC-0014）。
+- 写盘失败不再让整次抓取失败：正文照常返回，末尾一行写明没写成。
+- 单次响应体超过 10 MiB 直接报 `response_too_large`，不再整页读进内存。
+- 调用方取消时提取器链立刻停止，不再把「你自己取消」伪装成「所有提取器失败」。
+- 本地 HTML 提取先剥注释、内联 svg 与 nav/footer/aside，减少导航与版权噪音。剥完没正文时退回未剥版本。
+- SSRF 拦截新增 100.64.0.0/10（CGNAT）与 224.0.0.0/4 起的组播/保留地址；含多个 `::` 的非法 IPv6 不再被误解析。
+- 同一代理串在进程内复用 `ProxyAgent`，不再每次工具调用新建连接池。
+
 ## 0.13.1 — 2026-11-13
 
 - reddit 默认 redlib 实例改成 `https://redlib.nadeko.net`。旧的 catsarch 实例不可用。想换实例或关掉改写仍走 `handlers.reddit`。
