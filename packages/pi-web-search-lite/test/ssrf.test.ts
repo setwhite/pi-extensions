@@ -66,7 +66,10 @@ describe("assertPublicUrl：拒绝", () => {
 		"http://172.16.0.1/",
 		"http://172.31.255.254/",
 		"http://192.168.1.1/",
+		"http://100.64.0.1/",
 		"http://169.254.169.254/",
+		"http://224.0.0.1/",
+		"http://255.255.255.255/",
 		"http://0.0.0.0/",
 	])("拒绝私有 / 回环 / link-local 字面量 IPv4：%s", (input) => {
 		expectBlocked(input, "blocked_ip");

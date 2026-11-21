@@ -100,9 +100,11 @@ function isBlockedIpv4(bytes: number[]): boolean {
 		a === 0 || // 0.0.0.0/8 未指定
 		a === 127 || // 127.0.0.0/8 回环
 		a === 10 || // 10.0.0.0/8
+		(a === 100 && b >= 64 && b <= 127) || // 100.64.0.0/10 CGNAT
 		(a === 172 && b >= 16 && b <= 31) || // 172.16.0.0/12
 		(a === 192 && b === 168) || // 192.168.0.0/16
-		(a === 169 && b === 254) // 169.254.0.0/16 link-local（含 169.254.169.254）
+		(a === 169 && b === 254) || // 169.254.0.0/16 link-local（含 169.254.169.254）
+		a >= 224 // 224.0.0.0/4 组播与 240.0.0.0/4 保留/广播
 	);
 }
 
@@ -122,7 +124,10 @@ function parseIpv4(host: string): number[] | undefined {
 /** 展开成 16 字节；非法 IPv6 返回 undefined。 */
 function parseIpv6(host: string): number[] | undefined {
 	if (!host.includes(":")) return undefined;
-	const [head, tail] = host.split("::");
+	const halves = host.split("::");
+	// 合法的 IPv6 最多一个 "::"；多出来的按非法处理，别拿错位结果当有效地址
+	if (halves.length > 2) return undefined;
+	const [head, tail] = halves;
 	const headParts =
 		tail === undefined
 			? expandTrailing(head === "" ? [] : head.split(":"))
