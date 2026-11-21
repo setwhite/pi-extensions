@@ -5,14 +5,10 @@
  * 代理可用性状态与降级提示在 `route.ts`，本模块只负责按判定发起尝试。
  */
 
-import {
-	type Dispatcher,
-	ProxyAgent,
-	type Response as UndiciResponse,
-	fetch as undiciFetch,
-} from "undici";
+import { type Dispatcher, type Response as UndiciResponse, fetch as undiciFetch } from "undici";
 import { assertPublicUrl, isLoopbackHost, SsrfError } from "../ssrf/index.ts";
 import {
+	proxyAgentFor,
 	proxyNotice,
 	recordProxyFailure,
 	recordProxySuccess,
@@ -29,7 +25,8 @@ export type HttpErrorType =
 	| "parse"
 	| "network"
 	| "redirect"
-	| "too_many_redirects";
+	| "too_many_redirects"
+	| "response_too_large";
 
 /** 结构化 HTTP 错误；模型可见文案由 tools/ 组装。 */
 export class HttpError extends Error {
@@ -61,6 +58,8 @@ export interface HttpClientOptions {
 	userAgent: string;
 	/** 测试注入；缺省读系统时钟（代理冷却计时用）。 */
 	now?: () => number;
+	/** 单次响应体字节上限；缺省 10 MiB。 */
+	maxResponseBytes?: number;
 	/** 测试注入；缺省用 undici 的 `fetch`。 */
 	fetchImpl?: typeof undiciFetch;
 }
@@ -95,6 +94,10 @@ const MAX_REDIRECTS = 5;
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 /** cause 链展开深度上限：undici 的套娃一般 2–3 层（TypeError → AggregateError → Error）。 */
 const MAX_CAUSE_DEPTH = 4;
+/** 响应体上限：超过它就别读了，整页也进不了上下文。 */
+const DEFAULT_MAX_RESPONSE_BYTES = 10 * 1024 * 1024;
+/** 去 BOM 用；constructor 的默认 ignoreBOM 为 false，等价于 Response.text()。 */
+const UTF8 = new TextDecoder("utf-8");
 
 interface RequestState {
 	method: string;
@@ -105,15 +108,14 @@ interface RequestState {
 export function createHttpClient(options: HttpClientOptions): HttpClient {
 	const clock = options.now ?? Date.now;
 	const send = options.fetchImpl ?? undiciFetch;
-	let proxyAgent: ProxyAgent | undefined;
+	const maxResponseBytes = options.maxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES;
 
-	/** 本机目标永远绕过代理；其余目标在配置了 proxy 时经同一个 ProxyAgent。 */
+	/** 本机目标永远绕过代理；其余目标在配置了 proxy 时复用进程内缓存的 ProxyAgent。 */
 	function dispatcherFor(url: URL, viaProxy: boolean): Dispatcher | undefined {
 		if (!viaProxy) return undefined;
 		if (options.proxy === undefined || options.proxy === "") return undefined;
 		if (isLoopbackHost(url.hostname)) return undefined;
-		proxyAgent ??= new ProxyAgent({ uri: options.proxy });
-		return proxyAgent;
+		return proxyAgentFor(options.proxy);
 	}
 
 	/** 入口目标是否走代理：本机目标与冷却期内都直接连。 */
@@ -171,7 +173,7 @@ export function createHttpClient(options: HttpClientOptions): HttpClient {
 
 		let text: string;
 		try {
-			text = await response.text();
+			text = await readBoundedText(response, maxResponseBytes, finalUrl, state);
 		} catch (cause) {
 			throw toHttpError(cause, finalUrl, state);
 		}
@@ -270,6 +272,44 @@ export function createHttpClient(options: HttpClientOptions): HttpClient {
 			`too many redirects (limit ${MAX_REDIRECTS}): ${url}`,
 		);
 	}
+}
+
+/** 按字节上限流式读体：response.text() 会一次性读完全部，超大响应能撑爆内存。 */
+async function readBoundedText(
+	response: UndiciResponse,
+	maxBytes: number,
+	url: string,
+	state: RequestState,
+): Promise<string> {
+	const declared = Number(response.headers.get("content-length"));
+	if (Number.isFinite(declared) && declared > maxBytes) {
+		await response.body?.cancel().catch(() => undefined);
+		throw tooLarge(declared, maxBytes, url, state);
+	}
+	if (response.body === null) return "";
+	const reader = response.body.getReader();
+	const chunks: Uint8Array[] = [];
+	let total = 0;
+	for (;;) {
+		const { done, value } = await reader.read();
+		if (done) break;
+		if (value === undefined) continue;
+		total += value.byteLength;
+		if (total > maxBytes) {
+			await reader.cancel().catch(() => undefined);
+			throw tooLarge(total, maxBytes, url, state);
+		}
+		chunks.push(value);
+	}
+	return UTF8.decode(Buffer.concat(chunks, total));
+}
+
+function tooLarge(bytes: number, maxBytes: number, url: string, state: RequestState): HttpError {
+	return new HttpError(
+		"response_too_large",
+		url,
+		`response too large (${bytes} bytes > limit ${maxBytes}): ${state.method} ${url}`,
+	);
 }
 
 /** 解析并校验重定向目标：非法 URL 抛 HttpError，SSRF 命中抛 SsrfError。 */

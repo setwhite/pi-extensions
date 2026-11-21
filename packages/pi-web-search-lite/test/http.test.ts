@@ -50,11 +50,16 @@ async function startHangingStub(): Promise<Stub> {
 	});
 }
 
-function makeClient(options: { proxy?: string; timeoutMs?: number } = {}) {
+function makeClient(
+	options: { proxy?: string; timeoutMs?: number; maxResponseBytes?: number } = {},
+) {
 	return createHttpClient({
 		proxy: options.proxy,
 		timeoutMs: options.timeoutMs ?? 5_000,
 		userAgent: UA,
+		...(options.maxResponseBytes === undefined
+			? {}
+			: { maxResponseBytes: options.maxResponseBytes }),
 	});
 }
 
@@ -153,6 +158,61 @@ describe("http：请求形状与响应", () => {
 
 		expect(error).toBeInstanceOf(HttpError);
 		expect((error as HttpError).type).toBe("parse");
+	});
+});
+
+describe("http：响应体上限与解码", () => {
+	it("Content-Length 超限时直接抛 response_too_large，不读体", async () => {
+		const stub = track(
+			await startStub((_req, res) => {
+				res.writeHead(200, { "content-type": "text/plain", "content-length": "2000" });
+				res.end("x".repeat(2000));
+			}),
+		);
+
+		await expect(
+			makeClient({ maxResponseBytes: 1000 }).fetchText(`${stub.base}/big`),
+		).rejects.toMatchObject({ name: "HttpError", type: "response_too_large" });
+	});
+
+	it("没有 Content-Length 的分块响应超限时边读边停", async () => {
+		const stub = track(
+			await startStub((_req, res) => {
+				res.writeHead(200, { "content-type": "text/plain" });
+				for (let index = 0; index < 10; index += 1) res.write("x".repeat(300));
+				res.end();
+			}),
+		);
+
+		await expect(
+			makeClient({ maxResponseBytes: 1000 }).fetchText(`${stub.base}/chunked`),
+		).rejects.toMatchObject({ type: "response_too_large" });
+	});
+
+	it("未超限时照常返回全文", async () => {
+		const stub = track(
+			await startStub((_req, res) => {
+				res.writeHead(200, { "content-type": "text/plain" });
+				res.end("hello");
+			}),
+		);
+
+		const result = await makeClient({ maxResponseBytes: 1000 }).fetchText(`${stub.base}/ok`);
+
+		expect(result.text).toBe("hello");
+	});
+
+	it("带 BOM 的 JSON 仍能解析，与 response.text() 口径一致", async () => {
+		const stub = track(
+			await startStub((_req, res) => {
+				res.writeHead(200, { "content-type": "application/json" });
+				res.end('\uFEFF{"ok":true}');
+			}),
+		);
+
+		const result = await makeClient().fetchJson<{ ok: boolean }>(`${stub.base}/bom`);
+
+		expect(result.data).toEqual({ ok: true });
 	});
 });
 

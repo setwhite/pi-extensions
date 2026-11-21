@@ -3,7 +3,11 @@
  *
  * `createHttpClient` 每次工具调用都新建，计数放在 client 里永远到不了阈值，所以状态按进程共享；
  * 代理配置变了（/reload 改了 config.proxy）就重置。`now` 由调用方传入，只为测试能跨过冷却窗口。
+ *
+ * ProxyAgent 同理按进程缓存：每次调用新建一个 agent 会多留一份连接池。
  */
+
+import { ProxyAgent } from "undici";
 
 export const PROXY_FAILURE_THRESHOLD = 3;
 export const PROXY_COOLDOWN_MS = 60_000;
@@ -66,4 +70,26 @@ export function proxyNotice(proxy: string | undefined): string | null {
 /** 清空状态；仅测试用。 */
 export function resetProxyRoute(): void {
 	state = undefined;
+}
+
+const MAX_CACHED_PROXY_AGENTS = 16;
+const agents = new Map<string, ProxyAgent>();
+
+/** 同一代理串复用同一个 ProxyAgent；超过上限先关最旧的一个。 */
+export function proxyAgentFor(proxy: string): ProxyAgent {
+	const cached = agents.get(proxy);
+	if (cached !== undefined) return cached;
+	if (agents.size >= MAX_CACHED_PROXY_AGENTS) {
+		const oldest = agents.keys().next().value;
+		if (oldest !== undefined) {
+			void agents
+				.get(oldest)
+				?.close()
+				.catch(() => undefined);
+			agents.delete(oldest);
+		}
+	}
+	const agent = new ProxyAgent({ uri: proxy });
+	agents.set(proxy, agent);
+	return agent;
 }
