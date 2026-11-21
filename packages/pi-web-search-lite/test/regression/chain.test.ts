@@ -113,7 +113,7 @@ describe("回归：web_fetch 全链路", () => {
 		const out = result.details.fullOutputPath;
 		expect(out).toBeDefined();
 		expect(existsSync(out ?? "")).toBe(true);
-		spillDirs.push(dirname(out ?? "."));
+		if (out !== undefined) spillDirs.push(dirname(dirname(out)));
 		const spilled = readFileSync(out ?? "", "utf-8");
 		expect(spilled).toContain("正文段落开头");
 		expect(spilled).toContain("正文段落结尾");

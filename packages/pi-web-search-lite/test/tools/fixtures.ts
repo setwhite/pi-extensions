@@ -1,5 +1,6 @@
 /** tools 层测试共享：默认配置构造、HttpClient 桩与小工具。所有用例不打真实网络。 */
 
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
 	type ApiKeyId,
@@ -36,6 +37,7 @@ export interface ConfigOverrides {
 	search?: Partial<SearchSettings>;
 	fetch?: Partial<FetchSettings>;
 	handlers?: { github?: Partial<GitHubHandlerSettings>; reddit?: Partial<RedditHandlerSettings> };
+	spillRoot?: string;
 }
 
 /** 全默认配置 + 逐块合并覆盖；configPath 指向不存在的文件，env 为空。 */
@@ -46,6 +48,8 @@ export function makeConfig(overrides: ConfigOverrides = {}): ResolvedConfig {
 	});
 	return {
 		...base,
+		// 测试不落真实 home：默认写到本进程专属的临时根，用例按需覆盖
+		spillRoot: join(tmpdir(), "pi-web-search-lite-test-spill", String(process.pid)),
 		...overrides,
 		apiKeys: { ...base.apiKeys, ...overrides.apiKeys },
 		tools: { ...base.tools, ...overrides.tools },

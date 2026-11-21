@@ -51,6 +51,7 @@ export async function executeFetch(
 	params: FetchParams,
 	signal: AbortSignal | undefined,
 	overrides: FetchOverrides = {},
+	sessionId?: string,
 ): Promise<AgentToolResult<FetchDetails>> {
 	const target = assertPublicUrl(params.url);
 	const http =
@@ -76,7 +77,12 @@ export async function executeFetch(
 			...(notice === null ? [] : [`> ${notice}`]),
 		].join("\n");
 		const text = `${rawHeader}\n\n${response.text}`;
-		const envelope = await finalizeContent(text, { ...config.context, fileName: "web-fetch.md" });
+		const envelope = await finalizeContent(text, {
+			...config.context,
+			spillRoot: config.spillRoot,
+			sessionId,
+			fileStem: "web-fetch",
+		});
 		return buildToolResult(envelope.content, {
 			url: response.url,
 			title: response.url,
@@ -153,7 +159,9 @@ export async function executeFetch(
 
 	const envelope = await finalizeContent(`${header}\n\n${page.content}`, {
 		...config.context,
-		fileName: "web-fetch.md",
+		spillRoot: config.spillRoot,
+		sessionId,
+		fileStem: "web-fetch",
 	});
 	return buildToolResult(envelope.content, {
 		url: page.url,
@@ -204,8 +212,14 @@ export function createFetchTool(
 		...guidanceFields,
 		renderCall: renderFetchCall,
 		renderResult: renderFetchResult,
-		async execute(_toolCallId, params, signal) {
-			return executeFetch(config, params as FetchParams, signal, overrides);
+		async execute(_toolCallId, params, signal, _onUpdate, ctx) {
+			return executeFetch(
+				config,
+				params as FetchParams,
+				signal,
+				overrides,
+				ctx.sessionManager.getSessionId(),
+			);
 		},
 	};
 }

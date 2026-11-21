@@ -13,7 +13,7 @@
 - GitHub 的仓库、文件、目录、issue、pull、release、commit、compare、actions run 页面走 `gh`，可选。其余 GitHub 页面走提取器链，原因记在 `details.handlerSkips`。
 - reddit 只换 redlib 域名，正文仍由提取器链抓。
 - 拒绝内网与回环地址，每一跳重定向都复查。判定只看 URL 字面量，不解析 DNS。
-- 超过上限就截断。`context.spillToFile` 为真时，全文落临时文件，路径回填进结果，供 `read` 续读。
+- 超过上限就截断。`context.spillToFile` 为真时，全文落到 `<agent dir>/pi-web-search-lite/spill/<会话 id>/`，路径回填进结果，供 `read` 续读。7 天没动过的会话目录在启动时删掉。旧版本写在系统临时目录；那些 `%TEMP%/pi-web-search-lite-*` 目录留给你自己清。
 - 工具可改名、可关、可改成按需发现。`guidance` 可逐字段覆盖内置提示词。
 
 ## 安装
@@ -96,7 +96,7 @@ key 也可以放在环境变量中：`TAVILY_API_KEY` / `BRAVE_API_KEY` / `EXA_A
   "context": {
     "maxInlineChars": null,  // 按字节截断（下限 1000。写小了会被抬到 1000）
     "maxInlineLines": null,  // 按行截断（下限 50）
-    "spillToFile": true      // 截断时把完整文本写到 <tmp>/pi-web-search-lite-*/web-{search,fetch}.md，路径回填进结果供 read 续读。false = 全文丢弃
+    "spillToFile": true      // 截断时把完整文本写到 <agent dir>/pi-web-search-lite/spill/<会话>/web-{search,fetch}-<时间戳>.md，路径回填进结果供 read 续读。false = 全文丢弃。7 天没动过的会话目录在启动时删掉
   },
   // 搜索条数：不传时给多少、最多允许多少
   "search": { "defaultMaxResults": 5, "maxResultsLimit": 10 },

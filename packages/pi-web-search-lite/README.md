@@ -13,7 +13,7 @@ Two tools for pi: `web_search` finds pages, `web_fetch` extracts text from a pag
 - GitHub repo, file, directory, issue, pull, release, commit, compare and actions-run pages go through `gh`, which is optional. Other GitHub pages take the extractor chain, and the reason goes to `details.handlerSkips`.
 - Reddit only swaps in a redlib host, and the extractor chain still fetches the text.
 - Private and loopback addresses are rejected, and every redirect hop is re-checked. The check reads the URL literal only and does no DNS lookup.
-- An oversize result is truncated. With `context.spillToFile`, the full text goes to a temp file and the path comes back for `read`.
+- An oversize result is truncated. With `context.spillToFile`, the full text goes to `<agent dir>/pi-web-search-lite/spill/<session id>/` and the path comes back for `read`. Session directories untouched for 7 days are removed at startup. Earlier versions used the OS temp directory; those `%TEMP%/pi-web-search-lite-*` folders are left for you to delete.
 - A tool can be renamed, disabled or deferred. `guidance` overrides any field of the built-in English prompts.
 
 ## Install
@@ -96,7 +96,7 @@ You can also set keys in environment variables (`TAVILY_API_KEY` / `BRAVE_API_KE
   "context": {
     "maxInlineChars": null,  // byte cap (lower bound 1000. Smaller values are raised to 1000)
     "maxInlineLines": null,  // line cap (lower bound 50)
-    "spillToFile": true      // on truncation, write the full text to <tmp>/pi-web-search-lite-*/web-{search,fetch}.md and return the path for read. false = the full text is dropped
+    "spillToFile": true      // on truncation, write the full text to <agent dir>/pi-web-search-lite/spill/<session>/web-{search,fetch}-<timestamp>.md and return the path for read. false = the full text is dropped. Session directories untouched for 7 days are removed at startup
   },
   // Search results: how many by default, and the ceiling
   "search": { "defaultMaxResults": 5, "maxResultsLimit": 10 },

@@ -12,7 +12,9 @@ import { exhaustProxy, fakeHttp, firstText, makeConfig, rejectionOf } from "./fi
 
 const spilled: string[] = [];
 afterEach(() => {
-	for (const path of spilled.splice(0)) rmSync(dirname(path), { recursive: true, force: true });
+	// spill 路径是 <root>/<session>/<file>，连根一起删
+	for (const path of spilled.splice(0))
+		rmSync(dirname(dirname(path)), { recursive: true, force: true });
 });
 
 beforeEach(() => {

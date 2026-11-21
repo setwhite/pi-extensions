@@ -53,7 +53,7 @@ _Avoid_: 响应包、result（`AgentToolResult` 是宿主类型）
 _Avoid_: 截断链
 
 **spill**:
-信封截断时把完整文本写进临时文件（`context.spillToFile`），路径回填进结果供 `read` 续读。只在截断时发生。
+信封截断时把完整文本写进 `<agent dir>/pi-web-search-lite/spill/<会话 id>/`（`context.spillToFile`），路径回填进结果供 `read` 续读。只在截断时发生。7 天没动过的会话目录在启动时删掉。
 _Avoid_: 落盘、缓存
 
 **raw**:
@@ -72,7 +72,7 @@ _Avoid_: 产物、artifact
 ## 配置面
 
 **agent dir**:
-pi 的 agent 目录：`PI_CODING_AGENT_DIR` > `~/.pi/agent`。配置在 `<agent dir>/pi-web-search-lite/config.json`。
+pi 的 agent 目录：`PI_CODING_AGENT_DIR` > `~/.pi/agent`。配置在 `<agent dir>/pi-web-search-lite/config.json`，spill 在 `<agent dir>/pi-web-search-lite/spill/`。
 
 **guidance**:
 覆盖内置提示词三个字段（`description` / `promptSnippet` / `promptGuidelines`）的配置区。按工具 id 分组。

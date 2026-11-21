@@ -51,6 +51,7 @@ export async function executeSearch(
 	params: SearchParams,
 	signal: AbortSignal | undefined,
 	overrides: SearchOverrides = {},
+	sessionId?: string,
 ): Promise<AgentToolResult<SearchDetails>> {
 	const providerId = resolveProviderId(config.provider);
 	const apiKey = resolveApiKey(providerId, config.apiKeys);
@@ -86,7 +87,9 @@ export async function executeSearch(
 
 	const envelope = await finalizeContent(`${header}\n\n${body}`, {
 		...config.context,
-		fileName: "web-search.md",
+		spillRoot: config.spillRoot,
+		sessionId,
+		fileStem: "web-search",
 	});
 	return buildToolResult(envelope.content, {
 		provider: providerId,
@@ -137,8 +140,8 @@ export function createSearchTool(
 		...guidanceFields,
 		renderCall: renderSearchCall,
 		renderResult: renderSearchResult,
-		async execute(_toolCallId, params: Static<typeof parameters>, signal) {
-			return executeSearch(config, params, signal, overrides);
+		async execute(_toolCallId, params: Static<typeof parameters>, signal, _onUpdate, ctx) {
+			return executeSearch(config, params, signal, overrides, ctx.sessionManager.getSessionId());
 		},
 	};
 }

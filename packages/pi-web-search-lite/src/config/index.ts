@@ -5,12 +5,11 @@
  */
 
 import { readFileSync } from "node:fs";
-import { homedir } from "node:os";
 import { join } from "node:path";
 import {
+	agentDirOf,
 	CONFIG_FILE_NAME,
 	CONFIG_SUBPATH,
-	ENV_AGENT_DIR,
 	type Raw,
 	type ResolvedConfig,
 } from "./schema.ts";
@@ -40,8 +39,7 @@ export function loadConfig(options: LoadConfigOptions = {}): ResolvedConfig {
 
 /** 默认路径：PI_CODING_AGENT_DIR > ~/.pi/agent，子路径 pi-web-search-lite/config.json。 */
 export function defaultConfigPath(env: NodeJS.ProcessEnv = process.env): string {
-	const agentDir = env[ENV_AGENT_DIR] || join(homedir(), ".pi", "agent");
-	return join(agentDir, CONFIG_SUBPATH, CONFIG_FILE_NAME);
+	return join(agentDirOf(env), CONFIG_SUBPATH, CONFIG_FILE_NAME);
 }
 
 function readRawConfig(configPath: string): Raw {

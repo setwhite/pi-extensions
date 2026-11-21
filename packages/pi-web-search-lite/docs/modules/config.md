@@ -11,5 +11,5 @@
 
 ## 指针
 
-- 三道上限各自的作用对象。`fetch.maxCharsPerPage` 管提取器链拿回的正文，不含 GitHub handler。`handlers.github.maxChars` 管 gh 输出渲染成 markdown 后的正文。`context.maxInlineChars` / `maxInlineLines` 管发给模型的信封。前两道切片后不保留全文。`context.*` 在 `spillToFile` 为真时把全文落临时文件。GitHub 页面只过后两道。普通网页只过第 1、3 道。`raw` 只过第 3 道。
-- agent dir 与配置文件路径：术语见 `docs/GLOSSARY.md`「agent dir」。实现见 `defaultConfigPath`。
+- 三道上限各自的作用对象。`fetch.maxCharsPerPage` 管提取器链拿回的正文，不含 GitHub handler。`handlers.github.maxChars` 管 gh 输出渲染成 markdown 后的正文。`context.maxInlineChars` / `maxInlineLines` 管发给模型的信封。前两道切片后不保留全文。`context.*` 在 `spillToFile` 为真时把全文落进 agent 目录（[DEC-0014](../decisions/0014-spill-in-agent-dir.md)）。GitHub 页面只过后两道。普通网页只过第 1、3 道。`raw` 只过第 3 道。
+- agent dir 与配置文件路径：术语见 `docs/GLOSSARY.md`「agent dir」。实现见 `defaultConfigPath`。`ResolvedConfig.spillRoot` 是派生值，不由配置文件提供。

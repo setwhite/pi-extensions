@@ -4,13 +4,13 @@
 
 ## 不变量
 
-- 所有结果都经 `finalizeContent`（宿主截断 + `spillToFile`）。错误一律 `throw`，不在 `content` 里伪装成功（[DEC-0008](../decisions/0008-throw-errors-english-prompts.md)）。
+- 所有结果都经 `finalizeContent`（宿主截断 + `spillToFile`）。错误一律 `throw`，不在 `content` 里伪装成功（[DEC-0008](../decisions/0008-throw-errors-english-prompts.md)）。例外是 spill 写盘失败：正文照常返回，用一行写清没写成（[DEC-0014](../decisions/0014-spill-in-agent-dir.md)）。
 - `raw` 分支在 handler 之前，不调用 `runPageHandlers`。`fetch.allowRaw` 为假时，即使绕过 schema 传 `raw: true` 也抛错。
 - handler 只改写 URL 时（reddit → redlib），改写后的 URL 必须重跑 `assertPublicUrl` 才能进链。
 - `details` 只给 TUI 与测试，不进模型上下文。
 
 ## 指针
 
-- 截断、spill 的文件名与提示格式：`src/tools/result.ts`、`test/tools/result.test.ts`。
+- 截断、spill 的落点、文件名、保留期与提示格式：`src/tools/result.ts`、`test/tools/result.test.ts`。
 - 结果行与失败回退：`src/tools/render.ts`、`test/tools/render.test.ts`。
 - 两个工具的 schema、`raw` 开关与文案：`src/tools/search.ts`、`src/tools/fetch.ts`、`test/tools/{search,fetch}.test.ts`。

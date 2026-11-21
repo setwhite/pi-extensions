@@ -17,3 +17,4 @@
 - [0011](0011-contracts-in-code.md) 契约以代码与测试为准，模块文档只写取舍与坑
 - [0012](0012-e2e-manual-only.md) e2e 只在发版前手动跑，不进 CI
 - [0013](0013-proxy-fallback-direct.md) 代理失败改直连一次，连续 3 次失败进 60 秒冷却
+- [0014](0014-spill-in-agent-dir.md) spill 落到 agent 目录，按会话分层，保留 7 天

@@ -47,6 +47,7 @@ import {
 	type RedditHandlerSettings,
 	type ResolvedConfig,
 	type SearchSettings,
+	spillRootOf,
 	TOOL_IDS,
 	TOOL_NAME_PATTERN,
 	type ToolId,
@@ -107,6 +108,7 @@ export function buildConfig(raw: Raw, env: NodeJS.ProcessEnv, errors: Errors): R
 		search: readSearch(raw.search, errors),
 		fetch: readFetch(raw.fetch, errors),
 		handlers: readHandlers(raw.handlers, errors),
+		spillRoot: spillRootOf(env),
 	};
 }
 

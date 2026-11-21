@@ -4,6 +4,8 @@
  */
 
 import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 
 export const PROVIDER_IDS = [
 	"tavily",
@@ -39,6 +41,7 @@ export const VERSION: string = readPackageVersion();
 export const ENV_AGENT_DIR = "PI_CODING_AGENT_DIR";
 export const CONFIG_SUBPATH = "pi-web-search-lite";
 export const CONFIG_FILE_NAME = "config.json";
+export const SPILL_SUBPATH = "spill";
 
 /**
  * 需要 API key 的 id：搜索源与 jina 提取器（jina 可无 key，配了就用）。
@@ -148,6 +151,16 @@ export type Raw = Record<string, unknown>;
 /** 校验错误文本列表，格式 `<field path>: <reason>`。 */
 export type Errors = string[];
 
+/** 扩展的数据根：`PI_CODING_AGENT_DIR` > `~/.pi/agent`。 */
+export function agentDirOf(env: NodeJS.ProcessEnv): string {
+	return env[ENV_AGENT_DIR] || join(homedir(), ".pi", "agent");
+}
+
+/** spill 落点：agent 目录下本扩展自己的子目录，配置文件也在这里。 */
+export function spillRootOf(env: NodeJS.ProcessEnv): string {
+	return join(agentDirOf(env), CONFIG_SUBPATH, SPILL_SUBPATH);
+}
+
 /** 已完成校验、clamp 与 env key 合并的最终配置。 */
 export interface ResolvedConfig {
 	provider: ProviderId;
@@ -162,6 +175,8 @@ export interface ResolvedConfig {
 	search: SearchSettings;
 	fetch: FetchSettings;
 	handlers: { github: GitHubHandlerSettings; reddit: RedditHandlerSettings };
+	/** 派生值，不由配置文件提供：spill 文件的根目录。 */
+	spillRoot: string;
 }
 
 function readPackageVersion(): string {

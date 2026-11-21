@@ -7,6 +7,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { loadConfig } from "./config/index.ts";
 import { createFetchTool } from "./tools/fetch.ts";
+import { pruneSpillRoot } from "./tools/result.ts";
 import { createSearchTool } from "./tools/search.ts";
 
 /** 宿主的按需发现入口；deferred 模式下必须处于激活集。 */
@@ -15,6 +16,14 @@ const LOADER_TOOL = "tool_search";
 export default function piWebSearchLite(pi: ExtensionAPI): void {
 	const config = loadConfig();
 	const deferred = config.activation === "deferred";
+
+	// 本会话之外的旧 spill 目录到 7 天就删；清理失败不阻塞启动
+	if (config.context.spillToFile) {
+		void pruneSpillRoot(config.spillRoot).catch((error: unknown) => {
+			const message = error instanceof Error ? error.message : String(error);
+			console.warn(`[pi-web-search-lite] spill cleanup failed: ${message}`);
+		});
+	}
 	const exposure = deferred ? "deferred" : "direct";
 
 	const toolNames: string[] = [];
