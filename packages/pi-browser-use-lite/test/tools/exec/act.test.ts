@@ -74,7 +74,7 @@ it("AC9: 动作顺带开的新标签在变更行之后报出来", async () => {
 	expect(textOf(result).split("\n")).toStrictEqual([
 		"ok: click ref=e9",
 		"changed: +0 -0 ~0",
-		"opened: +1 8 * 黑猫道 https://s?q=x",
+		"opened: +1 8 * 黑猫道 https://s?q=x (next: tab=8)",
 	]);
 	expect(result.details?.opened).toStrictEqual([
 		{ id: 8, active: true, title: "黑猫道", url: "https://s?q=x" },

@@ -89,7 +89,7 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 
 | 工具 | `content` | `details` |
 |---|---|---|
-| `chrome_act` 的交互类 | 判定行（`ok: click ref=e12`）、变更行（`changed: +1 -0 ~2`）、新标签行（`opened: +1 8 * 标题 url`，只在开了新页时出现）、可选快照 | `{ ok, action, changed: { added, removed, updated }, opened?, snapshot?, ref? }` |
+| `chrome_act` 的交互类 | 判定行（`ok: click ref=e12`）、变更行（`changed: +1 -0 ~2`）、新标签行（`opened: +1 8 * 标题 url (next: tab=8)`，只在开了新页时出现）、可选快照 | `{ ok, action, changed: { added, removed, updated }, opened?, snapshot?, ref? }` |
 | `chrome_act` 的 `eval`、`wait` | 判定行，接返回值（`eval` 给 JSON 或文本，超 `output.evalChars` 时截断并说明丢了多少，`wait` 给耗时） | `{ ok, action, value?, truncated? }` |
 | `chrome_see` | 该 `mode` 的正文 | `{ mode, url, title, elements?, text?, changes?, truncated }` |
 | `chrome_see` 的 `logs` | 每条记录一行 JSON；抓取关闭或存储写不进时把说明前置一行 | `{ logs, count? }` |
@@ -102,7 +102,7 @@ pi-chrome 有 23 个工具，实测占 19,151 字符（[RESEARCH-0001](../resear
 
 `navigate` 与 `hover` 不给变更行：前者换了文档，后者不改 DOM。导航后要变更量就传 `see`。
 
-点、输入、填、按键这四个动作会顺带开出新标签（`target=_blank`）。此时目标标签的 URL 不变，所以扩展在动作前后各查一次目标窗口的标签 id，把新增的连同 `{ id, active, title, url }` 一起回给宿主。`opened` 只在真的多出标签时才有。
+点、输入、填、按键这四个动作会顺带开出新标签（`target=_blank`）。此时目标标签的 URL 不变，所以扩展在动作前后各查一次目标窗口的标签 id，把新增的连同 `{ id, active, title, url }` 一起回给宿主。`opened` 只在真的多出标签时才有。行尾带 `(next: tab=8)`：id 就在这一行里，模型不必再调一次 `chrome_tab list` 才拿到它。
 
 ### 错误
 

@@ -40,11 +40,19 @@ export function changedLine(changed: Changed): string {
 export function openedLine(opened: readonly TabInfo[]): string {
 	const [first] = opened;
 	if (opened.length === 1 && first !== undefined)
-		return `opened: +1 ${tabLine(first)}`;
+		return `opened: +1 ${tabLine(first)} ${nextTabHint(String(first.id))}`;
 	return [
-		`opened: +${opened.length}`,
+		`opened: +${opened.length} ${nextTabHint("<id>")}`,
 		...opened.map((tab) => `  ${tabLine(tab)}`),
 	].join("\n");
+}
+
+/**
+ * 新标签的 id 已经在这一行里，提醒下一轮直接拿它当 `tab`：
+ * 否则模型会为了拿 id 再调一次 `chrome_tab list`，多一轮往返。
+ */
+function nextTabHint(id: string): string {
+	return `(next: tab=${id})`;
 }
 
 /**

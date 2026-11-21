@@ -30,16 +30,17 @@ it("变更量是三元组的计数", () => {
 	);
 });
 
-it("AC9: 新开的标签单独一行；只有一个时并进首行", () => {
+it("AC9: 新开的标签单独一行，并给出下一轮的 tab id", () => {
+	// 不带 id 时模型会为了拿 id 再调一次 chrome_tab list。
 	expect(
 		openedLine([{ id: 8, active: true, title: "黑猫道", url: "https://s" }]),
-	).toBe("opened: +1 8 * 黑猫道 https://s");
+	).toBe("opened: +1 8 * 黑猫道 https://s (next: tab=8)");
 	expect(
 		openedLine([
 			{ id: 8, title: "A", url: "https://a" },
 			{ id: 9, title: "B", url: "https://b" },
 		]),
-	).toBe("opened: +2\n  8 A https://a\n  9 B https://b");
+	).toBe("opened: +2 (next: tab=<id>)\n  8 A https://a\n  9 B https://b");
 });
 
 it("evalText 超限时截断并报出丢弃的字数", () => {

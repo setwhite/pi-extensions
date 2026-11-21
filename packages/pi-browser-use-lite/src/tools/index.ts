@@ -232,7 +232,7 @@ export const TOOL_SPECS = {
 		}),
 		promptGuidelines: [
 			"do not switch or close tabs the user did not name.",
-			"list first, then act on an id from the list.",
+			"take the id from a list or an opened line; do not list again just to get one.",
 		],
 	},
 	chrome_vision: {
