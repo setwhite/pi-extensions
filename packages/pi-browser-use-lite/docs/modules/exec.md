@@ -41,11 +41,11 @@
 | `tab.new` | `url` | `{ id }` |
 | `tab.activate` | `tabId` | `{}` |
 | `tab.close` | `tabId` | `{}` |
-| `cdp.call` | `method`、`params` | `{ result }` |
+| `cdp.call` | `method`、`params` | `{ result, truncated? }` |
 | `automation.cleanup` | `closeOwnTabs` | `{ closed }` |
 
 `changed` 与 `page.snapshot` 的 `changes` 同形：`{ added, removed, updated, lines? }`。
 
 `logs` 为空时宿主回一行 `no <kind> records captured for this tab`：空正文会让模型把「没有记录」读成「工具没输出」。抓取关闭或存储写不进时，`note` 放在记录之前。
 
-`opened` 只在动作顺带开出新标签时出现，元素是 `{ id, active, title, url }`。宿主把它打成一行 `opened: +1 <id> [*] <标题> <url> (next: tab=<id>)` 交给模型：目标标签的 URL 不会因为新标签而变，没有这一行时「回车无效」和「回车开了新页」在结果里长得一样。行尾直接给下一轮该用的 `tab`：`chrome_tab` 的规则让模型「先列表再动手」，只给 id 不给这句，模型会为了确认 id 多调一次 `chrome_tab list`。
+`opened` 只在动作顺带开出新标签时出现，元素是 `{ id, active, title, url }`。宿主把它打成一行 `opened: +1 <id> [*] <标题> <url> (next: tab=<id>)` 交给模型：目标标签的 URL 不会因为新标签而变，没有这一行时「回车无效」和「回车开了新页」在结果里长得一样。行尾直接给下一轮该用的 `tab`：`chrome_tab` 的规则允许从清单或 `opened` 行取 id，但只报「开了几个」不给 `(next: tab=8)`，模型还得回头再列一次才敢动手。
