@@ -44,7 +44,7 @@ it("keeps an error verdict when the error has no message", () => {
 it("classifies a truncated answer as error", () => {
   const verdict = classifyTurn({ stopReason: "length", pendingToolCall: false, aborted: false });
   expect(verdict.outcome).toBe("error");
-  expect(verdict.errorMessage).toContain("截断");
+  expect(verdict.errorMessage).toContain("truncated");
 });
 
 it("classifies an aborted turn as aborted", () => {
