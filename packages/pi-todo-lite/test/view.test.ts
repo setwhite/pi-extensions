@@ -112,6 +112,16 @@ describe("renderWidget", () => {
 		expect(hasLoneSurrogate(line)).toBe(false);
 	});
 
+	it("注入的 truncate 覆盖内置 code point 口径", () => {
+		const lines = renderWidget(
+			[{ content: "x".repeat(60), status: "pending" }],
+			{ ...CFG, truncate: (text, width) => `${width}:${text.length}` },
+			40,
+		);
+
+		expect(lines?.[1]).toBe("40:64");
+	});
+
 	it("表头也按宽度截断", () => {
 		expect(renderWidget([{ content: "a", status: "pending" }], CFG, 5)).toEqual(
 			["Todo…", "[ ] a"],

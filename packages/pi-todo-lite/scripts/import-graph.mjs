@@ -15,10 +15,12 @@ export const edges = {
 
 export const singleImport = [
 	{
-		specifier: /^@earendil-works\//,
+		specifier: /^@earendil-works\/pi-coding-agent$/,
 		only: ["src/index.ts"],
 		typeOnlyIn: ["src/index.ts"],
 	},
+	// 本包只从 pi-tui 取纯函数（显示宽度），取值 import 也只在入口。
+	{ specifier: /^@earendil-works\/pi-tui$/, only: ["src/index.ts"] },
 	{ specifier: /^typebox$/, only: ["src/index.ts"] },
 	{ specifier: /^node:/, only: ["src/config.ts", "src/index.ts"] },
 	// 引用 plan.ts 的方向由 edges 判，这里只钉 `view.ts` 拿的是类型不是实现。

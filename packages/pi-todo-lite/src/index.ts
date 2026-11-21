@@ -10,11 +10,13 @@ import type {
 	ExtensionAPI,
 	ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
-import type {
-	AutocompleteItem,
-	Component,
-	KeyId,
-	TUI,
+import {
+	type AutocompleteItem,
+	type Component,
+	type KeyId,
+	stripTerminalSequences,
+	type TUI,
+	truncateToWidth,
 } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import { type Config, loadConfig } from "./config.ts";
@@ -26,6 +28,7 @@ import {
 	validateTasks,
 } from "./plan.ts";
 import {
+	ELLIPSIS,
 	exportFileName,
 	parseChecklist,
 	renderList,
@@ -109,6 +112,10 @@ const TOOL_NAME_PLACEHOLDER = "tool-name";
 
 const CLEAR_HINT_MARK = "`tasks: []`";
 
+/** 宿主按 grapheme 算显示宽度；它给结果加 ANSI reset，截断后要去掉才好在外面套样式。 */
+const truncateForDisplay = (text: string, width: number): string =>
+	stripTerminalSequences(truncateToWidth(text, width, ELLIPSIS));
+
 export default function piTodo(pi: ExtensionAPI): void {
 	const config = loadConfig();
 	const toolName = config.tools.todo.name;
@@ -118,6 +125,7 @@ export default function piTodo(pi: ExtensionAPI): void {
 		glyphs: config.ui.widget.glyphs,
 		showCompleted: config.ui.widget.showCompleted,
 		placement: config.ui.widget.placement,
+		truncate: truncateForDisplay,
 	};
 	/** 只经 commit / restore 改变；widget 每次 render 读它。 */
 	let tasks: Task[] = [];

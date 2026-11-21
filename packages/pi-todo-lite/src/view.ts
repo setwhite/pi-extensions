@@ -8,14 +8,16 @@ export type WidgetConfig = {
 	placement: "aboveEditor" | "belowEditor";
 	/** 拿到的是截断后的一行，所以样式序列不计进宽度。 */
 	styleCompleted?: (text: string) => string;
+	/** 按显示宽度截断；index.ts 注入宿主的 truncateToWidth。缺省按 code point 截断。 */
+	truncate?: (text: string, width: number) => string;
 };
 
-const ELLIPSIS = "…";
+export const ELLIPSIS = "…";
 
 const DOING = "{doing}";
 
-/** 与 plan.ts 同一套 code point 口径，不做 East Asian width。 */
-function truncate(line: string, width: number): string {
+/** 缺省口径：与 plan.ts 同一套 code point，不做 East Asian width。 */
+function truncateByCodePoint(line: string, width: number): string {
 	const chars = Array.from(line);
 	if (chars.length <= width) return line;
 	if (width <= 0) return "";
@@ -104,6 +106,7 @@ export function renderWidget(
 	if (tasks.length === 0) return undefined;
 
 	const counts = countTasks(tasks);
+	const cut = cfg.truncate ?? truncateByCodePoint;
 
 	const visible = cfg.showCompleted
 		? tasks
@@ -118,7 +121,7 @@ export function renderWidget(
 	if (hidden > 0 && budget > 0) lines.push(`+${hidden} more`);
 
 	return lines.map((line, index) => {
-		const text = truncate(line, width);
+		const text = cut(line, width);
 		return shown[index - 1]?.status === "completed" &&
 			cfg.styleCompleted !== undefined
 			? cfg.styleCompleted(text)

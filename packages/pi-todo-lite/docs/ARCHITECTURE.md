@@ -6,7 +6,7 @@
 
 | 文件 | 职责 |
 |---|---|
-| `src/index.ts` | 入口（`package.json` 的 `pi.extensions`）与接线：读配置 → 注册工具、命令、事件、快捷键 → 调 `setWidget` / `appendEntry`。`/todos import` 与 `/todos export` 的文件 IO 只在这里 |
+| `src/index.ts` | 入口（`package.json` 的 `pi.extensions`）与接线：读配置 → 注册工具、命令、事件、快捷键 → 调 `setWidget` / `appendEntry`。`/todos import` 与 `/todos export` 的文件 IO 与宿主显示宽度只在这里 |
 | `src/plan.ts` | 计划语义：类型、校验、回放、给模型的文本。不 import 任何东西 |
 | `src/view.ts` | 显示与文本：widget 行、`/todos` 文本、markdown 导出与解析。只从 `plan.ts` 取类型 |
 | `src/config.ts` | 读 `config.json`、默认值、校验、clamp。只碰 `node:fs` / `node:path` / `node:os` |
@@ -24,14 +24,14 @@
 
 单一出口不在这里复述：宿主包、`typebox`、`node:` 各允许出现在哪个文件，见本包 `scripts/import-graph.mjs` 的 `singleImport`。`edges` 与上表由仓库根 `scripts/check-imports.mjs` 校验（`pnpm check:imports`），改图时两边一起改。
 
-为什么这么切：这三个文件不 import 宿主包。入参出参都是普通值。所以测试不用 mock 宿主。
+为什么这么切：只有入口 import 宿主包，且只取纯函数（`truncateToWidth` / `stripTerminalSequences`）。其余三个文件不 import 宿主包，入参出参都是普通值，所以测试不用 mock 宿主。
 
 ## 放置规则
 
 - 语义与校验 → `plan.ts`。
 - 显示与文本 → `view.ts`。
 - 配置键 → `config.ts`（四处同改，见 [`0004`](decisions/0004-config-read-only.md)）。
-- 只有注册、调宿主与 `/todos import` / `export` 的文件 IO 才碰 `index.ts`。
+- 只有注册、调宿主（含显示宽度）与 `/todos import` / `export` 的文件 IO 才碰 `index.ts`。
 
 `src/` 下不建 `utils.ts` / `types.ts` / `constants.ts`。类型跟着用它的模块走。
 

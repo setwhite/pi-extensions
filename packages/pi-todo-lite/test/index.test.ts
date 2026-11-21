@@ -502,6 +502,26 @@ describe("index：会话事件与 widget（AC3）", () => {
 		});
 	});
 
+	it("widget 按终端列宽截断，注入的是宿主的 truncateToWidth", async () => {
+		useConfig();
+		const harnessed = harness();
+		piTodo(harnessed.api);
+		emit(harnessed, "session_start");
+		await callTool(harnessed, {
+			tasks: [{ content: "这是一个很长的中文任务名称", status: "pending" }],
+		});
+
+		// "[ ] " 4 列 + 5 个汉字 10 列 + "…" 1 列 = 15 列
+		expect(harnessed.lines(15)).toEqual(["Todo 0/1", "[ ] 这是一个很…"]);
+
+		await callTool(harnessed, {
+			tasks: [{ content: "😀".repeat(20), status: "pending" }],
+		});
+
+		// emoji 占 2 列：4 + 2×2 + "…" = 9 列，不超 10
+		expect(harnessed.lines(10)).toEqual(["Todo 0/1", "[ ] 😀😀…"]);
+	});
+
 	it("widget.enabled 为 false 时不注册 widget，工具照常注册", () => {
 		useConfig({ ui: { widget: { enabled: false } } });
 		const harnessed = harness();
