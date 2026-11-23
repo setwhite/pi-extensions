@@ -2,6 +2,13 @@
 
 本文件记录已发布版本的用户可见变更。更细的过程见 git log。破坏性变更标 **BREAKING**。
 
+## 0.4.0 — 2026-11-24
+
+- **BREAKING**：任务表不再挂在输入框上下，不再占对话区行数。旧键 `ui.widget.placement` 删掉，配置里写了它直接报错，并指出新字段路径。
+- 新增 `ui.mode`：`overlay`（默认）把表放进角落浮窗，不抢键盘焦点、不影响 `PageUp`/`PageDown`；`status` 只在底栏写一行，按 `alt+t` 才弹出整张表。
+- 新增 `ui.overlay`：`anchor`（九宫格，默认 `top-right`）、`width`（列数或百分比，默认 36）、`minTerminalWidth`（默认 100）、`margin`。终端窄于 `minTerminalWidth` 时浮窗不显示，底栏留一行进度；宽回来或清空任务时撤掉。
+- `alt+t` 语义分档：`overlay` 档把浮窗压成一行（表头加第一条进行中），不撤窗；`status` 档开关整张表。任务表都不动。
+
 ## 0.3.1 — 2026-11-21
 
 - 表格按终端显示宽度截断：中文、emoji 这类双宽字符按 2 列算，窄终端下不再换行把行预算撑破。宽度交给宿主的 `truncateToWidth`，此前只按 code point 截断。终端的 ANSI 与宽字符规则跟 pi 其余界面保持一致。
