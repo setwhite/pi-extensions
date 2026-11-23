@@ -1,6 +1,6 @@
 # 决策
 
-当前设计：一个工具 `todo(tasks)`，整表替换。状态三态 `pending` / `in_progress` / `completed`。表显示在输入框上方。代码见 [ARCHITECTURE](../ARCHITECTURE.md)。
+当前设计：一个工具 `todo(tasks)`，整表替换。状态三态 `pending` / `in_progress` / `completed`。表显示在角落浮窗里，不占对话行数。代码见 [ARCHITECTURE](../ARCHITECTURE.md)。
 
 每条说清三件事：定成什么、为什么、代价。要推翻哪条，先看这里的理由。推翻要连带改 [SPEC-0001](../specs/0001-pi-todo-lite.md)。
 
@@ -12,3 +12,4 @@
 - [0004](0004-config-read-only.md) 配置：只读、坏配置抛错、越界 clamp
 - [0005](0005-auto-clear-clears-ledger.md) 自动清空：清显示要连账一起清
 - [0006](0006-clear-on-input.md) clear 在用户发下一条消息时触发，并成为默认档
+- [0007](0007-zero-height-ui.md) 零行高界面：角落浮窗 + 底栏一行

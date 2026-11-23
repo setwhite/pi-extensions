@@ -24,12 +24,20 @@ _别叫_: state, checkpoint, 存档
 由最新一条有效快照把表恢复出来。
 _别叫_: restore, load
 
+**浮窗（overlay）**:
+角落那块常驻任务表。不抢键盘焦点，不占对话行数。配置键 `ui.overlay` 指它的位置与尺寸。
+_别叫_: widget, panel, HUD
+
+**状态行（status）**:
+底栏那一行进度：表头加第一条进行中的任务。`ui.mode: "status"` 时的常驻形态，也是浮窗在窄屏下的降级形态。
+_别叫_: status line, footer
+
 **widget**:
-输入框上方那块表。别拿它指「表」或「清单」。
-_别叫_: overlay, panel, status line
+渲染配置块（`ui.widget`）：字形、表头、行预算、完成样式。它管表长什么样，不管挂在哪。
+_别叫_: overlay, panel
 
 **折叠（collapsed）**:
-收起 widget，再按一次键回来。任务表不动。
+收起浮窗的表体，只留表头加第一条进行中；再按一次键展开。浮窗本身不消失，任务表不动。
 _别叫_: hide, minimize
 
 **清空（clear）**:

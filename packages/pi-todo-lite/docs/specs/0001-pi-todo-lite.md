@@ -17,11 +17,11 @@
 
 ## 用户故事
 
-- 输入框上方常驻一块表。不翻 transcript 就知道做到第几步、还剩几件。
+- 角落浮窗里常驻一块表，不占对话行数。不翻 transcript 就知道做到第几步、还剩几件。窄屏时退成底栏一行。
 - 一次调用交完整张表，谁完成、谁开工一起说。不为两次改动付两次往返。
 - compaction、切分支、`--continue` 之后表还在。整表已完成且配了自动清空时除外。状态只写一条自己的账。回放只有一条读取路径。
 - 超长或带控制字符的任务整次退回。屏幕上不出现骗人的一行。
-- 表头与条目按终端宽度截断。预算先给未完成项，空位按表序补已完成。`alt+t` 能折叠它，任务表一寸不动。
+- 表头与条目按终端宽度截断。预算先给未完成项，空位按表序补已完成。`alt+t` 能把它压成一行，任务表一寸不动。
 - `/todos` 看全表、清空、导出 markdown、再从 markdown 读回。计划能跨工具搬运。
 - 配置写错时立刻看见带字段路径的报错。数值越界自动夹到区间。
 - 模型侧一整段不超过 120 tok。
@@ -45,9 +45,11 @@
 
 ## 界面
 
-表头、行预算、截断、折叠键在 `src/view.ts`。对应 `test/view.test.ts`。
+展示形态见 [`0002`](0002_zero_height_ui.md)：`overlay`（角落浮窗，默认）与 `status`（底栏一行），两档都不占对话区行数。表头、行预算、截断在 `src/view.ts`，折叠键在 `src/index.ts`。对应 `test/view.test.ts`。
 
-留在这的取舍：widget 与 `/todos` 的清单故意相反。widget 按宽度截断、按预算取舍。清单全列不截断。合并会把清单的用处弄丢。
+留在这的取舍：浮窗与 `/todos` 的清单故意相反。浮窗按宽度截断、按预算取舍。清单全列不截断。合并会把清单的用处弄丢。
+
+浮窗不抢键盘焦点，也不换页脚。窄屏降级只借底栏一行，不改宿主的 footer。
 
 行预算溢出时，未完成项先占行。剩下的行按表序补 completed。仍放不下才收成 `+N more`。一行只写汇总太贵。
 
@@ -69,7 +71,7 @@
 | AC1 | 校验用例：空 content、超长、超条数、非法 status、非数组，全部拒绝，且状态不变 |
 | AC2 | 回放用例：一串 entries（中间混入坏条目）取到最后一条有效快照。一条都没有时是空表 |
 | AC3 | 渲染用例：0 / 1 / 20 条 × 宽度 40 / 80 / 120。行数、`…` 截断、`+N more` 都符合预期 |
-| AC4 | 真机：起一个 ≥ 3 步的任务，表出现在输入框上方。`/todos` 打出清单。`tasks: []` 后 widget 消失 |
+| AC4 | 真机：起一个 ≥ 3 步的任务，表出现在配置的角落，输入框照常可打字。`/todos` 打出清单。`tasks: []` 后浮窗消失 |
 | AC5 | `/todos export` 吐出的 markdown 能被 `/todos import` 原样读回 |
 | AC6 | 模型侧开销 ≤ 120 tok：description + guidelines + 工具签名那一行 |
 | AC7 | 干净克隆上 `pnpm lint && pnpm typecheck && pnpm test` 通过。CI 三个矩阵格全绿 |
@@ -78,7 +80,7 @@
 ## 不做的
 
 - 项目级持久化（跨会话、跨 cwd 的存储）。
-- nudge 与 steer（理由见 [`0003`](../decisions/0003-no-nudge.md)）、status line。
+- nudge 与 steer（理由见 [`0003`](../decisions/0003-no-nudge.md)）。
 - 自定义 `renderCall` / `renderResult`、`prepareArguments` 容错层、日志与调试开关。
 - 子代理看板、`key` / `baseVersion`、i18n。
 - 压缩后忘表的兜底。表只活在模型上下文里。被 compaction 截掉后，模型不知道表内容，widget 却还在显示。先不做，等真观察到症状再议。
@@ -94,5 +96,5 @@
 - **已知偏差与口径**：
   - markdown 只有两态：`in_progress` 导出成 `- [ ]`，读回变 `pending`（`Todo 0/3 · 1 doing` → `Todo 0/3`）。
   - `/todos` 与别的扩展同名的命令撞名（例如 `@ssk_dev/rpiv-todo-lean`）。两个都装时先卸一个。改命令名要动 `src/index.ts` 与 README 的用法说明。
-  - headless（`-p`）下 `ctx.hasUI` 为 false。widget 只能真 TUI 验。winpty 退出码 58 是 `/exit` 之后 pi 的退出码，不是扩展报错。宿主另有 `MAX_WIDGET_LINES = 10`。
+  - headless（`-p`）下 `ctx.hasUI` 为 false。浮窗与底栏只能真 TUI 验。winpty 退出码 58 是 `/exit` 之后 pi 的退出码，不是扩展报错。
   - 真机 TUI 抓包里样式序列计数为 0。pi 的样式走 chalk，抓包时 stdout 是管道、chalk level 0。不是没生效。可见效果要在真人终端看。

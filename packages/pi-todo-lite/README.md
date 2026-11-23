@@ -2,15 +2,17 @@
 
 [简体中文](README.zh-CN.md) | **English**
 
-![pi-todo-lite: the Todo table above the editor, next to a running tool call](assets/cover.png)
+![pi-todo-lite: the Todo table in a corner overlay, next to a running tool call](assets/cover.png)
 
-The model keeps one ordered task table above the editor. The table replays after compaction, after a branch switch or after `--continue`. The package has no runtime dependencies.
+The model keeps one ordered task table in a corner overlay. The table takes no lines from the chat, and it replays after compaction, after a branch switch or after `--continue`. The package has no runtime dependencies.
 
 ## Features
 
 - The model side has one tool, `todo(tasks)`. The call submits the whole table and replaces the old table. `tasks: []` clears the table.
 - Pending tasks take lines first. If the table passes `ui.widget.maxLines` lines, the rest collapse into `+N more`.
-- `alt+t` collapses the table and keeps the data. `ui.*` moves the table and changes the glyphs, the header and the completed style.
+- `ui.mode` picks the display. `overlay` (default) puts the table in a corner overlay that never takes keyboard focus. `status` writes one line to the footer and shows the table only on `alt+t`.
+- The overlay hides on narrow terminals and leaves one footer line instead. `ui.overlay` sets the anchor, the width, the margins and the width cutoff.
+- `alt+t` folds the overlay down to one line (header plus the first in-progress task) and keeps the data. In `status` mode it opens and closes the table. `ui.widget` changes the glyphs, the header and the completed style.
 - The extension adds four commands: `/todos`, `/todos clear`, `/todos export`, `/todos import <file>`.
 
 ## Install
@@ -48,16 +50,22 @@ An error names the absolute path and one `path: reason` line per fault. These ca
     "requireSingleInProgress": false                 // true = only one in_progress task
   },
   "ui": {
+    "mode": "overlay",                               // overlay (corner table) / status (one footer line)
     "widget": {
-      "enabled": true,                               // show the widget
+      "enabled": true,                               // draw the table at all
       "maxLines": 9,                                 // max lines (3–10)
-      "placement": "aboveEditor",                    // aboveEditor / belowEditor
       "showCompleted": true,                         // list completed tasks individually
       "header": "Todo {done}/{total} · {doing} doing", // header template: {done} {total} {doing}
       "glyphs": { "pending": "[ ]", "inProgress": "[-]", "completed": "[x]" }, // per-status glyphs
       "completedStyle": "strikethrough"              // strikethrough / dim / plain
     },
-    "shortcut": { "toggle": "alt+t" }                // collapse key. off = don't register
+    "overlay": {
+      "anchor": "top-right",                         // top-left … bottom-right (nine anchors)
+      "width": 36,                                   // columns, or a percentage like "40%"
+      "minTerminalWidth": 100,                       // narrower than this: hide, keep one footer line
+      "margin": { "top": 1, "right": 2, "bottom": 3, "left": 1 } // insets from the terminal edge
+    },
+    "shortcut": { "toggle": "alt+t" }                // fold key. off = don't register
   },
   "lifecycle": { "onFinish": "clear" },              // model / keep / clear
   "commands": {
