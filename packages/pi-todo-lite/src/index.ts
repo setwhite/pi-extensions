@@ -14,6 +14,7 @@ import {
 	type AutocompleteItem,
 	type Component,
 	type KeyId,
+	matchesKey,
 	stripTerminalSequences,
 	type TUI,
 	truncateToWidth,
@@ -32,12 +33,13 @@ import {
 	exportFileName,
 	parseChecklist,
 	renderList,
+	renderStatus,
 	renderWidget,
 	toMarkdown,
 	type WidgetConfig,
 } from "./view.ts";
 
-const WIDGET_KEY = "todo";
+const STATUS_KEY = "todo";
 
 const COMMAND_NAME = "todos";
 
@@ -124,18 +126,27 @@ export default function piTodo(pi: ExtensionAPI): void {
 		header: config.ui.widget.header,
 		glyphs: config.ui.widget.glyphs,
 		showCompleted: config.ui.widget.showCompleted,
-		placement: config.ui.widget.placement,
 		truncate: truncateForDisplay,
 	};
-	/** 只经 commit / restore 改变；widget 每次 render 读它。 */
+	/** 只经 commit / restore 改变；浮窗与底栏每次渲染读它。 */
 	let tasks: Task[] = [];
 	let tui: TUI | undefined;
 
-	/** 只切视图，不碰账。 */
+	/** 折叠只收起表体，浮窗留一行。只切视图，不碰账。 */
 	let collapsed = false;
 
 	/** handler 按 ctx.cwd 解析 import 路径；补全拿不到 ctx，只能记最近一次会话的目录。 */
 	let sessionCwd = process.cwd();
+
+	/** 挂载是异步的：释放时换一代，晚到的旧工厂自己退场，浮窗不会叠。 */
+	type Mounted = { done: () => void };
+	let mounted: Mounted | undefined;
+	let popup: Mounted | undefined;
+	let generation = 0;
+	/** 最近一次写到底栏的文本。宿主每帧都会问 visible()，靠它去重。 */
+	let lastStatus: string | undefined;
+	/** 自动清空这类路径拿不到 ctx，留一份最近会话的。 */
+	let activeCtx: ExtensionContext | undefined;
 
 	/** 结构化类型，省得 import pi 内部的 Theme。 */
 	type StyleTheme = {
@@ -166,31 +177,19 @@ export default function piTodo(pi: ExtensionAPI): void {
 		};
 	};
 
-	const draw = (ctx: ExtensionContext): void => {
-		if (
-			!config.ui.widget.enabled ||
-			!ctx.hasUI ||
-			typeof ctx.ui?.setWidget !== "function"
-		)
-			return;
-		if (collapsed) {
-			ctx.ui.setWidget(WIDGET_KEY, undefined);
-			return;
-		}
-		ctx.ui.setWidget(
-			WIDGET_KEY,
-			(handle, theme) => {
-				tui = handle;
-				return widget(theme);
+	/** 折叠后不撤浮窗，只把表压成一行，跟底栏那一行同一个口径。 */
+	const foldedWidget = (
+		theme: StyleTheme,
+	): Component & { dispose?(): void } => {
+		const table = widget(theme);
+		return {
+			render: (width: number) => {
+				if (!collapsed) return table.render(width);
+				const line = renderStatus(tasks, widgetConfig, width);
+				return line === undefined ? [] : [line];
 			},
-			{ placement: widgetConfig.placement },
-		);
-	};
-
-	const commit = (next: Task[]): void => {
-		pi.appendEntry(STATE_CUSTOM_TYPE, { tasks: next });
-		tasks = next;
-		tui?.requestRender();
+			invalidate: () => table.invalidate(),
+		};
 	};
 
 	const notify = (
@@ -202,9 +201,165 @@ export default function piTodo(pi: ExtensionAPI): void {
 		ctx.ui.notify(message, type);
 	};
 
+	const canDraw = (
+		ctx: ExtensionContext | undefined,
+	): ctx is ExtensionContext =>
+		config.ui.widget.enabled &&
+		ctx?.hasUI === true &&
+		typeof ctx.ui?.custom === "function";
+
+	const canWriteStatus = (
+		ctx: ExtensionContext | undefined,
+	): ctx is ExtensionContext =>
+		config.ui.widget.enabled &&
+		ctx?.hasUI === true &&
+		typeof ctx.ui?.setStatus === "function";
+
+	const writeStatus = (
+		ctx: ExtensionContext | undefined,
+		text: string | undefined,
+	): void => {
+		if (!canWriteStatus(ctx) || text === lastStatus) return;
+		lastStatus = text;
+		ctx.ui.setStatus(STATUS_KEY, text);
+	};
+
+	const overlayError = (error: unknown): string =>
+		`pi-todo: cannot show the overlay: ${error instanceof Error ? error.message : String(error)}`;
+
+	/** 窄屏时浮窗让位，底栏留一行，口径同折叠后的那一行。 */
+	const syncNarrowStatus = (ctx: ExtensionContext, termWidth: number): void => {
+		const narrow =
+			tasks.length > 0 && termWidth < config.ui.overlay.minTerminalWidth;
+		writeStatus(
+			ctx,
+			narrow ? renderStatus(tasks, widgetConfig, termWidth) : undefined,
+		);
+	};
+
+	const refreshOverlay = (ctx: ExtensionContext | undefined): void => {
+		const width = tui?.terminal.columns;
+		if (ctx !== undefined && width !== undefined) syncNarrowStatus(ctx, width);
+		tui?.requestRender();
+	};
+
+	const releaseOverlay = (): void => {
+		generation += 1;
+		const previous = mounted;
+		mounted = undefined;
+		tui = undefined;
+		previous?.done();
+	};
+
+	const mountOverlay = (ctx: ExtensionContext): void => {
+		releaseOverlay();
+		if (!canDraw(ctx)) return;
+
+		const mine = generation;
+		const entry: Mounted = { done: () => {} };
+		mounted = entry;
+		void ctx.ui
+			.custom(
+				(handle, theme, _keybindings, done) => {
+					entry.done = () => done(undefined);
+					// 晚到的旧工厂：不挂，立刻退场（宿主看到 closed 就不会 showOverlay）
+					if (mine !== generation) {
+						entry.done();
+						return { render: () => [], invalidate: () => {} };
+					}
+					tui = handle;
+					return foldedWidget(theme);
+				},
+				{
+					overlay: true,
+					overlayOptions: {
+						anchor: config.ui.overlay.anchor,
+						width: config.ui.overlay.width,
+						margin: config.ui.overlay.margin,
+						nonCapturing: true,
+						visible: (termWidth) => {
+							if (mine !== generation) return false;
+							syncNarrowStatus(ctx, termWidth);
+							return (
+								tasks.length > 0 &&
+								termWidth >= config.ui.overlay.minTerminalWidth
+							);
+						},
+					},
+				},
+			)
+			.catch((error: unknown) => notify(ctx, overlayError(error), "error"));
+	};
+
+	const refreshStatus = (ctx: ExtensionContext | undefined): void => {
+		writeStatus(ctx, renderStatus(tasks, widgetConfig));
+	};
+
+	const closePopup = (): void => {
+		const previous = popup;
+		popup = undefined;
+		previous?.done();
+	};
+
+	/** Esc、q，或再按一次折叠键。浮层抢焦点时宿主的快捷键到不了编辑器，只能在这儿认。 */
+	const closeKey = (data: string): boolean =>
+		data === "q" ||
+		matchesKey(data, "escape") ||
+		(config.ui.shortcut.toggle !== "off" &&
+			matchesKey(data, config.ui.shortcut.toggle as KeyId));
+
+	const openPopup = (ctx: ExtensionContext): void => {
+		if (popup !== undefined || !canDraw(ctx) || tasks.length === 0) return;
+
+		const entry: Mounted = { done: () => {} };
+		popup = entry;
+		void ctx.ui
+			.custom(
+				(_handle, theme, _keybindings, done) => {
+					entry.done = () => {
+						if (popup === entry) popup = undefined;
+						done(undefined);
+					};
+					const table = widget(theme);
+					return {
+						render: (width: number) => table.render(width),
+						invalidate: () => table.invalidate(),
+						handleInput: (data: string) => {
+							if (closeKey(data)) entry.done();
+						},
+					};
+				},
+				{
+					overlay: true,
+					overlayOptions: {
+						anchor: config.ui.overlay.anchor,
+						width: config.ui.overlay.width,
+						margin: config.ui.overlay.margin,
+					},
+				},
+			)
+			.catch((error: unknown) => {
+				popup = undefined;
+				notify(ctx, overlayError(error), "error");
+			});
+	};
+
+	const commit = (next: Task[], ctx?: ExtensionContext): void => {
+		pi.appendEntry(STATE_CUSTOM_TYPE, { tasks: next });
+		tasks = next;
+		// 表空了就别留个空框
+		if (next.length === 0) closePopup();
+		const target = ctx ?? activeCtx;
+		if (config.ui.mode === "status") refreshStatus(target);
+		else refreshOverlay(target);
+	};
+
 	const restore = (ctx: ExtensionContext): void => {
+		activeCtx = ctx;
 		tasks = replayTasks(ctx.sessionManager.getBranch());
-		draw(ctx);
+		closePopup();
+		if (config.ui.mode === "status") refreshStatus(ctx);
+		else mountOverlay(ctx);
 	};
 
 	pi.registerTool({
@@ -241,7 +396,7 @@ export default function piTodo(pi: ExtensionAPI): void {
 			{ additionalProperties: false },
 		),
 		executionMode: "sequential",
-		execute: async (_toolCallId, params) => {
+		execute: async (_toolCallId, params, _signal, _onUpdate, ctx) => {
 			// 校验失败照原样抛给 pi，不动任何状态
 			const next = validateTasks(params, {
 				toolName,
@@ -249,7 +404,7 @@ export default function piTodo(pi: ExtensionAPI): void {
 				maxContentChars: config.plan.maxSubjectChars,
 				requireSingleInProgress: config.plan.requireSingleInProgress,
 			});
-			commit(next);
+			commit(next, ctx);
 			return {
 				content: [{ type: "text", text: formatTasks(tasks) }],
 				details: undefined,
@@ -337,7 +492,7 @@ export default function piTodo(pi: ExtensionAPI): void {
 						notify(ctx, USAGE, "warning");
 						return;
 					}
-					commit([]);
+					commit([], ctx);
 					notify(ctx, "Cleared", "info");
 					return;
 				}
@@ -415,7 +570,7 @@ export default function piTodo(pi: ExtensionAPI): void {
 								maxContentChars: config.plan.maxSubjectChars,
 							},
 						);
-						commit(next);
+						commit(next, ctx);
 						notify(
 							ctx,
 							`Imported ${next.length} ${next.length === 1 ? "task" : "tasks"} from ${path}`,
@@ -436,27 +591,42 @@ export default function piTodo(pi: ExtensionAPI): void {
 		pi.registerShortcut(config.ui.shortcut.toggle as KeyId, {
 			description: "Toggle the todo widget",
 			handler: (ctx) => {
+				activeCtx = ctx;
+				if (config.ui.mode === "status") {
+					if (popup === undefined) openPopup(ctx);
+					else closePopup();
+					return;
+				}
 				collapsed = !collapsed;
-				draw(ctx);
+				refreshOverlay(ctx);
 			},
 		});
 	}
 
 	if (config.lifecycle.onFinish === "clear") {
-		pi.on("input", () => {
+		pi.on("input", (_event, ctx) => {
 			if (
 				tasks.length === 0 ||
 				tasks.some((task) => task.status !== "completed")
 			)
 				return;
-			commit([]);
+			commit([], ctx);
 		});
 	}
 
 	pi.on("session_start", (_event, ctx) => {
 		sessionCwd = ctx.cwd;
+		// 折叠是会话内的视图状态，新会话从展开开始
+		collapsed = false;
 		restore(ctx);
 	});
 	pi.on("session_compact", (_event, ctx) => restore(ctx));
 	pi.on("session_tree", (_event, ctx) => restore(ctx));
+	pi.on("session_shutdown", (_event, ctx) => {
+		releaseOverlay();
+		closePopup();
+		collapsed = false;
+		writeStatus(ctx, undefined);
+		activeCtx = undefined;
+	});
 }

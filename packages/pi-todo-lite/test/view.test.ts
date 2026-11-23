@@ -4,6 +4,7 @@ import {
 	exportFileName,
 	parseChecklist,
 	renderList,
+	renderStatus,
 	renderWidget,
 	toMarkdown,
 	type WidgetConfig,
@@ -14,7 +15,6 @@ const CFG: WidgetConfig = {
 	header: "Todo {done}/{total} · {doing} doing",
 	glyphs: { pending: "[ ]", inProgress: "[-]", completed: "[x]" },
 	showCompleted: true,
-	placement: "aboveEditor",
 };
 
 function makeTasks(count: number, status: Status): Task[] {
@@ -350,6 +350,47 @@ describe("renderWidget：已完成行的样式钩子", () => {
 			"Todo 1/3 · 1 doing\n[ ] a\n[-] b\n[x] c",
 		);
 		expect(calls).toEqual([]);
+	});
+});
+
+describe("renderStatus", () => {
+	it("空表返回 undefined：底栏什么都不写", () => {
+		expect(renderStatus([], CFG)).toBeUndefined();
+	});
+
+	it("没有进行中的任务时只有表头", () => {
+		expect(
+			renderStatus(
+				[
+					{ content: "a", status: "pending" },
+					{ content: "b", status: "completed" },
+				],
+				CFG,
+			),
+		).toBe("Todo 1/2");
+	});
+
+	it("有进行中的任务时用 · 拼上第一条", () => {
+		const tasks: Task[] = [
+			{ content: "a", status: "completed" },
+			{ content: "b", status: "in_progress" },
+			{ content: "c", status: "in_progress" },
+		];
+
+		expect(renderStatus(tasks, CFG)).toBe("Todo 1/3 · 2 doing · b");
+	});
+
+	it("给了宽度按 truncate 截断，默认口径留 …", () => {
+		const tasks: Task[] = [{ content: "x".repeat(40), status: "in_progress" }];
+
+		expect(renderStatus(tasks, CFG, 24)).toBe("Todo 0/1 · 1 doing · xx…");
+		expect(
+			renderStatus(
+				tasks,
+				{ ...CFG, truncate: (text, width) => `${width}:${text.length}` },
+				24,
+			),
+		).toBe("24:61");
 	});
 });
 

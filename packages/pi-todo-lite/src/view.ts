@@ -5,7 +5,6 @@ export type WidgetConfig = {
 	header: string;
 	glyphs: { pending: string; inProgress: string; completed: string };
 	showCompleted: boolean;
-	placement: "aboveEditor" | "belowEditor";
 	/** 拿到的是截断后的一行，所以样式序列不计进宽度。 */
 	styleCompleted?: (text: string) => string;
 	/** 按显示宽度截断；index.ts 注入宿主的 truncateToWidth。缺省按 code point 截断。 */
@@ -127,6 +126,22 @@ export function renderWidget(
 			? cfg.styleCompleted(text)
 			: text;
 	});
+}
+
+/** 底栏那一行：表头 + 第一条进行中的任务。宽度由调用方给，没给就不截。 */
+export function renderStatus(
+	tasks: readonly Task[],
+	cfg: WidgetConfig,
+	maxWidth?: number,
+): string | undefined {
+	if (tasks.length === 0) return undefined;
+
+	const header = renderHeader(cfg.header, countTasks(tasks));
+	const doing = tasks.find((task) => task.status === "in_progress");
+	const line = doing === undefined ? header : `${header} · ${doing.content}`;
+	return maxWidth === undefined
+		? line
+		: (cfg.truncate ?? truncateByCodePoint)(line, maxWidth);
 }
 
 export function renderList(tasks: readonly Task[], cfg: WidgetConfig): string {

@@ -2,6 +2,29 @@ import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 
+export type UiMode = "overlay" | "status";
+
+/** 与 pi-tui 的 OverlayAnchor 同值。config.ts 不 import 宿主，两边各写一份。 */
+export type OverlayAnchor =
+	| "top-left"
+	| "top-center"
+	| "top-right"
+	| "left-center"
+	| "center"
+	| "right-center"
+	| "bottom-left"
+	| "bottom-center"
+	| "bottom-right";
+
+export type OverlayWidth = number | `${number}%`;
+
+export type OverlayMargin = {
+	top: number;
+	right: number;
+	bottom: number;
+	left: number;
+};
+
 export type Config = {
 	tools: { todo: { name: string } };
 	plan: {
@@ -10,14 +33,20 @@ export type Config = {
 		requireSingleInProgress: boolean;
 	};
 	ui: {
+		mode: UiMode;
 		widget: {
 			enabled: boolean;
 			maxLines: number;
-			placement: "aboveEditor" | "belowEditor";
 			showCompleted: boolean;
 			header: string;
 			glyphs: { pending: string; inProgress: string; completed: string };
 			completedStyle: "strikethrough" | "dim" | "plain";
+		};
+		overlay: {
+			anchor: OverlayAnchor;
+			width: OverlayWidth;
+			minTerminalWidth: number;
+			margin: OverlayMargin;
 		};
 		shortcut: { toggle: string };
 	};
@@ -43,14 +72,20 @@ export const DEFAULTS: Config = {
 	tools: { todo: { name: "todo" } },
 	plan: { maxTasks: 20, maxSubjectChars: 120, requireSingleInProgress: false },
 	ui: {
+		mode: "overlay",
 		widget: {
 			enabled: true,
 			maxLines: 9,
-			placement: "aboveEditor",
 			showCompleted: true,
 			header: "Todo {done}/{total} · {doing} doing",
 			glyphs: { pending: "[ ]", inProgress: "[-]", completed: "[x]" },
 			completedStyle: "strikethrough",
+		},
+		overlay: {
+			anchor: "top-right",
+			width: 36,
+			minTerminalWidth: 100,
+			margin: { top: 1, right: 2, bottom: 3, left: 1 },
 		},
 		shortcut: { toggle: "alt+t" },
 	},
@@ -72,7 +107,18 @@ export const DEFAULTS: Config = {
 	},
 };
 
-const PLACEMENTS = ["aboveEditor", "belowEditor"] as const;
+const UI_MODES = ["overlay", "status"] as const;
+const ANCHORS = [
+	"top-left",
+	"top-center",
+	"top-right",
+	"left-center",
+	"center",
+	"right-center",
+	"bottom-left",
+	"bottom-center",
+	"bottom-right",
+] as const;
 const COMPLETED_STYLES = ["strikethrough", "dim", "plain"] as const;
 const ON_FINISH = ["model", "keep", "clear"] as const;
 const TOOL_NAME = /^[A-Za-z][A-Za-z0-9_]*$/;
@@ -144,7 +190,7 @@ function buildConfig(input: unknown, errors: string[]): Config {
 	);
 
 	const ui = readGroup(input.ui, "ui", errors);
-	checkKeys(ui, "ui", ["widget", "shortcut"], errors);
+	checkKeys(ui, "ui", ["mode", "widget", "overlay", "shortcut"], errors);
 	const widget = readGroup(ui.widget, "ui.widget", errors);
 	checkKeys(
 		widget,
@@ -152,19 +198,33 @@ function buildConfig(input: unknown, errors: string[]): Config {
 		[
 			"enabled",
 			"maxLines",
-			"placement",
 			"showCompleted",
 			"header",
 			"glyphs",
 			"completedStyle",
 		],
 		errors,
+		{ placement: 'ui.mode ("overlay" | "status")' },
 	);
 	const glyphs = readGroup(widget.glyphs, "ui.widget.glyphs", errors);
 	checkKeys(
 		glyphs,
 		"ui.widget.glyphs",
 		["pending", "inProgress", "completed"],
+		errors,
+	);
+	const overlay = readGroup(ui.overlay, "ui.overlay", errors);
+	checkKeys(
+		overlay,
+		"ui.overlay",
+		["anchor", "width", "minTerminalWidth", "margin"],
+		errors,
+	);
+	const margin = readGroup(overlay.margin, "ui.overlay.margin", errors);
+	checkKeys(
+		margin,
+		"ui.overlay.margin",
+		["top", "right", "bottom", "left"],
 		errors,
 	);
 	const shortcut = readGroup(ui.shortcut, "ui.shortcut", errors);
@@ -235,6 +295,7 @@ function buildConfig(input: unknown, errors: string[]): Config {
 			),
 		},
 		ui: {
+			mode: readEnum(ui, "mode", "ui.mode", errors, DEFAULTS.ui.mode, UI_MODES),
 			widget: {
 				enabled: readBoolean(
 					widget,
@@ -251,14 +312,6 @@ function buildConfig(input: unknown, errors: string[]): Config {
 					DEFAULTS.ui.widget.maxLines,
 					3,
 					10,
-				),
-				placement: readEnum(
-					widget,
-					"placement",
-					"ui.widget.placement",
-					errors,
-					DEFAULTS.ui.widget.placement,
-					PLACEMENTS,
 				),
 				showCompleted: readBoolean(
 					widget,
@@ -305,6 +358,54 @@ function buildConfig(input: unknown, errors: string[]): Config {
 					DEFAULTS.ui.widget.completedStyle,
 					COMPLETED_STYLES,
 				),
+			},
+			overlay: {
+				anchor: readEnum(
+					overlay,
+					"anchor",
+					"ui.overlay.anchor",
+					errors,
+					DEFAULTS.ui.overlay.anchor,
+					ANCHORS,
+				),
+				width: readWidth(overlay, "width", "ui.overlay.width", errors),
+				minTerminalWidth: readPositiveInt(
+					overlay,
+					"minTerminalWidth",
+					"ui.overlay.minTerminalWidth",
+					errors,
+					DEFAULTS.ui.overlay.minTerminalWidth,
+				),
+				margin: {
+					top: readNonNegativeInt(
+						margin,
+						"top",
+						"ui.overlay.margin.top",
+						errors,
+						DEFAULTS.ui.overlay.margin.top,
+					),
+					right: readNonNegativeInt(
+						margin,
+						"right",
+						"ui.overlay.margin.right",
+						errors,
+						DEFAULTS.ui.overlay.margin.right,
+					),
+					bottom: readNonNegativeInt(
+						margin,
+						"bottom",
+						"ui.overlay.margin.bottom",
+						errors,
+						DEFAULTS.ui.overlay.margin.bottom,
+					),
+					left: readNonNegativeInt(
+						margin,
+						"left",
+						"ui.overlay.margin.left",
+						errors,
+						DEFAULTS.ui.overlay.margin.left,
+					),
+				},
 			},
 			shortcut: {
 				toggle: readString(
@@ -407,10 +508,17 @@ function checkKeys(
 	path: string,
 	known: readonly string[],
 	errors: string[],
+	moved: Record<string, string> = {},
 ): void {
 	for (const key of Object.keys(raw)) {
-		if (!known.includes(key))
-			errors.push(`${path === "" ? "" : `${path}.`}${key}: unknown key`);
+		if (known.includes(key)) continue;
+		const at = `${path === "" ? "" : `${path}.`}${key}`;
+		const replacement = moved[key];
+		errors.push(
+			replacement === undefined
+				? `${at}: unknown key`
+				: `${at}: removed; use ${replacement}`,
+		);
 	}
 }
 
@@ -432,6 +540,80 @@ function readNumber(
 		return fallback;
 	}
 	return Math.min(max, Math.max(min, value));
+}
+
+function readWidth(
+	raw: Raw,
+	key: string,
+	path: string,
+	errors: string[],
+): OverlayWidth {
+	const value = raw[key];
+	if (value === undefined) return DEFAULTS.ui.overlay.width;
+	if (typeof value === "number") {
+		if (Number.isInteger(value) && value > 0) return value;
+		errors.push(
+			`${path}: expected positive integer or percentage, got ${value}`,
+		);
+		return DEFAULTS.ui.overlay.width;
+	}
+	if (typeof value === "string") {
+		const percent = /^(\d+)%$/.exec(value);
+		if (percent !== null && Number(percent[1]) > 0)
+			return value as `${number}%`;
+	}
+	errors.push(
+		`${path}: expected positive integer or percentage like "50%", got ${describe(value)}`,
+	);
+	return DEFAULTS.ui.overlay.width;
+}
+
+function readPositiveInt(
+	raw: Raw,
+	key: string,
+	path: string,
+	errors: string[],
+	fallback: number,
+): number {
+	const value = raw[key];
+	if (value === undefined) return fallback;
+	if (typeof value !== "number") {
+		errors.push(`${path}: expected number, got ${describe(value)}`);
+		return fallback;
+	}
+	if (!Number.isInteger(value)) {
+		errors.push(`${path}: expected integer, got ${value}`);
+		return fallback;
+	}
+	if (value <= 0) {
+		errors.push(`${path}: expected positive integer, got ${value}`);
+		return fallback;
+	}
+	return value;
+}
+
+function readNonNegativeInt(
+	raw: Raw,
+	key: string,
+	path: string,
+	errors: string[],
+	fallback: number,
+): number {
+	const value = raw[key];
+	if (value === undefined) return fallback;
+	if (typeof value !== "number") {
+		errors.push(`${path}: expected number, got ${describe(value)}`);
+		return fallback;
+	}
+	if (!Number.isInteger(value)) {
+		errors.push(`${path}: expected integer, got ${value}`);
+		return fallback;
+	}
+	if (value < 0) {
+		errors.push(`${path}: expected non-negative integer, got ${value}`);
+		return fallback;
+	}
+	return value;
 }
 
 function readBoolean(

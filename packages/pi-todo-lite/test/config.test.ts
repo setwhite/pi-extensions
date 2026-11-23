@@ -68,6 +68,112 @@ describe("resolveConfigPath", () => {
 	});
 });
 
+describe("loadConfig：零行高界面（AC1）", () => {
+	it("缺省时 ui.mode 是 overlay，浮窗四键取默认值", () => {
+		const path = join(makeTempDir(), "missing", "config.json");
+		const config = loadConfig({ configPath: path, env: {} });
+
+		expect(config.ui.mode).toBe("overlay");
+		expect(config.ui.overlay).toEqual({
+			anchor: "top-right",
+			width: 36,
+			minTerminalWidth: 100,
+			margin: { top: 1, right: 2, bottom: 3, left: 1 },
+		});
+	});
+
+	it("ui.mode 只认 overlay 与 status", () => {
+		const path = writeConfig(JSON.stringify({ ui: { mode: "widget" } }));
+
+		expect(captureError(() => loadConfig({ configPath: path, env: {} }))).toBe(
+			`pi-todo config ${path}: ui.mode: expected one of overlay | status, got "widget"`,
+		);
+	});
+
+	it("旧的 ui.widget.placement 直接报错，并指出新字段路径", () => {
+		const path = writeConfig(
+			JSON.stringify({ ui: { widget: { placement: "aboveEditor" } } }),
+		);
+
+		expect(captureError(() => loadConfig({ configPath: path, env: {} }))).toBe(
+			`pi-todo config ${path}: ui.widget.placement: removed; use ui.mode ("overlay" | "status")`,
+		);
+	});
+
+	it("ui.overlay.anchor 只认九宫格", () => {
+		const path = writeConfig(
+			JSON.stringify({ ui: { overlay: { anchor: "middle" } } }),
+		);
+
+		expect(
+			captureError(() => loadConfig({ configPath: path, env: {} })),
+		).toContain(
+			'ui.overlay.anchor: expected one of top-left | top-center | top-right | left-center | center | right-center | bottom-left | bottom-center | bottom-right, got "middle"',
+		);
+	});
+
+	it("minTerminalWidth 必须是正整数：0 与负数都报错，不 clamp", () => {
+		for (const value of [0, -5]) {
+			const path = writeConfig(
+				JSON.stringify({ ui: { overlay: { minTerminalWidth: value } } }),
+			);
+
+			expect(
+				captureError(() => loadConfig({ configPath: path, env: {} })),
+			).toContain(
+				`ui.overlay.minTerminalWidth: expected positive integer, got ${value}`,
+			);
+		}
+
+		const path = writeConfig(
+			JSON.stringify({ ui: { overlay: { minTerminalWidth: 40.5 } } }),
+		);
+
+		expect(
+			captureError(() => loadConfig({ configPath: path, env: {} })),
+		).toContain("ui.overlay.minTerminalWidth: expected integer, got 40.5");
+	});
+
+	it("width 接受正整数与百分比字符串，0 与乱写的串报错", () => {
+		const ok = writeConfig(
+			JSON.stringify({ ui: { overlay: { width: "40%" } } }),
+		);
+		expect(loadConfig({ configPath: ok, env: {} }).ui.overlay.width).toBe(
+			"40%",
+		);
+
+		for (const value of [0, 12.5, "0%", "wide", ""]) {
+			const path = writeConfig(
+				JSON.stringify({ ui: { overlay: { width: value } } }),
+			);
+
+			expect(
+				captureError(() => loadConfig({ configPath: path, env: {} })),
+			).toContain("ui.overlay.width: expected positive integer or percentage");
+		}
+	});
+
+	it("margin 逐边合并，负数报错", () => {
+		const path = writeConfig(
+			JSON.stringify({ ui: { overlay: { margin: { bottom: 0 } } } }),
+		);
+
+		expect(loadConfig({ configPath: path, env: {} }).ui.overlay.margin).toEqual(
+			{ top: 1, right: 2, bottom: 0, left: 1 },
+		);
+
+		const bad = writeConfig(
+			JSON.stringify({ ui: { overlay: { margin: { left: -1 } } } }),
+		);
+
+		expect(
+			captureError(() => loadConfig({ configPath: bad, env: {} })),
+		).toContain(
+			"ui.overlay.margin.left: expected non-negative integer, got -1",
+		);
+	});
+});
+
 describe("loadConfig", () => {
 	it("配置文件缺失时全部取默认值，不报错", () => {
 		const path = join(makeTempDir(), "missing", "config.json");

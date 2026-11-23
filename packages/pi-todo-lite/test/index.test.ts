@@ -51,12 +51,27 @@ afterEach(() => {
 
 type Handler = (event: unknown, ctx: ExtensionContext) => unknown;
 type StateEntry = { type: string; customType: string; data?: unknown };
-type WidgetCall = {
-	key: string;
-	content: unknown;
-	options?: { placement?: string };
-	component?: Component;
+/** 还在用的 setWidget 调用会被记下来，用例里一律断言为空。 */
+type WidgetCall = { key: string; content: unknown };
+type OverlayOptions = {
+	anchor?: string;
+	width?: number | `${number}%`;
+	margin?: { top: number; right: number; bottom: number; left: number };
+	nonCapturing?: boolean;
+	visible?: (termWidth: number, termHeight: number) => boolean;
 };
+type CustomOptions = {
+	overlay?: boolean;
+	overlayOptions?: OverlayOptions;
+	onHandle?: (handle: unknown) => void;
+};
+type CustomCall = {
+	options: CustomOptions;
+	component?: Component;
+	closed: boolean;
+	visible: (termWidth: number) => boolean;
+};
+type StatusCall = { key: string; text: string | undefined };
 type CommandOptions = {
 	description?: string;
 	handler: (args: string, ctx: ExtensionContext) => Promise<void>;
@@ -76,12 +91,17 @@ interface Harness {
 	tools: ToolDefinition[];
 	entries: StateEntry[];
 	widgets: WidgetCall[];
+	overlays: CustomCall[];
+	statuses: StatusCall[];
 	commands: CommandCall[];
 	shortcuts: ShortcutCall[];
 	notes: Note[];
 	ctx: ExtensionContext;
 	renders: () => number;
 	lines: (width: number) => string[];
+	visibleAt: (termWidth: number) => boolean;
+	activeOverlays: () => number;
+	keypress: (data: string) => void;
 	run: (args: string) => Promise<void>;
 	complete: (prefix: string) => AutocompleteItem[] | null;
 	fireShortcut: () => Promise<void>;
@@ -91,24 +111,29 @@ interface Harness {
 function harness(
 	options: {
 		hasUI?: boolean;
-		noSetWidget?: boolean;
+		noUI?: boolean;
 		cwd?: string;
 		theme?: unknown;
+		terminalWidth?: number;
 	} = {},
 ): Harness {
 	const tools: ToolDefinition[] = [];
 	const entries: StateEntry[] = [];
 	const widgets: WidgetCall[] = [];
+	const overlays: CustomCall[] = [];
+	const statuses: StatusCall[] = [];
 	const commands: CommandCall[] = [];
 	const shortcuts: ShortcutCall[] = [];
 	const notes: Note[] = [];
 	const handlers = new Map<string, Handler[]>();
+	const terminalWidth = options.terminalWidth ?? 120;
 	let renders = 0;
 
 	const tui = {
 		requestRender: () => {
 			renders += 1;
 		},
+		terminal: { columns: terminalWidth, rows: 40 },
 	} as unknown as TUI;
 	// 默认主题是恒等的：不关心样式的用例拿到的还是原文本
 	const theme = options.theme ?? {
@@ -128,29 +153,54 @@ function harness(
 		registerShortcut: (key: string, shortcutOptions: ShortcutOptions) =>
 			void shortcuts.push({ key, options: shortcutOptions }),
 	} as unknown as ExtensionAPI;
+
+	/** 宿主把 overlayOptions 原样交给 showOverlay；visible 每次渲染问一次。 */
+	const custom = (
+		factory: (
+			tui: TUI,
+			theme: unknown,
+			keybindings: unknown,
+			done: (result: unknown) => void,
+		) => Component,
+		customOptions: CustomOptions = {},
+	): Promise<unknown> => {
+		const call: CustomCall = {
+			closed: false,
+			options: customOptions,
+			visible: (term) =>
+				customOptions.overlayOptions?.visible?.(term, 40) ?? true,
+		};
+		overlays.push(call);
+		return new Promise((resolve) => {
+			call.component = factory(tui, theme, {}, () => {
+				if (call.closed) return;
+				call.closed = true;
+				resolve(undefined);
+			});
+			customOptions.onHandle?.({});
+		});
+	};
+
 	const ctx = {
 		hasUI: options.hasUI ?? true,
 		cwd: options.cwd ?? process.cwd(),
-		ui: options.noSetWidget
+		ui: options.noUI
 			? {}
 			: {
-					setWidget: (
-						key: string,
-						content: unknown,
-						widgetOptions?: { placement?: string },
-					) => {
-						const call: WidgetCall = { key, content, options: widgetOptions };
-						if (typeof content === "function")
-							call.component = (
-								content as (tui: TUI, theme: unknown) => Component
-							)(tui, theme);
-						widgets.push(call);
-					},
+					// 新契约一条都不用 setWidget：留个记录器，用例断言它始终为空
+					setWidget: (key: string, content: unknown) =>
+						void widgets.push({ key, content }),
+					custom,
+					setStatus: (key: string, text: string | undefined) =>
+						void statuses.push({ key, text }),
 					notify: (message: string, type?: string) =>
 						void notes.push({ message, type }),
 				},
 		sessionManager: { getBranch: () => entries },
 	} as unknown as ExtensionContext;
+
+	const live = (): CustomCall | undefined =>
+		overlays.filter((call) => !call.closed).at(-1);
 
 	const run = (args: string): Promise<void> =>
 		(commands[0] as CommandCall).options.handler(args, ctx as never);
@@ -165,12 +215,22 @@ function harness(
 		tools,
 		entries,
 		widgets,
+		overlays,
+		statuses,
 		commands,
 		shortcuts,
 		notes,
 		ctx,
 		renders: () => renders,
-		lines: (width) => widgets.at(-1)?.component?.render(width) ?? [],
+		lines: (width) => {
+			const open = live();
+			if (open?.component === undefined || !open.visible(terminalWidth))
+				return [];
+			return open.component.render(width);
+		},
+		visibleAt: (termWidth) => live()?.visible(termWidth) ?? false,
+		activeOverlays: () => overlays.filter((call) => !call.closed).length,
+		keypress: (data) => live()?.component?.handleInput?.(data),
 		run,
 		complete,
 		fireShortcut: async () =>
@@ -468,7 +528,7 @@ describe("index：一次调用（AC2）", () => {
 	});
 });
 
-describe("index：会话事件与 widget（AC3）", () => {
+describe("index：会话事件与浮窗", () => {
 	it("三个事件从空 entries 回放都不抛错", () => {
 		useConfig();
 		const harnessed = harness();
@@ -478,12 +538,13 @@ describe("index：会话事件与 widget（AC3）", () => {
 			expect(() => emit(harnessed, event)).not.toThrow();
 		}
 
-		expect(harnessed.widgets).toHaveLength(3);
+		expect(harnessed.overlays).toHaveLength(3);
+		expect(harnessed.activeOverlays()).toBe(1);
 		expect(harnessed.lines(80)).toEqual([]);
 	});
 
-	it("回放最后一条快照：session_tree 之后 widget 显示旧任务，placement 取配置", async () => {
-		useConfig({ ui: { widget: { placement: "belowEditor" } } });
+	it("回放最后一条快照：session_tree 之后浮窗显示旧任务", async () => {
+		useConfig();
 		const harnessed = harness();
 		piTodo(harnessed.api);
 		emit(harnessed, "session_start");
@@ -497,9 +558,7 @@ describe("index：会话事件与 widget（AC3）", () => {
 		emit(harnessed, "session_tree");
 
 		expect(harnessed.lines(80)).toEqual(["Todo 1/2", "[ ] a", "[x] b"]);
-		expect(harnessed.widgets.at(-1)?.options).toEqual({
-			placement: "belowEditor",
-		});
+		expect(harnessed.activeOverlays()).toBe(1);
 	});
 
 	it("widget 按终端列宽截断，注入的是宿主的 truncateToWidth", async () => {
@@ -522,30 +581,236 @@ describe("index：会话事件与 widget（AC3）", () => {
 		expect(harnessed.lines(10)).toEqual(["Todo 0/1", "[ ] 😀😀…"]);
 	});
 
-	it("widget.enabled 为 false 时不注册 widget，工具照常注册", () => {
+	it("widget.enabled 为 false 时不挂浮窗、不写 status，工具照常注册", async () => {
 		useConfig({ ui: { widget: { enabled: false } } });
 		const harnessed = harness();
 		piTodo(harnessed.api);
 
 		expect(() => emit(harnessed, "session_start")).not.toThrow();
+		await callTool(harnessed, { tasks: [{ content: "a", status: "pending" }] });
 
-		expect(harnessed.widgets).toEqual([]);
+		expect(harnessed.overlays).toEqual([]);
+		expect(harnessed.statuses).toEqual([]);
 		expect(harnessed.tools).toHaveLength(1);
 	});
 
-	it("没有 UI（hasUI 为 false 或缺 setWidget）时静默跳过", () => {
+	it("没有 UI（hasUI 为 false 或缺 ui）时静默跳过", async () => {
 		useConfig();
 		const noUI = harness({ hasUI: false });
-		const noSetWidget = harness({ noSetWidget: true });
+		const noMethods = harness({ noUI: true });
 
 		piTodo(noUI.api);
-		piTodo(noSetWidget.api);
+		piTodo(noMethods.api);
 
 		expect(() => emit(noUI, "session_start")).not.toThrow();
-		expect(() => emit(noSetWidget, "session_start")).not.toThrow();
+		expect(() => emit(noMethods, "session_start")).not.toThrow();
+		await callTool(noUI, { tasks: [{ content: "a", status: "pending" }] });
+		await callTool(noMethods, { tasks: [{ content: "a", status: "pending" }] });
 
-		expect(noUI.widgets).toEqual([]);
-		expect(noSetWidget.widgets).toEqual([]);
+		expect(noUI.overlays).toEqual([]);
+		expect(noUI.statuses).toEqual([]);
+		expect(noMethods.overlays).toEqual([]);
+		expect(noMethods.statuses).toEqual([]);
+	});
+});
+
+describe("index：status 模式（AC3）", () => {
+	it("提交任务后底栏是一行表头 + 进行中的任务；清空后写 undefined", async () => {
+		useConfig({ ui: { mode: "status" } });
+		const harnessed = harness();
+		piTodo(harnessed.api);
+		emit(harnessed, "session_start");
+
+		await callTool(harnessed, {
+			tasks: [
+				{ content: "a", status: "completed" },
+				{ content: "b", status: "in_progress" },
+			],
+		});
+
+		expect(harnessed.statuses.at(-1)).toEqual({
+			key: "todo",
+			text: "Todo 1/2 · 1 doing · b",
+		});
+		expect(harnessed.overlays).toEqual([]);
+
+		await callTool(harnessed, { tasks: [] });
+
+		expect(harnessed.statuses.at(-1)).toEqual({ key: "todo", text: undefined });
+	});
+
+	it("alt+t 打开只读浮层，再按 alt+t 或 Esc 关闭，账本不动、底栏不退", async () => {
+		useConfig({ ui: { mode: "status" } });
+		const harnessed = harness();
+		piTodo(harnessed.api);
+		emit(harnessed, "session_start");
+		await callTool(harnessed, {
+			tasks: [
+				{ content: "a", status: "pending" },
+				{ content: "b", status: "completed" },
+			],
+		});
+		const before = harnessed.entries.length;
+		const status = harnessed.statuses.at(-1);
+
+		await harnessed.fireShortcut();
+
+		expect(harnessed.activeOverlays()).toBe(1);
+		expect(harnessed.lines(80)).toEqual(["Todo 1/2", "[ ] a", "[x] b"]);
+
+		await harnessed.fireShortcut();
+
+		expect(harnessed.activeOverlays()).toBe(0);
+		expect(harnessed.entries).toHaveLength(before);
+		expect(harnessed.statuses.at(-1)).toEqual(status);
+
+		// 浮层抢焦点时宿主的快捷键到不了编辑器，Esc 由组件自己认
+		await harnessed.fireShortcut();
+		harnessed.keypress("\u001b");
+
+		expect(harnessed.activeOverlays()).toBe(0);
+		expect(harnessed.entries).toHaveLength(before);
+	});
+
+	it("浮层开着时清空表：浮层跟着关掉，不留空框", async () => {
+		useConfig({ ui: { mode: "status" } });
+		const harnessed = harness();
+		piTodo(harnessed.api);
+		emit(harnessed, "session_start");
+		await callTool(harnessed, { tasks: [{ content: "a", status: "pending" }] });
+		await harnessed.fireShortcut();
+
+		expect(harnessed.activeOverlays()).toBe(1);
+
+		await callTool(harnessed, { tasks: [] });
+
+		expect(harnessed.activeOverlays()).toBe(0);
+		expect(harnessed.statuses.at(-1)).toEqual({ key: "todo", text: undefined });
+	});
+
+	it("q 与折叠键也能关掉浮层；空表时不弹", async () => {
+		useConfig({ ui: { mode: "status" } });
+		const harnessed = harness();
+		piTodo(harnessed.api);
+		emit(harnessed, "session_start");
+
+		await harnessed.fireShortcut();
+		expect(harnessed.activeOverlays()).toBe(0);
+
+		await callTool(harnessed, { tasks: [{ content: "a", status: "pending" }] });
+
+		await harnessed.fireShortcut();
+		harnessed.keypress("q");
+		expect(harnessed.activeOverlays()).toBe(0);
+
+		await harnessed.fireShortcut();
+		harnessed.keypress("\u001bt");
+		expect(harnessed.activeOverlays()).toBe(0);
+	});
+});
+
+describe("index：overlay 模式（AC4）", () => {
+	it("浮窗选项透传 anchor、width、margin 与 nonCapturing", () => {
+		useConfig({
+			ui: {
+				overlay: {
+					anchor: "bottom-left",
+					width: "40%",
+					minTerminalWidth: 80,
+					margin: { top: 0, right: 1, bottom: 0, left: 2 },
+				},
+			},
+		});
+		const harnessed = harness();
+		piTodo(harnessed.api);
+		emit(harnessed, "session_start");
+
+		expect(harnessed.overlays[0]?.options.overlay).toBe(true);
+		expect(harnessed.overlays[0]?.options.overlayOptions).toMatchObject({
+			anchor: "bottom-left",
+			width: "40%",
+			margin: { top: 0, right: 1, bottom: 0, left: 2 },
+			nonCapturing: true,
+		});
+	});
+
+	it("visible：空表或窄屏返回 false，折叠时仍然可见", async () => {
+		useConfig();
+		const harnessed = harness();
+		piTodo(harnessed.api);
+		emit(harnessed, "session_start");
+
+		expect(harnessed.visibleAt(120)).toBe(false);
+
+		await callTool(harnessed, { tasks: [{ content: "a", status: "pending" }] });
+
+		expect(harnessed.visibleAt(120)).toBe(true);
+		expect(harnessed.visibleAt(99)).toBe(false);
+		expect(harnessed.visibleAt(100)).toBe(true);
+
+		await harnessed.fireShortcut();
+		expect(harnessed.visibleAt(120)).toBe(true);
+		expect(harnessed.lines(80)).toEqual(["Todo 0/1"]);
+
+		await harnessed.fireShortcut();
+		expect(harnessed.lines(80)).toEqual(["Todo 0/1", "[ ] a"]);
+	});
+
+	it("窄屏掉到 minTerminalWidth 以下时底栏补一行，宽屏或清空时撤掉", async () => {
+		useConfig();
+		const harnessed = harness();
+		piTodo(harnessed.api);
+		emit(harnessed, "session_start");
+		await callTool(harnessed, {
+			tasks: [{ content: "a", status: "in_progress" }],
+		});
+
+		harnessed.visibleAt(80);
+
+		expect(harnessed.statuses.at(-1)).toEqual({
+			key: "todo",
+			text: "Todo 0/1 · 1 doing · a",
+		});
+
+		harnessed.visibleAt(120);
+
+		expect(harnessed.statuses.at(-1)).toEqual({ key: "todo", text: undefined });
+
+		harnessed.visibleAt(80);
+		await callTool(harnessed, { tasks: [] });
+
+		expect(harnessed.visibleAt(80)).toBe(false);
+		expect(harnessed.statuses.at(-1)).toEqual({ key: "todo", text: undefined });
+	});
+
+	it("连续 restore 只留一个浮窗，session_shutdown 全部释放", () => {
+		useConfig();
+		const harnessed = harness();
+		piTodo(harnessed.api);
+
+		emit(harnessed, "session_start");
+		emit(harnessed, "session_compact");
+		emit(harnessed, "session_tree");
+
+		expect(harnessed.overlays).toHaveLength(3);
+		expect(harnessed.overlays[0]?.closed).toBe(true);
+		expect(harnessed.activeOverlays()).toBe(1);
+
+		emit(harnessed, "session_shutdown");
+
+		expect(harnessed.activeOverlays()).toBe(0);
+	});
+
+	it("session_shutdown 清掉底栏那一行", async () => {
+		useConfig({ ui: { mode: "status" } });
+		const harnessed = harness();
+		piTodo(harnessed.api);
+		emit(harnessed, "session_start");
+		await callTool(harnessed, { tasks: [{ content: "a", status: "pending" }] });
+
+		emit(harnessed, "session_shutdown");
+
+		expect(harnessed.statuses.at(-1)).toEqual({ key: "todo", text: undefined });
 	});
 });
 
@@ -622,10 +887,11 @@ describe("index：lifecycle.onFinish（T12）", () => {
 });
 
 describe("index：折叠键（T11）", () => {
-	it("按一次收起、再按一次展开：widget 消失又回来，任务表一寸不动", async () => {
+	it("按一次压成一行、再按一次展开：浮窗不消失，任务表一寸不动", async () => {
 		useConfig();
 		const harnessed = harness({ cwd: makeTempDir("cwd") });
 		piTodo(harnessed.api);
+		emit(harnessed, "session_start");
 		await callTool(harnessed, {
 			tasks: [
 				{ content: "a", status: "pending" },
@@ -638,10 +904,12 @@ describe("index：折叠键（T11）", () => {
 			"Toggle the todo widget",
 		);
 
+		expect(harnessed.lines(80)).toEqual(["Todo 1/2", "[ ] a", "[x] b"]);
+
 		await harnessed.fireShortcut();
 
-		expect(harnessed.widgets.at(-1)?.content).toBeUndefined();
-		expect(harnessed.lines(80)).toEqual([]);
+		expect(harnessed.visibleAt(120)).toBe(true);
+		expect(harnessed.lines(80)).toEqual(["Todo 1/2"]);
 		expect(harnessed.entries).toHaveLength(1);
 		expect(harnessed.entries[0]?.data).toEqual({
 			tasks: [
@@ -656,18 +924,38 @@ describe("index：折叠键（T11）", () => {
 		expect(harnessed.entries).toHaveLength(1);
 	});
 
-	it("收起之后会话事件照旧回放，但 widget 保持收起", async () => {
+	it("收起之后会话事件照旧回放，浮窗仍只剩那一行", async () => {
 		useConfig();
 		const harnessed = harness({ cwd: makeTempDir("cwd") });
 		piTodo(harnessed.api);
-		await callTool(harnessed, { tasks: [{ content: "a", status: "pending" }] });
+		emit(harnessed, "session_start");
+		await callTool(harnessed, {
+			tasks: [{ content: "a", status: "in_progress" }],
+		});
 		await harnessed.fireShortcut();
 
 		emit(harnessed, "session_compact");
 
-		expect(harnessed.widgets.at(-1)?.content).toBeUndefined();
-		expect(harnessed.lines(80)).toEqual([]);
+		expect(harnessed.visibleAt(120)).toBe(true);
+		expect(harnessed.lines(80)).toEqual(["Todo 0/1 · 1 doing · a"]);
+		expect(harnessed.activeOverlays()).toBe(1);
 		expect(harnessed.entries).toHaveLength(1);
+	});
+
+	it("会话结束重置折叠：新会话起来是整表", async () => {
+		useConfig();
+		const harnessed = harness({ cwd: makeTempDir("cwd") });
+		piTodo(harnessed.api);
+		emit(harnessed, "session_start");
+		await callTool(harnessed, { tasks: [{ content: "a", status: "pending" }] });
+		await harnessed.fireShortcut();
+
+		expect(harnessed.lines(80)).toEqual(["Todo 0/1"]);
+
+		emit(harnessed, "session_shutdown");
+		emit(harnessed, "session_start");
+
+		expect(harnessed.lines(80)).toEqual(["Todo 0/1", "[ ] a"]);
 	});
 
 	it("配置成 off：压根不注册按键", async () => {
@@ -703,7 +991,7 @@ describe("index：/todos 命令（T8）", () => {
 
 		expect(harnessed.commands).toEqual([]);
 		expect(harnessed.tools).toHaveLength(1);
-		expect(harnessed.widgets).toHaveLength(1);
+		expect(harnessed.activeOverlays()).toBe(1);
 	});
 
 	it("/todos：notify 出整张表，不截断不省条目（widget 仍按 maxLines 截断）", async () => {
@@ -762,7 +1050,7 @@ describe("index：/todos 命令（T8）", () => {
 
 	it("ctx.ui 缺失（print / JSON / RPC）时不抛错，状态照旧落账", async () => {
 		useConfig();
-		const harnessed = harness({ noSetWidget: true });
+		const harnessed = harness({ noUI: true });
 		piTodo(harnessed.api);
 
 		await expect(harnessed.run("")).resolves.toBeUndefined();
