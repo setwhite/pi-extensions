@@ -43,16 +43,18 @@
 - 模式 B（`ui.mode === "status"`）：
   - 平时不挂载常驻浮窗；每次 `restore`、`commit`（含工具调用、`/todos clear`、`/todos import`、自动清空）同步刷新 `ctx.ui.setStatus("todo", renderStatus(...))`。
   - 按 `alt+t` 时弹出只读浮层显示完整任务表（复用 `renderWidget`）；再按 `alt+t`、`Esc` 或 `q` 关闭浮层，焦点数归还输入框，底栏 status 保持不变。
+  - 浮层开着时表被清空（`tasks: []`），浮层立即关闭，不留空框。
 - 快捷键语义统一：
   - `overlay` 模式下按 `alt+t` 切换 `collapsed`：折叠只收起表体，浮窗保留 `renderStatus` 那一行，不撤窗、不碰账本。
+  - 折叠态只活在当前会话：`session_start` 与 `session_shutdown` 把 `collapsed` 重置为展开；`session_compact`、`session_tree` 保留折叠态。
   - `status` 模式下按 `alt+t` 切换完整任务表浮层的打开与关闭（不碰账本）。
 
 ## 验收
 
 - AC1 配置校验：单测覆盖 `ui.mode` 非法值、旧字段 `ui.widget.placement`、`ui.overlay.anchor` 非法值、`minTerminalWidth <= 0`，全部抛出带字段路径的错误；缺省配置加载返回合法默认值。命令：`pnpm -C packages/pi-todo-lite test test/config.test.ts`。
 - AC2 状态行纯函数：单测覆盖 `renderStatus` 的 4 种输入——空表返回 `undefined`、有 `in_progress` 时拼接首条进行中任务、无 `in_progress` 时仅返回 header、超长内容按 `truncate` 截断带 `…`。命令：`pnpm -C packages/pi-todo-lite test test/view.test.ts`。
-- AC3 `status` 模式同步与弹窗：在 `test/index.test.ts` 的 fake ctx 中验证——提交任务后 `setStatus("todo", ...)` 收到预期单行文本；清空任务后收到 `undefined`；按 `alt+t` 打开浮层、再按 `alt+t` 或 `Esc` 关闭且账本未变；全程零 `setWidget` 调用。命令：`pnpm -C packages/pi-todo-lite test test/index.test.ts`。
-- AC4 `overlay` 模式挂载与防泄漏：在 `test/index.test.ts` 中验证——`overlayOptions` 正确透传 `anchor`、`width`、`margin` 与 `nonCapturing: true`；`visible(termWidth)` 在空表或 `termWidth < minTerminalWidth` 时返回 `false`，折叠时仍为 `true` 且只渲染一行；连续触发两次 `restore` 或触发 `session_shutdown` 时，旧浮窗被释放，活跃浮窗数不超过 1。命令：`pnpm -C packages/pi-todo-lite test test/index.test.ts`。
+- AC3 `status` 模式同步与弹窗：在 `test/index.test.ts` 的 fake ctx 中验证——提交任务后 `setStatus("todo", ...)` 收到预期单行文本；清空任务后收到 `undefined`；按 `alt+t` 打开浮层、再按 `alt+t` 或 `Esc` 关闭且账本未变；浮层开着时清空表，活跃浮层数回到 0；全程零 `setWidget` 调用。命令：`pnpm -C packages/pi-todo-lite test test/index.test.ts`。
+- AC4 `overlay` 模式挂载与防泄漏：在 `test/index.test.ts` 中验证——`overlayOptions` 正确透传 `anchor`、`width`、`margin` 与 `nonCapturing: true`；`visible(termWidth)` 在空表或 `termWidth < minTerminalWidth` 时返回 `false`，折叠时仍为 `true` 且只渲染一行；连续触发两次 `restore` 或触发 `session_shutdown` 时，旧浮窗被释放，活跃浮窗数不超过 1；折叠后触发 `session_shutdown` 再 `session_start`，新会话恢复整表。命令：`pnpm -C packages/pi-todo-lite test test/index.test.ts`。
 - AC5 全仓质量闸与依赖图：`pnpm check`（lint、check:imports、typecheck、test）全部通过，且 `scripts/import-graph.mjs` 未增加新模块文件。
 - AC6 真机冒烟（TUI）：运行 `pi -ne -e ./packages/pi-todo-lite/src/index.ts`，在 `overlay` 模式下提交 3 条任务，确认浮窗显示在配置角落、不抢输入框焦点、不影响 `PageUp`/`PageDown` 滚屏；缩窄终端宽度小于 `minTerminalWidth` 时浮窗消失且底栏出现单行进度；按 `alt+t` 浮窗压成一行、再按恢复整表。
 
