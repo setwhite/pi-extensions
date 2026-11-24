@@ -2,6 +2,11 @@
 
 本文件记录已发布版本的用户可见变更。更细的过程见 git log。破坏性变更标 **BREAKING**。0.5.2 及更早的变更见旧仓 `setwhite/pi-herdr-subagents-lite` 的 tag `v0.3.0`–`v0.5.2`。
 
+## 0.11.0 — 2026-11-24
+
+- **BREAKING**：删掉 bridge。本包不再监听 `ui_prompt_*`，不再 emit `herdr:blocked`，`bridge` 配置键变成未知键（老配置加载失败）。要上报 blocked，装会开模态对话框并自己 emit `herdr:blocked` 的扩展（DEC-0070）。
+- 修：`pi-todo-lite` 的装饰 overlay 走 `ctx.ui.custom`，pi 对非捕获 overlay 也发 `ui_prompt_start`，bridge 把它翻成 `herdr:blocked`，pane 从 pi 启动起一直红，`herdr agent start` 还以 `agent_not_ready` 拒绝它。
+
 ## 0.10.0 — 2026-11-21
 
 - **BREAKING**：profile 里出现不认识的字段不再忽略。该 profile 不加载，`run` 返回 `profile_invalid` 并指出字段（DEC-0069）。拼错 `auto_exit` 这类键以前是静默失效。
