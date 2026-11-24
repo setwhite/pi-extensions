@@ -1,6 +1,6 @@
 {
   "name": "pi-todo-lite",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Pi todo extension: one ordered task table in a corner overlay.",
   "keywords": [
     "pi-package",
