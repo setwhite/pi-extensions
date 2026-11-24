@@ -96,14 +96,3 @@ it("skips registration when disabled", () => {
 
   expect(tools).toHaveLength(0);
 });
-
-it("emits without the subagent tool", () => {
-  writeConfig({ enabled: false });
-  const { emitted, pi, promptStart, startSession } = fakePi();
-
-  registerExtension(pi, fakeHost().host);
-  startSession();
-  promptStart({ kind: "custom", title: "Pick one" });
-
-  expect(emitted).toEqual([{ channel: "herdr:blocked", data: { active: true, label: "Pick one" } }]);
-});

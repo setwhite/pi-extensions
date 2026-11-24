@@ -16,17 +16,12 @@ interface SentUserMessage {
 
 type SessionStartHandler = (event: SessionStartEvent, ctx: SessionContext) => void;
 type SettledHandler = (event: { type: "agent_settled"; aborted: boolean }, ctx: SessionContext) => void;
-type PromptEvent = { kind: "select" | "confirm" | "input" | "editor" | "custom"; title?: string };
-type PromptHandler = (event: PromptEvent) => void;
 
 export function fakePi(events: string[] = []) {
   const tools: SubagentTool[] = [];
   const startHandlers: SessionStartHandler[] = [];
   const shutdownHandlers: ShutdownHandler[] = [];
   const settledHandlers: SettledHandler[] = [];
-  const promptStartHandlers: PromptHandler[] = [];
-  const promptEndHandlers: PromptHandler[] = [];
-  const emitted: Array<{ channel: string; data: unknown }> = [];
   const sent: SentMessage[] = [];
   const userMessages: SentUserMessage[] = [];
   const notifications: Array<{ message: string; type: string | undefined }> = [];
@@ -35,23 +30,16 @@ export function fakePi(events: string[] = []) {
   let sendUserMessageImpl: (content: string) => void = () => {};
   let sendFailures = 0;
   const pi: ExtensionRegistrar = {
-    events: {
-      emit(channel, data) {
-        emitted.push({ channel, data });
-      },
-    },
     on(
-      event: "session_start" | "session_shutdown" | "agent_settled" | "ui_prompt_start" | "ui_prompt_end",
-      handler: SessionStartHandler | ShutdownHandler | SettledHandler | PromptHandler,
+      event: "session_start" | "session_shutdown" | "agent_settled",
+      handler: SessionStartHandler | ShutdownHandler | SettledHandler,
     ) {
       if (event === "session_shutdown") {
         shutdownHandlers.push(handler as ShutdownHandler);
       } else if (event === "session_start") {
         startHandlers.push(handler as SessionStartHandler);
-      } else if (event === "agent_settled") {
-        settledHandlers.push(handler as SettledHandler);
       } else {
-        (event === "ui_prompt_start" ? promptStartHandlers : promptEndHandlers).push(handler as PromptHandler);
+        settledHandlers.push(handler as SettledHandler);
       }
     },
     registerTool(tool) {
@@ -104,20 +92,12 @@ export function fakePi(events: string[] = []) {
       handler({ type: "agent_settled", aborted }, currentSession);
     }
   };
-  const prompt = (handlers: PromptHandler[], event: PromptEvent) => {
-    for (const handler of handlers) {
-      handler(event);
-    }
-  };
   return {
-    emitted,
     get shutdowns() {
       return shutdowns;
     },
     notifications,
     pi,
-    promptEnd: (event: PromptEvent = { kind: "custom" }) => prompt(promptEndHandlers, event),
-    promptStart: (event: PromptEvent = { kind: "custom" }) => prompt(promptStartHandlers, event),
     sent,
     setSendFailures(count: number) {
       sendFailures = count;

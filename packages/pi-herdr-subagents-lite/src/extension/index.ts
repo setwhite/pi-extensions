@@ -1,6 +1,5 @@
 import type { SessionStartEvent } from "@earendil-works/pi-coding-agent";
-import { createBridge } from "../bridge/index.ts";
-import type { BlockedKind, Config } from "../config/index.ts";
+import type { Config } from "../config/index.ts";
 import { errorText } from "../error/index.ts";
 import type { HerdrHost } from "../herdr/index.ts";
 import { drain, hasInbox, pumpInbox } from "../inbox/index.ts";
@@ -35,14 +34,11 @@ export type { SubagentTool };
 
 type SessionStartHandler = (event: SessionStartEvent, ctx: SessionContext) => void;
 type SettledHandler = (event: { type: "agent_settled"; aborted: boolean }, ctx: SessionContext) => void;
-type PromptHandler = (event: { kind: BlockedKind; title?: string }) => void;
 
 export interface ExtensionRegistrar {
-  events: { emit(channel: string, data: unknown): void };
   on(event: "session_start", handler: SessionStartHandler): void;
   on(event: "session_shutdown", handler: ShutdownHandler): void;
   on(event: "agent_settled", handler: SettledHandler): void;
-  on(event: "ui_prompt_start" | "ui_prompt_end", handler: PromptHandler): void;
   registerTool(tool: SubagentTool): void;
   sendMessage(message: ResultMessage, options?: { triggerTurn?: boolean }): void;
   sendUserMessage(content: string, options?: { deliverAs?: "steer" | "followUp" }): void;
@@ -57,7 +53,6 @@ export function createExtension(deps: ExtensionDeps): (pi: ExtensionRegistrar) =
     let service: RunService | undefined;
     let stopPump: (() => void) | undefined;
     let inboxFailures = 0;
-    createBridge(pi, config.bridge);
     watchReport(pi, { activeChildren: () => service?.active().length ?? 0 });
 
     const stopInbox = () => {

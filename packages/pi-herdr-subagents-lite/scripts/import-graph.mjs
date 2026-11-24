@@ -10,19 +10,7 @@ export const title = "Import graph violates docs/ARCHITECTURE.md §3:";
 export const edges = {
   ".": ["config", "extension", "herdr", "profile", "session-file"],
   config: ["config"],
-  extension: [
-    "config",
-    "extension",
-    "error",
-    "profile",
-    "run",
-    "herdr",
-    "session-file",
-    "inbox",
-    "tool",
-    "bridge",
-    "turn",
-  ],
+  extension: ["config", "extension", "error", "profile", "run", "herdr", "session-file", "inbox", "tool", "turn"],
   error: ["error"],
   tool: ["config", "profile", "run", "tool"],
   run: ["config", "error", "run", "profile", "herdr", "session-file", "inbox", "turn"],
@@ -31,7 +19,6 @@ export const edges = {
   herdr: ["herdr"],
   "session-file": ["session-file"],
   inbox: ["inbox"],
-  bridge: ["bridge", "config"],
 };
 
 /** 只允许出现在指定位置的依赖；typeOnlyIn 里的文件必须写成 `import type`。 */
@@ -88,7 +75,7 @@ export const singleImport = [
   },
   {
     specifier: /^\.\.\/(config|herdr|profile|session-file)\/index\.ts$/,
-    only: ["src/extension/", "src/profile/", "src/run/", "src/tool/", "src/bridge/"],
-    typeOnlyIn: ["src/extension/", "src/tool/", "src/bridge/"],
+    only: ["src/extension/", "src/profile/", "src/run/", "src/tool/"],
+    typeOnlyIn: ["src/extension/", "src/tool/"],
   },
 ];

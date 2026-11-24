@@ -1,8 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
-  BLOCKED_KINDS,
-  BRIDGE_KEYS,
   boolean,
   CONFIG_KEYS,
   enumList,
@@ -22,7 +20,6 @@ import {
 
 export { isRaw, type Raw } from "./schema.ts";
 
-export type BlockedKind = (typeof BLOCKED_KINDS)[number];
 export type ShutdownReason = (typeof SHUTDOWN_REASONS)[number];
 
 interface PromptOverrides {
@@ -44,7 +41,6 @@ export interface Config {
   runRetentionMs: number;
   closeOnFailure: boolean;
   prompts: PromptOverrides;
-  bridge: { enabled: boolean; blockedOn: BlockedKind[] };
 }
 
 function promptOverrides(scope: Scope): PromptOverrides {
@@ -67,7 +63,6 @@ function parse(raw: Raw, file: string): Config {
   const problems: string[] = [];
   const top: Scope = { raw, prefix: "", problems };
   unknownKeys(top, CONFIG_KEYS);
-  const bridge = object(top, "bridge", BRIDGE_KEYS);
 
   const config: Config = {
     enabled: boolean(top, "enabled", true),
@@ -83,10 +78,6 @@ function parse(raw: Raw, file: string): Config {
     // 0 = 永不清理。默认 30 天。
     runRetentionMs: integer(top, "runRetentionMs", 2592000000, 0, 31536000000),
     prompts: promptOverrides(top),
-    bridge: {
-      enabled: boolean(bridge, "enabled", true),
-      blockedOn: enumList(bridge, "blockedOn", BLOCKED_KINDS, BLOCKED_KINDS),
-    },
   };
 
   if (problems.length > 0) {

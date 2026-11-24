@@ -17,7 +17,6 @@ const specDefaults = {
   livenessPollMs: 15000,
   runRetentionMs: 2592000000,
   prompts: {},
-  bridge: { enabled: true, blockedOn: ["custom", "select", "confirm", "input", "editor"] },
 };
 
 function withAgentDir<T>(file: string | undefined, read: (agentDir: string) => T): T {
@@ -81,8 +80,7 @@ it.each([
   [{ questionLines: 40 }, /questionLines/],
   [{ prompts: { nope: "x" } }, /prompts\.nope/],
   [{ prompts: { guidelines: "Use subagent" } }, /prompts\.guidelines/],
-  [{ bridge: { extra: true } }, /bridge\.extra/],
-  [{ bridge: { blockedOn: ["nope"] } }, /blockedOn.*nope/],
+  [{ bridge: { enabled: false } }, /bridge: unknown key/],
 ])("rejects invalid config %o", (value, message) => {
   expect(() => readConfig(value)).toThrow(message);
 });

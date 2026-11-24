@@ -11,11 +11,8 @@ export const CONFIG_KEYS = [
   "livenessPollMs",
   "runRetentionMs",
   "prompts",
-  "bridge",
 ];
-export const BRIDGE_KEYS = ["enabled", "blockedOn"];
 export const PROMPT_KEYS = ["description", "snippet", "guidelines"];
-export const BLOCKED_KINDS = ["custom", "select", "confirm", "input", "editor"] as const;
 export const SHUTDOWN_REASONS = ["new", "resume", "fork", "quit", "reload"] as const;
 const TOOL_NAME = /^[a-z][a-z0-9_]{0,31}$/;
 
