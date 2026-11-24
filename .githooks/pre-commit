@@ -1,8 +1,7 @@
 #!/bin/sh
-# 本地闸：与 CI 同款四步，三包逐跑。启用一次即可（仓库内生效，不写全局配置）：
+# 本地闸：静态三闸，秒级跑完。测试不进钩子，交给单包 pnpm check 与 CI。启用一次即可（仓库内生效，不写全局配置）：
 #   git config core.hooksPath .githooks
 set -e
 pnpm lint
 pnpm check:imports
 pnpm typecheck
-pnpm test

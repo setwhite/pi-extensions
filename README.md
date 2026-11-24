@@ -48,8 +48,16 @@ pnpm -r --no-bail lint:fix # 自动修正格式与 lint
 
 ### 单包与 E2E
 
+只改一个包时，优先在那个包里跑 `check`，四条闸一次过：
+
 ```sh
-pnpm -C packages/pi-todo-lite test                # 单包测试
+pnpm -C packages/<pkg> check                      # 单包四闸：lint / imports / typecheck / test
+```
+
+只有改根配置（`package.json`、`biome.json`、`tsconfig`）、共享脚本（`scripts/`、`.githooks/`）或 `pnpm-lock.yaml` 时，才回根跑 `pnpm check`。
+
+```sh
+pnpm -C packages/pi-todo-lite test                # 只跑单包测试
 pnpm -C packages/pi-web-search-lite test:e2e      # 真网络，需要 provider key
 pnpm -C packages/pi-herdr-subagents-lite test:e2e # 真 herdr + 真 pi 子进程
 pnpm -C packages/pi-browser-use-lite test:e2e     # 已开着的浏览器 + 已装好的扩展
@@ -64,11 +72,13 @@ export PI_E2E_KEEP=1        # 保留 e2e 临时目录
 
 ### 钩子与 CI
 
-CI 在 Linux（Node 22 / 24）与 Windows（Node 22）上跑同样四条，见 [ci.yml](.github/workflows/ci.yml)。
-
 ```sh
-git config core.hooksPath .githooks # 启用提交钩子，钩子跑同样四条
+git config core.hooksPath .githooks # 启用提交钩子
 ```
+
+pre-commit 只跑静态三闸（`pnpm lint`、`pnpm check:imports`、`pnpm typecheck`），秒级结束，不跑测试。提交前想连测试一起过，跑单包 `pnpm -C packages/<pkg> check`。
+
+CI 在 Linux（Node 22 / 24）与 Windows（Node 22）上跑完整四闸，见 [ci.yml](.github/workflows/ci.yml)。
 
 ## 发版
 

@@ -46,6 +46,7 @@
 		"lint": "biome check --error-on-warnings .",
 		"lint:fix": "biome check --write .",
 		"check:imports": "node ../../scripts/check-imports.mjs",
+		"check": "pnpm lint && pnpm check:imports && pnpm typecheck && pnpm test",
 		"test": "vitest run",
 		"test:e2e": "vitest run --config vitest.e2e.config.ts",
 		"typecheck": "tsc --noEmit"
