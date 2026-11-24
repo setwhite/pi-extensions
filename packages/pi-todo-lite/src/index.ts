@@ -177,21 +177,6 @@ export default function piTodo(pi: ExtensionAPI): void {
 		};
 	};
 
-	/** 折叠后不撤浮窗，只把表压成一行，跟底栏那一行同一个口径。 */
-	const foldedWidget = (
-		theme: StyleTheme,
-	): Component & { dispose?(): void } => {
-		const table = widget(theme);
-		return {
-			render: (width: number) => {
-				if (!collapsed) return table.render(width);
-				const line = renderStatus(tasks, widgetConfig, width);
-				return line === undefined ? [] : [line];
-			},
-			invalidate: () => table.invalidate(),
-		};
-	};
-
 	const notify = (
 		ctx: ExtensionContext,
 		message: string,
@@ -262,7 +247,7 @@ export default function piTodo(pi: ExtensionAPI): void {
 						return { render: () => [], invalidate: () => {} };
 					}
 					tui = handle;
-					return foldedWidget(theme);
+					return widget(theme);
 				},
 				{
 					overlay: true,
