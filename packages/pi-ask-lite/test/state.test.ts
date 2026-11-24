@@ -1,0 +1,298 @@
+import { describe, expect, it } from "vitest";
+import type { Question } from "../src/schema.ts";
+import type { Action, Outcome, Session } from "../src/state.ts";
+import { createSession, isAnswered, reduce } from "../src/state.ts";
+
+function question(text: string, labels: string[], multiple = false): Question {
+	return {
+		question: text,
+		multiple,
+		options: labels.map((label) => ({ label })),
+	};
+}
+
+const single = () => createSession([question("Pick one", ["A", "B", "C"])]);
+const pair = () =>
+	createSession([
+		question("First", ["A", "B"]),
+		question("Second", ["C", "D"], true),
+	]);
+
+function apply(session: Session, ...actions: Action[]): Session {
+	return actions.reduce(reduce, session);
+}
+
+function outcome(session: Session): Outcome {
+	if (session.phase.kind !== "done") throw new Error("session is not done");
+	return session.phase.outcome;
+}
+
+function submitted(session: Session) {
+	const result = outcome(session);
+	if (result.kind !== "submit") throw new Error("session did not submit");
+	return result;
+}
+
+describe("reduce 初始状态", () => {
+	it("光标在第一题第一个选项", () => {
+		const session = single();
+		expect(session.active).toBe(0);
+		expect(session.focus).toEqual({ kind: "option", index: 0 });
+		expect(session.phase).toEqual({ kind: "list" });
+	});
+});
+
+describe("光标", () => {
+	it("上下移动夹在两端，Custom 行是最后一行", () => {
+		let session = single();
+		session = apply(session, { kind: "up" });
+		expect(session.focus).toEqual({ kind: "option", index: 0 });
+		session = apply(
+			session,
+			{ kind: "down" },
+			{ kind: "down" },
+			{ kind: "down" },
+		);
+		expect(session.focus).toEqual({ kind: "custom" });
+		session = apply(session, { kind: "down" });
+		expect(session.focus).toEqual({ kind: "custom" });
+	});
+});
+
+describe("单选", () => {
+	it("Enter 选中当前项并提交", () => {
+		const session = apply(single(), { kind: "confirm" });
+		expect(outcome(session)).toEqual({
+			kind: "submit",
+			answers: [{ index: 0, question: "Pick one", selected: [0] }],
+			skipped: [],
+		});
+	});
+
+	it("数字直接选中并提交，越界数字忽略", () => {
+		expect(outcome(apply(single(), { kind: "digit", value: 3 }))).toMatchObject(
+			{
+				answers: [{ selected: [2] }],
+			},
+		);
+		expect(apply(single(), { kind: "digit", value: 9 }).phase).toEqual({
+			kind: "list",
+		});
+	});
+
+	it("Space 在单选下不动", () => {
+		expect(isAnswered(apply(single(), { kind: "toggle" }), 0)).toBe(false);
+	});
+});
+
+describe("多选", () => {
+	it("Space 切换勾选，Enter 推进，勾完提交", () => {
+		let session = pair();
+		session = apply(session, { kind: "confirm" }, { kind: "confirm" });
+		expect(session.active).toBe(1);
+		session = apply(
+			session,
+			{ kind: "toggle" },
+			{ kind: "down" },
+			{ kind: "toggle" },
+		);
+		expect(session.selected[1]).toEqual([0, 1]);
+		session = apply(session, { kind: "confirm" });
+		expect(outcome(session)).toMatchObject({ skipped: [] });
+		expect(outcome(session)).toMatchObject({
+			answers: [{ selected: [0] }, { selected: [0, 1] }],
+		});
+	});
+
+	it("没勾任何项时 Enter 不推进", () => {
+		let session = createSession([question("Pick many", ["A", "B"], true)]);
+		session = apply(session, { kind: "confirm" });
+		expect(session.phase).toEqual({ kind: "list" });
+	});
+
+	it("数字在多选下切换勾选，不推进", () => {
+		let session = createSession([question("Pick many", ["A", "B"], true)]);
+		session = apply(session, { kind: "digit", value: 2 });
+		expect(session.selected[0]).toEqual([1]);
+		expect(session.phase).toEqual({ kind: "list" });
+	});
+});
+
+describe("推进", () => {
+	it("Tab 切题并循环，单题不动", () => {
+		let session = pair();
+		session = apply(session, { kind: "nextQuestion" });
+		expect(session.active).toBe(1);
+		session = apply(session, { kind: "nextQuestion" });
+		expect(session.active).toBe(0);
+		session = apply(session, { kind: "prevQuestion" });
+		expect(session.active).toBe(1);
+		expect(apply(single(), { kind: "nextQuestion" }).active).toBe(0);
+	});
+
+	it("答完一题跳到下一道未答；最后一题先答完也会跳回漏题", () => {
+		let session = pair();
+		session = apply(
+			session,
+			{ kind: "nextQuestion" },
+			{ kind: "toggle" },
+			{ kind: "confirm" },
+		);
+		expect(session.active).toBe(0);
+		session = apply(session, { kind: "confirm" });
+		expect(outcome(session).kind).toBe("submit");
+	});
+});
+
+describe("提前提交", () => {
+	it("只交已答的题，未答的进 skipped", () => {
+		let session = pair();
+		session = apply(session, { kind: "confirm" }, { kind: "submitEarly" });
+		expect(outcome(session)).toEqual({
+			kind: "submit",
+			answers: [{ index: 0, question: "First", selected: [0] }],
+			skipped: [1],
+		});
+	});
+
+	it("一题都没答时不动作", () => {
+		expect(apply(pair(), { kind: "submitEarly" }).phase).toEqual({
+			kind: "list",
+		});
+	});
+});
+
+describe("补充说明", () => {
+	it("e 进编辑，Enter 落地并选中该选项", () => {
+		let session = apply(single(), { kind: "down" }, { kind: "annotate" });
+		expect(session.phase).toEqual({ kind: "note", option: 1, initial: "" });
+		session = apply(session, { kind: "commitNote", text: "  选 B 的原因  " });
+		expect(outcome(session)).toEqual({
+			kind: "submit",
+			answers: [
+				{ index: 0, question: "Pick one", selected: [1], note: "选 B 的原因" },
+			],
+			skipped: [],
+		});
+	});
+
+	it("Esc 退出编辑只留草稿，题仍未答", () => {
+		let session = apply(single(), { kind: "annotate" });
+		session = apply(session, { kind: "cancelNote", text: "半句" });
+		expect(session.phase).toEqual({ kind: "list" });
+		expect(session.notes[0]).toBe("");
+		expect(session.noteDrafts[0]).toBe("半句");
+		expect(isAnswered(session, 0)).toBe(false);
+		session = apply(session, { kind: "annotate" });
+		expect(session.phase).toEqual({ kind: "note", option: 0, initial: "半句" });
+	});
+
+	it("多选下 e 不动作", () => {
+		const session = createSession([question("Many", ["A", "B"], true)]);
+		expect(apply(session, { kind: "annotate" }).phase).toEqual({
+			kind: "list",
+		});
+	});
+
+	it("改选别的选项会丢掉旧 note", () => {
+		let session = createSession([
+			question("First", ["A", "B"]),
+			question("Second", ["C", "D"]),
+		]);
+		session = apply(
+			session,
+			{ kind: "annotate" },
+			{ kind: "commitNote", text: "A 的理由" },
+		);
+		expect(session.notes[0]).toBe("A 的理由");
+		expect(session.active).toBe(1);
+
+		session = apply(session, { kind: "prevQuestion" });
+		expect(session.active).toBe(0);
+		session = apply(session, { kind: "digit", value: 2 });
+		expect(session.notes[0]).toBe("");
+		expect(session.active).toBe(1);
+
+		session = apply(session, { kind: "confirm" });
+		const answer = submitted(session).answers[0];
+		expect(answer).toMatchObject({ index: 0, selected: [1] });
+		expect(answer).not.toHaveProperty("note");
+	});
+});
+
+describe("自由输入", () => {
+	it("Enter 进编辑带出草稿，提交后和勾选并存", () => {
+		let session = createSession([question("Many", ["A", "B"], true)]);
+		session = apply(
+			session,
+			{ kind: "toggle" },
+			{ kind: "down" },
+			{ kind: "down" },
+			{ kind: "confirm" },
+		);
+		expect(session.phase).toEqual({ kind: "custom", initial: "" });
+		session = apply(session, { kind: "commitCustom", text: "  再加一条  " });
+		expect(submitted(session).answers[0]).toMatchObject({
+			selected: [0],
+			custom: "再加一条",
+		});
+	});
+
+	it("空白提交只清掉文本，不推进", () => {
+		let session = pair();
+		session = apply(
+			session,
+			{ kind: "down" },
+			{ kind: "down" },
+			{ kind: "confirm" },
+			{ kind: "commitCustom", text: "先写" },
+		);
+		expect(session.active).toBe(1);
+		session = apply(
+			session,
+			{ kind: "nextQuestion" },
+			{ kind: "down" },
+			{ kind: "down" },
+			{ kind: "confirm" },
+			{ kind: "commitCustom", text: "   " },
+		);
+		expect(session.phase).toEqual({ kind: "list" });
+		expect(session.active).toBe(0);
+		expect(session.customs[0]).toBe("");
+	});
+
+	it("Esc 退出编辑保留草稿", () => {
+		let session = apply(
+			single(),
+			{ kind: "down" },
+			{ kind: "down" },
+			{ kind: "down" },
+			{ kind: "confirm" },
+		);
+		expect(session.phase).toEqual({ kind: "custom", initial: "" });
+		session = apply(session, { kind: "cancelCustom", text: "写了一半" });
+		expect(session.customDrafts[0]).toBe("写了一半");
+		expect(isAnswered(session, 0)).toBe(false);
+	});
+});
+
+describe("中止与收尾", () => {
+	it("列表态 Esc 整次放弃，已答的也丢", () => {
+		let session = pair();
+		session = apply(session, { kind: "confirm" }, { kind: "escape" });
+		expect(outcome(session)).toEqual({ kind: "abort" });
+		expect(outcome(session)).not.toHaveProperty("answers");
+	});
+
+	it("进 done 之后输入全部忽略，出口只出一次", () => {
+		let session = apply(single(), { kind: "escape" });
+		const first = outcome(session);
+		session = apply(session, { kind: "confirm" }, { kind: "escape" });
+		expect(outcome(session)).toBe(first);
+	});
+
+	it("编辑态的 escape 动作不改相位", () => {
+		const session = apply(single(), { kind: "annotate" }, { kind: "escape" });
+		expect(session.phase).toMatchObject({ kind: "note" });
+	});
+});
