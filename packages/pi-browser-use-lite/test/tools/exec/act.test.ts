@@ -1,4 +1,5 @@
 import { expect, it } from "vitest";
+import { TOOL_SPECS } from "../../../src/tools/index.ts";
 import { CONFIG, harness, textOf } from "./harness.ts";
 
 it("AC9: wait 不传 timeout_ms 时按 15 秒", async () => {
@@ -248,9 +249,7 @@ it("缺定位方式时报 bad_args", async () => {
 	expect(sent).toStrictEqual([]);
 });
 
-it("AC10: chrome_act 的默认规则里有一条讲 see 多花 token", async () => {
-	const { TOOL_SPECS } = await import("../../../src/tools/index.ts");
-
+it("AC10: chrome_act 的默认规则里有一条讲 see 多花 token", () => {
 	const rule = TOOL_SPECS.chrome_act.promptGuidelines.find(
 		(line) => line.includes("see") && line.includes("token"),
 	);

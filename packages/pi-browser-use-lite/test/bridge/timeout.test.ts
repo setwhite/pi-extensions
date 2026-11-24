@@ -16,7 +16,12 @@ async function startBridge(holdMs?: number): Promise<Bridge> {
 
 interface NextBody {
 	type: "command" | "none";
-	command?: { id: string; action: string; params?: Record<string, unknown> };
+	command?: {
+		id: string;
+		action: string;
+		params?: Record<string, unknown>;
+		remainingMs?: number;
+	};
 }
 
 function next(bridge: Bridge): Promise<NextBody> {
@@ -195,15 +200,18 @@ it("超时从入队时刻算，不从扩展取走时刻算", async () => {
 	const bridge = await startBridge(1_000);
 	const startedAt = Date.now();
 	const rejection = catchError(
-		bridge.send("tab.list", undefined, { timeoutMs: 300 }),
+		bridge.send("tab.list", undefined, { timeoutMs: 600 }),
 	);
 
-	await sleep(150);
-	expect((await next(bridge)).type).toBe("command");
+	await sleep(300);
+	const delivered = await next(bridge);
+	expect(delivered.type).toBe("command");
+	// 取走时剩余时限按入队算：已经过去约 300ms，远小于 600。
+	expect(delivered.command?.remainingMs).toBeLessThan(450);
 	const error = await rejection;
 
 	expect(error.message).toContain("never returned a result");
-	expect(Date.now() - startedAt).toBeLessThan(400);
+	expect(Date.now() - startedAt).toBeLessThan(850);
 });
 
 it("不传 timeoutMs 时按 30 秒超时，不跟着短超时走", async () => {

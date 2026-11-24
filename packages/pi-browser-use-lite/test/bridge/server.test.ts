@@ -65,7 +65,8 @@ it("AC2: 无命令时，挂起时长用满后返回 type none", async () => {
 	const body = await next(bridge);
 
 	expect(body).toStrictEqual({ type: "none" });
-	expect(Date.now() - startedAt).toBeGreaterThanOrEqual(45);
+	// Windows 的定时器可能提前几毫秒触发，下界留出余量。
+	expect(Date.now() - startedAt).toBeGreaterThanOrEqual(30);
 });
 
 it("AC3: 先有命令时 /next 立刻返回该命令", async () => {
@@ -138,7 +139,8 @@ it("AC9: 首次轮询宽限只等从未见过的扩展，期限到就返回未�
 
 	expect(result.connected).toBe(false);
 	expect(result.lastSeenAt).toBeUndefined();
-	expect(Date.now() - started).toBeGreaterThanOrEqual(70);
+	// Windows 的定时器可能提前几毫秒触发，下界留出余量。
+	expect(Date.now() - started).toBeGreaterThanOrEqual(55);
 });
 
 it("AC9: 扩展在宽限内轮询后返回已连接", async () => {

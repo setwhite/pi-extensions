@@ -1,4 +1,4 @@
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { extensionUrl, stubChrome, uninstallChrome } from "./chrome-stub.ts";
 
 interface UploadModule {
@@ -10,6 +10,7 @@ const { upload } = (await import(
 )) as UploadModule;
 
 afterEach(() => {
+	vi.useRealTimers();
 	uninstallChrome();
 });
 
@@ -89,6 +90,7 @@ it("bad_args: 路径为空或缺 timeoutMs 时抛错且不发 CDP", async () => 
 });
 
 it("交付物: 别的标签的 file chooser 事件不算数", async () => {
+	vi.useFakeTimers();
 	const stub = stubChrome({ evaluate: () => true });
 
 	const uploading = upload({
@@ -96,14 +98,21 @@ it("交付物: 别的标签的 file chooser 事件不算数", async () => {
 		paths: ["/tmp/a.txt"],
 		timeoutMs: 20,
 	});
+	const rejection = expect(uploading).rejects.toThrow(
+		"timeout: no file chooser opened",
+	);
 	setTimeout(() => {
 		stub.emit({ tabId: 999 }, "Page.fileChooserOpened", { backendNodeId: 7 });
 	}, 0);
 
-	await expect(uploading).rejects.toThrow("timeout: no file chooser opened");
+	// 先推进 0ms：跑完 upload 从入队到挂超时定时器之间的微任务。
+	await vi.advanceTimersByTimeAsync(0);
+	await vi.advanceTimersByTimeAsync(20);
+	await rejection;
 });
 
 it("定时器先到、激活点击后抛错时不留下未处理的 rejection", async () => {
+	vi.useFakeTimers();
 	const stub = stubChrome({
 		evaluate: () =>
 			new Promise((_resolve, reject) => {
@@ -114,9 +123,20 @@ it("定时器先到、激活点击后抛错时不留下未处理的 rejection", 
 			}),
 	});
 
-	await expect(
-		upload({ tabId: 106, paths: ["/tmp/a.txt"], timeoutMs: 10 }),
-	).rejects.toThrow("page_error: evaluation failed");
+	const uploading = upload({
+		tabId: 106,
+		paths: ["/tmp/a.txt"],
+		timeoutMs: 10,
+	});
+	const rejection = expect(uploading).rejects.toThrow(
+		"page_error: evaluation failed",
+	);
+
+	// 先推进 0ms：跑完 upload 从入队到挂超时定时器之间的微任务。
+	await vi.advanceTimersByTimeAsync(0);
+	await vi.advanceTimersByTimeAsync(10);
+	await vi.advanceTimersByTimeAsync(20);
+	await rejection;
 
 	expect(stub.calls.at(-1)?.params).toEqual({ enabled: false });
 	expect(stub.debugger.onEvent.removeListener).toHaveBeenCalled();
