@@ -70,6 +70,8 @@ type CustomCall = {
 	component?: Component;
 	closed: boolean;
 	visible: (termWidth: number) => boolean;
+	/** 模拟宿主挂载失败：reject 这一次 custom。 */
+	fail: () => void;
 };
 type StatusCall = { key: string; text: string | undefined };
 type CommandOptions = {
@@ -169,9 +171,15 @@ function harness(
 			options: customOptions,
 			visible: (term) =>
 				customOptions.overlayOptions?.visible?.(term, 40) ?? true,
+			fail: () => {},
 		};
 		overlays.push(call);
-		return new Promise((resolve) => {
+		return new Promise((resolve, reject) => {
+			call.fail = () => {
+				if (call.closed) return;
+				call.closed = true;
+				reject(new Error("custom unavailable"));
+			};
 			call.component = factory(tui, theme, {}, () => {
 				if (call.closed) return;
 				call.closed = true;
@@ -237,6 +245,10 @@ function harness(
 			void (await shortcuts[0]?.options.handler(ctx as never)),
 	};
 }
+
+/** 等异步的 reject 落到 .catch 里：setTimeout 一轮，微任务全部排完。 */
+const flush = (): Promise<void> =>
+	new Promise((resolve) => setTimeout(resolve, 0));
 
 function emit(harness: Harness, event: string): void {
 	for (const handler of harness.handlers.get(event) ?? [])
@@ -828,6 +840,26 @@ describe("index：overlay 模式（AC4）", () => {
 		expect(harnessed.statuses.at(-1)).toEqual({ key: "todo", text: undefined });
 	});
 
+	it("挂载失败后，下一次提交会重试挂窗", async () => {
+		useConfig();
+		const harnessed = harness();
+		piTodo(harnessed.api);
+		emit(harnessed, "session_start");
+		await callTool(harnessed, { tasks: [{ content: "a", status: "pending" }] });
+
+		harnessed.overlays[0]?.fail();
+		await flush();
+
+		expect(harnessed.activeOverlays()).toBe(0);
+
+		await callTool(harnessed, {
+			tasks: [{ content: "a", status: "in_progress" }],
+		});
+
+		expect(harnessed.overlays).toHaveLength(2);
+		expect(harnessed.lines(80)).toEqual(["Todo 0/1 · 1 doing", "[-] a"]);
+	});
+
 	it("连续 restore 只留一个浮窗，session_shutdown 全部释放", async () => {
 		useConfig();
 		const harnessed = harness();
@@ -973,6 +1005,26 @@ describe("index：折叠键（T11）", () => {
 		expect(harnessed.activeOverlays()).toBe(1);
 		expect(harnessed.lines(80)).toEqual(["Todo 1/2", "[ ] a", "[x] b"]);
 		expect(harnessed.entries).toHaveLength(1);
+	});
+
+	it("折叠后模型再更新：底栏那一行跟着变，不被擦掉", async () => {
+		useConfig();
+		const harnessed = harness({ cwd: makeTempDir("cwd") });
+		piTodo(harnessed.api);
+		emit(harnessed, "session_start");
+		await callTool(harnessed, {
+			tasks: [{ content: "a", status: "pending" }],
+		});
+		await harnessed.fireShortcut();
+
+		await callTool(harnessed, {
+			tasks: [{ content: "a", status: "in_progress" }],
+		});
+
+		expect(harnessed.statuses.at(-1)).toEqual({
+			key: "todo",
+			text: "Todo 0/1 · 1 doing · a",
+		});
 	});
 
 	it("折叠后回放会话事件：折叠重置，浮窗重挂成整表", async () => {

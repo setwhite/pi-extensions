@@ -282,7 +282,11 @@ export default function piTodo(pi: ExtensionAPI): void {
 					},
 				},
 			)
-			.catch((error: unknown) => notify(ctx, overlayError(error), "error"));
+			.catch((error: unknown) => {
+				// 宿主没挂上：别把这次的句柄当已挂，否则后续更新只在旧句柄上要求重绘，永远不再试
+				if (mounted === entry) mounted = undefined;
+				notify(ctx, overlayError(error), "error");
+			});
 	};
 
 	const refreshStatus = (ctx: ExtensionContext | undefined): void => {
@@ -304,10 +308,10 @@ export default function piTodo(pi: ExtensionAPI): void {
 		}
 		if (mounted !== undefined) releaseOverlay();
 		if (ctx === undefined) return;
-		// 折叠时留一行，口径同底栏
+		// 折叠时留一行，口径同底栏；浮窗已卸载，宽度只有它能给，没有就交给底栏自己截
 		writeStatus(
 			ctx,
-			collapsed && tasks.length > 0 && width !== undefined
+			collapsed && tasks.length > 0
 				? renderStatus(tasks, widgetConfig, width)
 				: undefined,
 		);
@@ -357,7 +361,7 @@ export default function piTodo(pi: ExtensionAPI): void {
 				},
 			)
 			.catch((error: unknown) => {
-				popup = undefined;
+				if (popup === entry) popup = undefined;
 				notify(ctx, overlayError(error), "error");
 			});
 	};
