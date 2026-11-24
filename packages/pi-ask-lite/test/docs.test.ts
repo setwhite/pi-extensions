@@ -68,12 +68,11 @@ const ZH_SAMPLE = sample(ZH, "README.zh-CN.md");
 const EN_SAMPLE = sample(EN, "README.md");
 
 describe("README 的配置示例与 config.ts 对账", () => {
-	it("示例的键正好是 DEFAULTS 的键，值逐字一致（guidance 三格是占位符）", () => {
+	it("示例的键正好是 DEFAULTS 的键，值逐字一致", () => {
 		const leaves = leafPaths(DEFAULTS).sort();
 		expect(leafPaths(ZH_SAMPLE).sort()).toEqual(leaves);
 
 		for (const path of leaves) {
-			if (path.startsWith("guidance.")) continue;
 			expect(atPath(ZH_SAMPLE, path).value, path).toEqual(
 				atPath(DEFAULTS, path).value,
 			);

@@ -94,10 +94,26 @@ describe("loadConfig", () => {
 		).toThrow(/tools\.ask\.name: expected a tool name/);
 	});
 
-	it("默认值里的 guidance 带 tool-name 占位", () => {
-		expect(DEFAULTS.guidance.promptSnippet).toContain("tool-name");
+	it("默认 description 说明何时该问", () => {
+		expect(DEFAULTS.guidance.description).toBe(
+			"Ask structured questions when user intent or trade-offs are unclear.",
+		);
+	});
+
+	it("默认不注册 promptSnippet", () => {
+		expect(DEFAULTS.guidance.promptSnippet).toBe("");
+	});
+
+	it("默认 guidelines 五条，tool-name 占位只在开头", () => {
+		expect(DEFAULTS.guidance.promptGuidelines).toEqual([
+			"tool-name: Check code, docs, or tools first; only ask when user intent or trade-offs are unclear.",
+			"tool-name: Ask only independent questions together; defer follow-ups that depend on earlier answers.",
+			"tool-name: Put the recommended option first, keep `label` short, and explain trade-offs in `detail`.",
+			"tool-name: Put concrete examples, code, or layouts in `preview` when options differ in behavior.",
+			"tool-name: Set `multiple: true` only when choices are not mutually exclusive.",
+		]);
 		for (const guideline of DEFAULTS.guidance.promptGuidelines) {
-			expect(guideline.startsWith("tool-name")).toBe(true);
+			expect(guideline.slice("tool-name: ".length)).not.toContain("tool-name");
 		}
 	});
 });

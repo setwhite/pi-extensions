@@ -34,14 +34,14 @@ export const DEFAULTS: Config = {
 	keys: { annotate: "e", submitEarly: "ctrl+enter" },
 	guidance: {
 		description:
-			"Ask the user structured questions and use their answers. Options can carry Markdown previews for code or document choices.",
-		promptSnippet:
-			"tool-name: Ask the user 1-4 structured questions and get the answers.",
+			"Ask structured questions when user intent or trade-offs are unclear.",
+		promptSnippet: "",
 		promptGuidelines: [
-			"tool-name: Use it when you need a decision between concrete options instead of open-ended chat.",
-			"tool-name: Every question needs 2-6 options. Add `preview` when the choice depends on code or a document.",
-			"tool-name: Set `multiple: true` when the user may pick more than one option.",
-			"tool-name: After the user aborts with Esc, do not repeat the same questions unless the user asks.",
+			"tool-name: Check code, docs, or tools first; only ask when user intent or trade-offs are unclear.",
+			"tool-name: Ask only independent questions together; defer follow-ups that depend on earlier answers.",
+			"tool-name: Put the recommended option first, keep `label` short, and explain trade-offs in `detail`.",
+			"tool-name: Put concrete examples, code, or layouts in `preview` when options differ in behavior.",
+			"tool-name: Set `multiple: true` only when choices are not mutually exclusive.",
 		],
 	},
 };

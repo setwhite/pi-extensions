@@ -155,18 +155,30 @@ describe("注册", () => {
 		expect(tool.name).toBe("ask");
 		expect(tool.exposure).toBe("model-only");
 		expect(tool.description).not.toContain("tool-name");
-		expect(tool.promptSnippet).toContain("ask");
 		for (const guideline of tool.promptGuidelines ?? []) {
+			expect(guideline).toMatch(/^ask: /);
 			expect(guideline).not.toContain("tool-name");
-			expect(guideline).toContain("ask");
 		}
 	});
 
-	it("改名后注册名与文案一起换", () => {
+	it("默认不注册 promptSnippet", () => {
+		useConfig();
+		const { tools } = setup();
+		expect(tools[0].promptSnippet).toBeUndefined();
+	});
+
+	it("guidance.promptSnippet 非空时注册那一行", () => {
+		useConfig({ guidance: { promptSnippet: "tool-name: Ask once." } });
+		const { tools } = setup();
+		expect(tools[0].promptSnippet).toBe("ask: Ask once.");
+	});
+
+	it("改名后注册名与 guidelines 前缀一起换", () => {
 		useConfig({ tools: { ask: { name: "question" } } });
 		const { tools } = setup();
 		expect(tools[0].name).toBe("question");
-		expect(tools[0].promptSnippet).toContain("question");
+		for (const guideline of tools[0].promptGuidelines ?? [])
+			expect(guideline).toMatch(/^question: /);
 	});
 });
 

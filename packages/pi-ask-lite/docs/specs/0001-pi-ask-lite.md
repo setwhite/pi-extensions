@@ -139,7 +139,7 @@ type Outcome =
   "keys": { "annotate": "e", "submitEarly": "ctrl+enter" },
   "guidance": {
     "description": "...",
-    "promptSnippet": "...",
+    "promptSnippet": "",
     "promptGuidelines": ["tool-name: ..."]
   }
 }
@@ -147,7 +147,7 @@ type Outcome =
 
 键、默认值、校验、报错在 `src/config.ts`，README 的配置节给人看。未知键与类型不符抛错并带字段路径，错误前缀 `pi-ask config <path>:`。`maxHeightRatio` 越界夹到 0.2–0.8。
 
-`guidance` 三段都可覆盖，`tool-name` 占位符替换成实际工具名。
+`guidance` 三段都可覆盖，`tool-name` 占位符替换成实际工具名。`promptSnippet` 默认空串，空串不注册工具清单那一行；`description` 与 `promptGuidelines` 的默认文案在 `src/config.ts`。
 
 ### 宿主协作
 
