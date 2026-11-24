@@ -13,3 +13,4 @@
 - [0005](0005-auto-clear-clears-ledger.md) 自动清空：清显示要连账一起清
 - [0006](0006-clear-on-input.md) clear 在用户发下一条消息时触发，并成为默认档
 - [0007](0007-zero-height-ui.md) 零行高界面：角落浮窗 + 底栏一行
+- [0008](0008-overlay-on-demand.md) 浮窗按需挂载：空表与折叠时不占 `ctx.ui.custom`

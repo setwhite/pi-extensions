@@ -1,5 +1,7 @@
 # 0007 零行高界面：角落浮窗 + 底栏一行
 
+**已由 [0008](0008-overlay-on-demand.md) 部分取代**：浮窗改为按需挂载，折叠即释放，不再常驻。
+
 **决定**：
 
 - 删掉 `ctx.ui.setWidget`，不再支持 `ui.widget.placement`（写了直接报错，指向 `ui.mode`）。
