@@ -237,12 +237,6 @@ export default function piTodo(pi: ExtensionAPI): void {
 		);
 	};
 
-	const refreshOverlay = (ctx: ExtensionContext | undefined): void => {
-		const width = tui?.terminal.columns;
-		if (ctx !== undefined && width !== undefined) syncNarrowStatus(ctx, width);
-		tui?.requestRender();
-	};
-
 	const releaseOverlay = (): void => {
 		generation += 1;
 		const previous = mounted;
@@ -293,6 +287,30 @@ export default function piTodo(pi: ExtensionAPI): void {
 
 	const refreshStatus = (ctx: ExtensionContext | undefined): void => {
 		writeStatus(ctx, renderStatus(tasks, widgetConfig));
+	};
+
+	/**
+	 * 浮窗的唯一开关。空表、折叠、没有 UI 都不该占着 ctx.ui.custom：
+	 * 那个交互要到 done() 才结束，pi 会把它当成一直在等用户。
+	 */
+	const syncOverlay = (): void => {
+		if (config.ui.mode === "status") return;
+		const ctx = activeCtx;
+		const width = tui?.terminal.columns;
+		if (ctx !== undefined && !collapsed && tasks.length > 0 && canDraw(ctx)) {
+			if (mounted === undefined) mountOverlay(ctx);
+			else tui?.requestRender();
+			return;
+		}
+		if (mounted !== undefined) releaseOverlay();
+		if (ctx === undefined) return;
+		// 折叠时留一行，口径同底栏
+		writeStatus(
+			ctx,
+			collapsed && tasks.length > 0 && width !== undefined
+				? renderStatus(tasks, widgetConfig, width)
+				: undefined,
+		);
 	};
 
 	const closePopup = (): void => {
@@ -347,19 +365,22 @@ export default function piTodo(pi: ExtensionAPI): void {
 	const commit = (next: Task[], ctx?: ExtensionContext): void => {
 		pi.appendEntry(STATE_CUSTOM_TYPE, { tasks: next });
 		tasks = next;
+		if (ctx !== undefined) activeCtx = ctx;
 		// 表空了就别留个空框
 		if (next.length === 0) closePopup();
-		const target = ctx ?? activeCtx;
-		if (config.ui.mode === "status") refreshStatus(target);
-		else refreshOverlay(target);
+		if (config.ui.mode === "status") refreshStatus(activeCtx);
+		else syncOverlay();
 	};
 
 	const restore = (ctx: ExtensionContext): void => {
 		activeCtx = ctx;
+		releaseOverlay();
 		tasks = replayTasks(ctx.sessionManager.getBranch());
 		closePopup();
+		// 折叠是会话内的视图状态，新会话从展开开始
+		collapsed = false;
 		if (config.ui.mode === "status") refreshStatus(ctx);
-		else mountOverlay(ctx);
+		else syncOverlay();
 	};
 
 	pi.registerTool({
@@ -598,7 +619,7 @@ export default function piTodo(pi: ExtensionAPI): void {
 					return;
 				}
 				collapsed = !collapsed;
-				refreshOverlay(ctx);
+				syncOverlay();
 			},
 		});
 	}
@@ -616,8 +637,6 @@ export default function piTodo(pi: ExtensionAPI): void {
 
 	pi.on("session_start", (_event, ctx) => {
 		sessionCwd = ctx.cwd;
-		// 折叠是会话内的视图状态，新会话从展开开始
-		collapsed = false;
 		restore(ctx);
 	});
 	pi.on("session_compact", (_event, ctx) => restore(ctx));

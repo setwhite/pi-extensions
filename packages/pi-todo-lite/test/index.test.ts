@@ -516,13 +516,21 @@ describe("index：一次调用（AC2）", () => {
 		expect(harnessed.lines(80)).toEqual([]);
 	});
 
-	it("状态变化后重画一次 widget", async () => {
+	it("表变了就重画一次 widget", async () => {
 		useConfig();
 		const harnessed = harness();
 		piTodo(harnessed.api);
 		emit(harnessed, "session_start");
 
 		await callTool(harnessed, { tasks: [{ content: "a", status: "pending" }] });
+
+		// 首条任务才挂上浮窗，没有旧表可重画
+		expect(harnessed.activeOverlays()).toBe(1);
+		expect(harnessed.renders()).toBe(0);
+
+		await callTool(harnessed, {
+			tasks: [{ content: "a", status: "completed" }],
+		});
 
 		expect(harnessed.renders()).toBe(1);
 	});
@@ -538,8 +546,8 @@ describe("index：会话事件与浮窗", () => {
 			expect(() => emit(harnessed, event)).not.toThrow();
 		}
 
-		expect(harnessed.overlays).toHaveLength(3);
-		expect(harnessed.activeOverlays()).toBe(1);
+		// 空表一次 ctx.ui.custom 都不调：那个交互要到 done() 才结束
+		expect(harnessed.overlays).toEqual([]);
 		expect(harnessed.lines(80)).toEqual([]);
 	});
 
@@ -710,7 +718,7 @@ describe("index：status 模式（AC3）", () => {
 });
 
 describe("index：overlay 模式（AC4）", () => {
-	it("浮窗选项透传 anchor、width、margin 与 nonCapturing", () => {
+	it("浮窗选项透传 anchor、width、margin 与 nonCapturing", async () => {
 		useConfig({
 			ui: {
 				overlay: {
@@ -724,6 +732,7 @@ describe("index：overlay 模式（AC4）", () => {
 		const harnessed = harness();
 		piTodo(harnessed.api);
 		emit(harnessed, "session_start");
+		await callTool(harnessed, { tasks: [{ content: "a", status: "pending" }] });
 
 		expect(harnessed.overlays[0]?.options.overlay).toBe(true);
 		expect(harnessed.overlays[0]?.options.overlayOptions).toMatchObject({
@@ -734,25 +743,61 @@ describe("index：overlay 模式（AC4）", () => {
 		});
 	});
 
-	it("visible：空表或窄屏返回 false，折叠时仍然可见", async () => {
+	it("空表不挂浮窗，有表才挂；窄屏 visible 为 false", async () => {
 		useConfig();
 		const harnessed = harness();
 		piTodo(harnessed.api);
 		emit(harnessed, "session_start");
 
+		expect(harnessed.overlays).toEqual([]);
 		expect(harnessed.visibleAt(120)).toBe(false);
 
 		await callTool(harnessed, { tasks: [{ content: "a", status: "pending" }] });
 
+		expect(harnessed.activeOverlays()).toBe(1);
 		expect(harnessed.visibleAt(120)).toBe(true);
 		expect(harnessed.visibleAt(99)).toBe(false);
 		expect(harnessed.visibleAt(100)).toBe(true);
+	});
+
+	it("提交空表：卸载浮窗并清掉底栏那一行", async () => {
+		useConfig();
+		const harnessed = harness();
+		piTodo(harnessed.api);
+		emit(harnessed, "session_start");
+		await callTool(harnessed, { tasks: [{ content: "a", status: "pending" }] });
+		harnessed.visibleAt(80);
+		expect(harnessed.statuses.at(-1)).toEqual({
+			key: "todo",
+			text: "Todo 0/1",
+		});
+
+		await callTool(harnessed, { tasks: [] });
+
+		expect(harnessed.activeOverlays()).toBe(0);
+		expect(harnessed.statuses.at(-1)).toEqual({ key: "todo", text: undefined });
+		expect(harnessed.lines(80)).toEqual([]);
+	});
+
+	it("折叠即卸载，展开重挂：不叠双窗", async () => {
+		useConfig();
+		const harnessed = harness();
+		piTodo(harnessed.api);
+		emit(harnessed, "session_start");
+		await callTool(harnessed, { tasks: [{ content: "a", status: "pending" }] });
 
 		await harnessed.fireShortcut();
-		expect(harnessed.visibleAt(120)).toBe(true);
-		expect(harnessed.lines(80)).toEqual(["Todo 0/1"]);
+
+		expect(harnessed.activeOverlays()).toBe(0);
+		expect(harnessed.statuses.at(-1)).toEqual({
+			key: "todo",
+			text: "Todo 0/1",
+		});
 
 		await harnessed.fireShortcut();
+
+		expect(harnessed.activeOverlays()).toBe(1);
+		expect(harnessed.overlays).toHaveLength(2);
 		expect(harnessed.lines(80)).toEqual(["Todo 0/1", "[ ] a"]);
 	});
 
@@ -783,17 +828,19 @@ describe("index：overlay 模式（AC4）", () => {
 		expect(harnessed.statuses.at(-1)).toEqual({ key: "todo", text: undefined });
 	});
 
-	it("连续 restore 只留一个浮窗，session_shutdown 全部释放", () => {
+	it("连续 restore 只留一个浮窗，session_shutdown 全部释放", async () => {
 		useConfig();
 		const harnessed = harness();
 		piTodo(harnessed.api);
 
 		emit(harnessed, "session_start");
+		await callTool(harnessed, { tasks: [{ content: "a", status: "pending" }] });
 		emit(harnessed, "session_compact");
 		emit(harnessed, "session_tree");
 
 		expect(harnessed.overlays).toHaveLength(3);
 		expect(harnessed.overlays[0]?.closed).toBe(true);
+		expect(harnessed.overlays[1]?.closed).toBe(true);
 		expect(harnessed.activeOverlays()).toBe(1);
 
 		emit(harnessed, "session_shutdown");
@@ -887,7 +934,7 @@ describe("index：lifecycle.onFinish（T12）", () => {
 });
 
 describe("index：折叠键（T11）", () => {
-	it("按一次压成一行、再按一次展开：浮窗不消失，任务表一寸不动", async () => {
+	it("折叠即卸载浮窗，底栏留一行，账本一寸不动", async () => {
 		useConfig();
 		const harnessed = harness({ cwd: makeTempDir("cwd") });
 		piTodo(harnessed.api);
@@ -908,8 +955,11 @@ describe("index：折叠键（T11）", () => {
 
 		await harnessed.fireShortcut();
 
-		expect(harnessed.visibleAt(120)).toBe(true);
-		expect(harnessed.lines(80)).toEqual(["Todo 1/2"]);
+		expect(harnessed.activeOverlays()).toBe(0);
+		expect(harnessed.statuses.at(-1)).toEqual({
+			key: "todo",
+			text: "Todo 1/2",
+		});
 		expect(harnessed.entries).toHaveLength(1);
 		expect(harnessed.entries[0]?.data).toEqual({
 			tasks: [
@@ -920,11 +970,12 @@ describe("index：折叠键（T11）", () => {
 
 		await harnessed.fireShortcut();
 
+		expect(harnessed.activeOverlays()).toBe(1);
 		expect(harnessed.lines(80)).toEqual(["Todo 1/2", "[ ] a", "[x] b"]);
 		expect(harnessed.entries).toHaveLength(1);
 	});
 
-	it("收起之后会话事件照旧回放，浮窗仍只剩那一行", async () => {
+	it("折叠后回放会话事件：折叠重置，浮窗重挂成整表", async () => {
 		useConfig();
 		const harnessed = harness({ cwd: makeTempDir("cwd") });
 		piTodo(harnessed.api);
@@ -934,11 +985,12 @@ describe("index：折叠键（T11）", () => {
 		});
 		await harnessed.fireShortcut();
 
+		expect(harnessed.activeOverlays()).toBe(0);
+
 		emit(harnessed, "session_compact");
 
-		expect(harnessed.visibleAt(120)).toBe(true);
-		expect(harnessed.lines(80)).toEqual(["Todo 0/1 · 1 doing · a"]);
 		expect(harnessed.activeOverlays()).toBe(1);
+		expect(harnessed.lines(80)).toEqual(["Todo 0/1 · 1 doing", "[-] a"]);
 		expect(harnessed.entries).toHaveLength(1);
 	});
 
@@ -950,11 +1002,12 @@ describe("index：折叠键（T11）", () => {
 		await callTool(harnessed, { tasks: [{ content: "a", status: "pending" }] });
 		await harnessed.fireShortcut();
 
-		expect(harnessed.lines(80)).toEqual(["Todo 0/1"]);
+		expect(harnessed.activeOverlays()).toBe(0);
 
 		emit(harnessed, "session_shutdown");
 		emit(harnessed, "session_start");
 
+		expect(harnessed.activeOverlays()).toBe(1);
 		expect(harnessed.lines(80)).toEqual(["Todo 0/1", "[ ] a"]);
 	});
 
@@ -982,12 +1035,13 @@ describe("index：/todos 命令（T8）", () => {
 		);
 	});
 
-	it("commands.todos.enabled 为 false 时不注册命令，工具与 widget 照常", () => {
+	it("commands.todos.enabled 为 false 时不注册命令，工具与 widget 照常", async () => {
 		useConfig({ commands: { todos: { enabled: false } } });
 		const harnessed = harness();
 
 		piTodo(harnessed.api);
 		emit(harnessed, "session_start");
+		await callTool(harnessed, { tasks: [{ content: "a", status: "pending" }] });
 
 		expect(harnessed.commands).toEqual([]);
 		expect(harnessed.tools).toHaveLength(1);
