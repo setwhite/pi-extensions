@@ -5,7 +5,7 @@
 | 包 | 做什么 | 额外要求 |
 |---|---|---|
 | [`pi-web-search-lite`](packages/pi-web-search-lite) | `web_search` + `web_fetch`，可配 provider 与抓取链 | 一个搜索源的 key |
-| [`pi-todo-lite`](packages/pi-todo-lite) | 输入框上方一张有序任务表 | 无 |
+| [`pi-todo-lite`](packages/pi-todo-lite) | 角落浮窗里一张有序任务表，不占对话行数 | 无 |
 | [`pi-herdr-subagents-lite`](packages/pi-herdr-subagents-lite) | 在 herdr 分格里跑 pi 子代理 | herdr，父会话跑在 pane 里 |
 | [`pi-browser-use-lite`](packages/pi-browser-use-lite) | 5 个 `chrome_*` 工具，经本地桥驱动你已登录的真实浏览器 | Chromium 系浏览器，手动加载扩展 |
 
