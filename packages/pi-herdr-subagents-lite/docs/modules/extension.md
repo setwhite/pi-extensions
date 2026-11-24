@@ -5,7 +5,7 @@ pi 适配层。不持有 run 状态。本文只写取舍。
 ## session_start
 
 - 每个 session 重建 run 服务。旧服务先 shutdown，避免上一会话的 run 泄漏到新会话。
-- 按 `config.enabled` 注册工具。bridge 与 inbox 泵不受它控制（DEC-0049）。
+- 按 `config.enabled` 注册工具。inbox 泵不受它控制。
 - profile 列表在注册时展开一次。运行中改 profile，`run` 与 `send` 重启时会重读。工具说明里的列表要重启 pi 才更新。
 
 ## 回合上报（子代理侧）

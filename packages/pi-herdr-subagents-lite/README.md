@@ -9,7 +9,7 @@ The extension runs each subagent as a separate pi process in its own herdr pane.
 - A subagent is a separate process, and a human can take over its pane. When the child cwd matches the parent cwd, it opens a tab in the same workspace. Otherwise it opens a new workspace.
 - Profiles have two layers, global and per project, each a Markdown file with frontmatter.
 - `run` returns at once. Each finished turn reports one `subagent_result`. Results inside `aggregateWindowMs` merge into one message, and an oversize result goes to an artifact file.
-- Questions stay with the human. When a child opens a prompt, only `herdr:blocked` is emitted, and nothing reaches the parent. The human answers in the child pane.
+- Questions stay with the human. A dialog in the child pane never reaches the parent, and the human answers there. Reporting `blocked` to herdr belongs to the extension that opens the dialog (DEC-0070).
 - Nesting is off by default, and the extension is no sandbox. Unless the profile names this tool, a child tool set drops it.
 
 ## Install
@@ -50,7 +50,7 @@ Every key follows, and each value is the default.
 
 ```jsonc
 {
-  // Default true. false = no subagent tool for the model. The bridge has its own switch.
+  // Default true. false = no subagent tool for the model.
   "enabled": true,
   // Default "subagent". Must match ^[a-z][a-z0-9_]{0,31}$. The name prefixes each guideline line.
   "toolName": "subagent",
@@ -84,13 +84,6 @@ Every key follows, and each value is the default.
       "send only delivers; no state tracking.",
       "Available profiles:\n{{profiles}}"
     ]
-  },
-  // Turn pi prompt events into herdr:blocked events.
-  "bridge": {
-    // Default true. false = no herdr:blocked events.
-    "enabled": true,
-    // Default all five. Prompt kinds that count as blocked: custom, select, confirm, input, editor.
-    "blockedOn": ["custom", "select", "confirm", "input", "editor"]
   }
 }
 ```

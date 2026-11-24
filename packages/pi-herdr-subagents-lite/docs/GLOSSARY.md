@@ -22,8 +22,7 @@
 | **tab label** | tab 栏文字。v1 等于子代理名 | 不是 agent name 字段 |
 | **pane label** | pane 头文字。v1 是任务第一行，为空时用子代理名 | 不是 tab label |
 | **回合事件** | `<runBase>.turns/<n>.json`。子代理在每个 `agent_settled` 写，父代理消费后删除（DEC-0062） | 不是 session 文件，也不是退出回执 |
-| **blocked** | agent 正在等人处理输入。v1 由 bridge 监听 `ui_prompt_*` 上报 | 不靠屏幕检测 |
-| **bridge** | 同一扩展内的监听器，`ui_prompt_start/end` → `herdr:blocked`（v1） | 不是 herdr 自带集成，也不是第二个入口 |
+| **blocked** | agent 正在等人处理输入。状态从 herdr 读，上报由开对话框的交互扩展自己做（DEC-0070） | 不靠屏幕检测，本包也不上报 |
 | **结果 artifact** | 超限结果的全文文件，`<runBase>.result-<seq>.md` | 不是子 session 文件，也不是每条结果都写 |
 | **子侧 inbox** | `<runBase>.inbox/`。父侧写（brief 与 send 消息），子进程读（DEC-0023、DEC-0026） | 不是 herdr 的消息队列，也不是结果通道 |
 | **subagent_result** | 回投父会话的异步结果消息 | 不是工具的同步返回值 |
@@ -31,4 +30,4 @@
 | **存活对账** | 每 15 秒一次 `agent list`，只看 `running` 的 run。连续三次缺席判 `dead`（DEC-0064） | 不是结果来源，也不读 pane 文本 |
 | **pi-herdr-subagents** | 同名参考项目，有 fyang93 与 modem-dev 两个版本 | 不是 herdr 的一部分，也不是本项目的 fork 来源 |
 | **pi-durable** | 可嵌入的 durable harness，子代理是同进程的子 conversation | 没接进 pi CLI |
-| **v1** | profile（含 auto-exit）、send 投递、bridge、回合事件、反问留在子 pane、npm 发布 | 不含 fork，死亡不自动重启 |
+| **v1** | profile（含 auto-exit）、send 投递、回合事件、反问留在子 pane、npm 发布 | 不含 fork，死亡不自动重启 |

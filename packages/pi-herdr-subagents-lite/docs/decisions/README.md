@@ -65,8 +65,9 @@
 
 - [0024](0024-state-source.md) 状态只读 herdr
 - [0025](0025-native-alerts.md) 提醒走原生
-- [0040](0040-bridge.md) bridge 上报 blocked
-- [0049](0049-merge-bridge.md) bridge 并入主扩展
+- [0040](0040-bridge.md) bridge 上报 blocked。已由 0070 取代
+- [0049](0049-merge-bridge.md) bridge 并入主扩展。已由 0070 取代
+- [0070](0070-delete-bridge.md) 删掉 bridge，blocked 交给会阻塞的交互扩展
 
 ## 投递与写冲突
 

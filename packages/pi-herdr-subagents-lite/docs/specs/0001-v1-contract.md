@@ -1,6 +1,6 @@
 # 0001 v1 契约
 
-本文件写 v1 的对外配置、工具、结果与 bridge。代码按本文实现。决策理由见[决策](../decisions/README.md)。工具文案见 `src/tool/text.ts`。
+本文件写 v1 的对外配置、工具与结果。代码按本文实现。决策理由见[决策](../decisions/README.md)。工具文案见 `src/tool/text.ts`。
 
 一句话：一个工具，两个 action（`run` / `send`）。结果异步。子代理跑在 herdr pane。只做 fresh。
 
@@ -16,7 +16,7 @@
 
 | 键 | 类型 | 允许 | 说明 |
 |---|---|---|---|
-| `enabled` | boolean | — | 只控制工具注册。bridge 由 `bridge.enabled` 独立控制。已跑子代理不受影响 |
+| `enabled` | boolean | — | 只控制工具注册。已跑子代理不受影响 |
 | `toolName` | string | `^[a-z][a-z0-9_]{0,31}$` | 跨扩展重名不处理 |
 | `herdrBin` | string | 非空 | herdr 可执行文件。裸名按 PATH 解析。用绝对路径可指定版本 |
 | `maxConcurrent` | integer | 越界 clamp | 每个父会话同时在跑的回合上限，只有下界。回合已结束、等 `send` 的子代理不占 |
@@ -28,7 +28,6 @@
 | `livenessPollMs` | integer | 越界 clamp | 进行中的 run 多久查一次 `agent list`。连续三次缺席判失去联系 |
 | `runRetentionMs` | integer | 越界 clamp | run 附属文件的保留期，单位毫秒。默认 30 天。`0` = 永不清理（DEC-0068） |
 | `prompts` | object | — | 提示词覆盖。键与展开见 `src/tool/text.ts` |
-| `bridge` | object | — | 见第 7 节 |
 
 `closeChildrenOn` 未命中时只停止投递，不关 pane。父进程自己关 pane 前先停扫描，所以关掉之后不会再发死亡通知。关闭只动父侧自己创建的 pane，同一 tab 里其他 pane 不受影响。父进程崩溃没有 shutdown，不关，不认领。
 
@@ -205,14 +204,3 @@ Partial answer (not a completed result):
 - blocked 时父侧不发消息，也不读 toolCall。blocked 期间不结算，继续等它离开 blocked。
 - 投递失败不重发。父会话收到一条通知。
 
-## 7. bridge
-
-同一扩展内的监听器，不单独入口。全局安装后所有 pi 进程都加载。
-
-- 不单独注册工具。顶层 `enabled` 只跳过工具（见第 1 节）。
-- 监听 `ui_prompt_start` / `ui_prompt_end`，emit `herdr:blocked`（`{active, label}`）。
-- `blockedOn` 决定哪些 `ui_prompt` kind 算 blocked。默认 `custom` / `select` / `confirm` / `input` / `editor`。
-- `bridge.enabled: false` 或 `blockedOn: []` = 不上报。
-- `label` 取 `title`，没有则取 `kind`。herdr 集成把它作为 blocked message。
-- 不依赖第三方 ask 事件。子进程即使没有 `subagent` 工具，也照常上报。
-- 配置错误按第 1 节处理。

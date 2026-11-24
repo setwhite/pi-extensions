@@ -6,7 +6,7 @@
 
 ## 1. 命名与拆分规则
 
-- 模块名是职责的普通名词，小写、单数：`config`、`profile`、`inbox`、`bridge`、`run`。禁用看不出职责的词：`utils`、`common`、`helpers`、`core`、`ports`、`service`、`manager`。
+- 模块名是职责的普通名词，小写、单数：`config`、`profile`、`inbox`、`herdr`、`run`。禁用看不出职责的词：`utils`、`common`、`helpers`、`core`、`ports`、`service`、`manager`。
 - 一个模块一个目录，对外只经 `index.ts`。产品代码只从入口 import。测试可以直接 import 模块内文件，那正是 seam。
 - 模块内一个文件一件事，不用 `-er` / `-or` 结尾的施动者名（`poller.ts`、`handler.ts`）。
 - 单文件上限 150 行，超过就拆。按「谁变」拆，不按「谁像」拆：一侧改而另一侧不动的代码，放两个文件。
@@ -29,7 +29,6 @@
 | [`inbox`](modules/inbox.md) | `<runBase>.inbox/` 文件协议与子侧泵 | `index.ts` `pump.ts` |
 | [`config`](modules/config.md) | 全局配置读取与严格校验 | `index.ts` `schema.ts` |
 | [`profile`](modules/profile.md) | profile 读取、校验、分层、示例落盘 | `index.ts` `frontmatter.ts` `fields.ts` `layers.ts` `examples.ts` `seed.ts` `skills.ts` |
-| [`bridge`](modules/bridge.md) | `ui_prompt_*` → `herdr:blocked`，按 `bridge.enabled` / `blockedOn` 过滤 | `index.ts` |
 
 入口不是模块。它构造真实 host、配置、profile 加载器与 session 读取器，注入 `createExtension`。加载时还调一次 `seedExampleProfile(globalProfilesDir())`，把 `profiles/examples/` 对齐到包内示例（DEC-0057）。
 
@@ -46,7 +45,6 @@ extension -> run
 extension ..> config   (type-only)
 extension ..> herdr    (type-only)
 extension ..> profile  (type-only)
-extension -> bridge
 extension -> inbox
 extension -> error
 extension ..> session-file (type-only)
@@ -61,7 +59,6 @@ run ..> session-file
 run -> inbox
 run -> config
 run -> error
-bridge ..> config      (type-only)
 profile -> config
 profile -> error
 ~~~
@@ -74,7 +71,7 @@ profile -> error
 
 ## 4. 测试 seam
 
-`test/` 按被测模块分目录：`config/` `profile/` `herdr/` `session-file/` `inbox/` `run/` `turn/`。bridge 的测试在 `inbox/` 下，两者共用一个 session 路径。经扩展工具跑的行为测试放 `test/tool/`。装配与组合根的测试是 `test/index.test.ts`。共享夹具放 `test/support/`。一个文件一个行为面，单文件同样 150 行上限。
+`test/` 按被测模块分目录：`config/` `profile/` `herdr/` `session-file/` `inbox/` `run/` `turn/`。经扩展工具跑的行为测试放 `test/tool/`。装配与组合根的测试是 `test/index.test.ts`。共享夹具放 `test/support/`。一个文件一个行为面，单文件同样 150 行上限。
 
 | seam | 用法 | 覆盖 |
 |---|---|---|
@@ -84,7 +81,6 @@ profile -> error
 | `readSessionTail` | 表驱动 + 临时 JSONL | 工具调用尾部、坏行、缺文件 |
 | `turn` | 临时目录 + 真实 fs | 判定、原子写、坏文件、消费后删除、计数 |
 | `inbox` | 临时 session 路径 + 真实 fs。子侧泵经 fake pi + fake timers | 建目录、入队顺序、按序投递、投递后删除、失败保留 |
-| bridge | fake pi events | `ui_prompt_*` → `herdr:blocked`、`blockedOn` 过滤 |
 | 真实 HerdrHost + 真实 pi | `pnpm test:e2e`（`test/e2e/`，不进 `pnpm check`） | CLI argv/JSON、tab/agent/pane、真实 child、结果回投、send 投递、关 pane |
 | `createPaneCommands` | fake `exec`（记 argv、回固定 JSON） | workspace / tab 的 argv 与 JSON 字段解析 |
 
@@ -97,7 +93,7 @@ mock 只有三处：pi 扩展 API、注入的 `HerdrHost`、注入的 `exec`。�
 | `README.md` | 功能、要求、安装、用法、profile、配置、参考项目、文档索引、开发、许可 | 模块签名、选型理由 |
 | `docs/ARCHITECTURE.md` | 模块边界、依赖方向、命名与拆分规则、测试 seam、文档规则、模块索引 | 字段表、决策理由、进度、模块用法 |
 | `docs/decisions/*.md` | 决策编号、理由、取消项、边界，一条一份 | 字段表、配置、命令行 |
-| `docs/specs/*.md` | 对外配置、profile、工具、命名、结果、send、bridge 的契约 | 决策理由、内部签名 |
+| `docs/specs/*.md` | 对外配置、profile、工具、命名、结果、send 的契约 | 决策理由、内部签名 |
 | `docs/GLOSSARY.md` | 本扩展特有术语的唯一命名来源 | 实现细节 |
 | `docs/modules/*.md` | 单个模块的用法与取舍 | 依赖方向、契约字段表 |
 | `docs/research/*.md` | 外部实测与参考记录 | 当前契约 |

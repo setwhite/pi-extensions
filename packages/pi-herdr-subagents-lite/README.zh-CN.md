@@ -9,7 +9,7 @@
 - 子代理是独立进程，人可以接管它的 pane。cwd 与父会话相同时，它在同一 workspace 新开 tab；不同则新建 workspace。
 - profile 两层：全局一层，项目一层，都是 Markdown 加 frontmatter。
 - `run` 立即返回。每个回合结束投一条 `subagent_result`，落在 `aggregateWindowMs` 内的合并成一条，超长的落 artifact 文件。
-- 反问留在子 pane。子代理弹对话框只发 `herdr:blocked`，父会话收不到。人在子 pane 里回答。
+- 反问留在子 pane。子代理弹对话框，父会话收不到，人在子 pane 里回答。向 herdr 上报 `blocked` 归开对话框的扩展（DEC-0070）。
 - 默认不嵌套，也不是沙箱。profile 不点名，子代理的工具集就没有本工具。
 
 ## 安装
@@ -50,7 +50,7 @@ pi -e /path/to/pi-herdr-subagents-lite/src/index.ts # 只对当前进程生效
 
 ```jsonc
 {
-  // 默认 true。false = 模型看不到本工具。bridge 有独立开关。
+  // 默认 true。false = 模型看不到本工具。
   "enabled": true,
   // 默认 "subagent"。须匹配 ^[a-z][a-z0-9_]{0,31}$。它会作为每条 guideline 的前缀。
   "toolName": "subagent",
@@ -84,13 +84,6 @@ pi -e /path/to/pi-herdr-subagents-lite/src/index.ts # 只对当前进程生效
       "send only delivers; no state tracking.",
       "Available profiles:\n{{profiles}}"
     ]
-  },
-  // 把 pi 对话框事件转成 herdr:blocked 事件。
-  "bridge": {
-    // 默认 true。false = 不发 herdr:blocked。
-    "enabled": true,
-    // 默认全五种。算作 blocked 的对话框类型：custom、select、confirm、input、editor。
-    "blockedOn": ["custom", "select", "confirm", "input", "editor"]
   }
 }
 ```
