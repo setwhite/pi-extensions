@@ -97,6 +97,8 @@ CI 在 Linux（Node 22 / 24）与 Windows（Node 22）上跑完整四闸，见 [
 | `docs/decisions/` | 一条决策一份文件 | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `docs/specs/` | 对外契约 | — | ✓ | ✓ | ✓ | ✓ |
 | `docs/research/` | 外部实测记录 | — | — | ✓ | ✓ | ✓ |
+| `docs/audit/` | 验收记录，一次一份 | — | — | — | — | ✓ |
+| `docs/todos/` | 实施清单 | — | — | — | — | ✓ |
 
 仓库级决策在 [docs/decisions/](docs/decisions/)：为什么合并成一个仓库。
 
