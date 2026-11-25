@@ -13,7 +13,17 @@ export type Outcome =
 	| { kind: "submit"; answers: Answer[]; skipped: number[] }
 	| { kind: "abort" };
 
-export type Focus = { kind: "option"; index: number } | { kind: "custom" };
+/** 工具结果的 `details`：回放与界面都读它。 */
+export type AskDetails = {
+	answers: Answer[];
+	skipped?: number[];
+	aborted: boolean;
+};
+
+export type Focus =
+	| { kind: "option"; index: number }
+	| { kind: "custom" }
+	| { kind: "confirm" };
 
 export type Phase =
 	| { kind: "list" }
@@ -30,6 +40,8 @@ export type Session = {
 	notes: string[];
 	noteDrafts: string[];
 	customDrafts: string[];
+	/** 折叠只改渲染，不动焦点、答案与草稿。 */
+	collapsed: boolean;
 	phase: Phase;
 };
 
@@ -39,7 +51,7 @@ export type Action =
 	| { kind: "nextQuestion" }
 	| { kind: "prevQuestion" }
 	| { kind: "confirm" }
-	| { kind: "toggle" }
+	| { kind: "toggleCollapse" }
 	| { kind: "digit"; value: number }
 	| { kind: "annotate" }
 	| { kind: "submitEarly" }
@@ -59,6 +71,7 @@ export function createSession(questions: Question[]): Session {
 		notes: questions.map(() => ""),
 		noteDrafts: questions.map(() => ""),
 		customDrafts: questions.map(() => ""),
+		collapsed: false,
 		phase: { kind: "list" },
 	};
 }
@@ -72,7 +85,19 @@ export function isAnswered(session: Session, index: number): boolean {
 export function reduce(session: Session, action: Action): Session {
 	if (session.phase.kind === "done") return session;
 
+	// 折叠时只看得到那一行，别的键一律不生效，免得盲操作改掉答案。
+	if (session.collapsed) {
+		if (action.kind === "toggleCollapse")
+			return { ...session, collapsed: false };
+		if (action.kind === "escape") return done(session, { kind: "abort" });
+		return session;
+	}
+
 	switch (action.kind) {
+		case "toggleCollapse":
+			return session.phase.kind === "list"
+				? { ...session, collapsed: true }
+				: session;
 		case "commitNote":
 			return commitNote(session, action.text);
 		case "cancelNote":
@@ -101,8 +126,6 @@ export function reduce(session: Session, action: Action): Session {
 			return switchQuestion(session, -1);
 		case "confirm":
 			return confirm(session);
-		case "toggle":
-			return toggle(session);
 		case "digit":
 			return pickDigit(session, action.value);
 		case "annotate":
@@ -136,15 +159,27 @@ export function buildAnswers(session: Session): Answer[] {
 }
 
 function move(session: Session, delta: number): Session {
-	const rowCount = session.questions[session.active].options.length + 1;
-	const current =
-		session.focus.kind === "option" ? session.focus.index : rowCount - 1;
-	const next = Math.min(rowCount - 1, Math.max(0, current + delta));
-	const focus: Focus =
-		next === rowCount - 1
-			? { kind: "custom" }
-			: { kind: "option", index: next };
-	return { ...session, focus };
+	const count = rowCount(session);
+	const next = Math.min(count - 1, Math.max(0, focusRow(session) + delta));
+	return { ...session, focus: focusAt(session, next) };
+}
+
+/** 行数 = 选项 + Custom（+ 多选题的 Confirm）。 */
+function rowCount(session: Session): number {
+	const question = session.questions[session.active];
+	return question.options.length + (question.multiple ? 2 : 1);
+}
+
+function focusRow(session: Session): number {
+	const options = session.questions[session.active].options.length;
+	if (session.focus.kind === "option") return session.focus.index;
+	return session.focus.kind === "custom" ? options : options + 1;
+}
+
+function focusAt(session: Session, row: number): Focus {
+	const options = session.questions[session.active].options.length;
+	if (row < options) return { kind: "option", index: row };
+	return row === options ? { kind: "custom" } : { kind: "confirm" };
 }
 
 function switchQuestion(session: Session, delta: number): Session {
@@ -160,17 +195,11 @@ function confirm(session: Session): Session {
 			session.customs[session.active] || session.customDrafts[session.active];
 		return { ...session, phase: { kind: "custom", initial } };
 	}
-	const question = session.questions[session.active];
-	if (question.multiple) {
-		return isAnswered(session, session.active) ? advance(session) : session;
-	}
+	if (session.focus.kind === "confirm") return advance(session);
+	// 多选的 Enter 就是勾选，收题走 Confirm 行，避免一按 Enter 跳过本题。
+	if (session.questions[session.active].multiple)
+		return toggleOption(session, session.focus.index);
 	return advance(select(session, session.focus.index));
-}
-
-function toggle(session: Session): Session {
-	if (session.focus.kind !== "option") return session;
-	if (!session.questions[session.active].multiple) return session;
-	return toggleOption(session, session.focus.index);
 }
 
 function pickDigit(session: Session, value: number): Session {
@@ -272,11 +301,10 @@ function cancelCustom(session: Session, text: string): Session {
 	return { ...session, customDrafts, phase: { kind: "list" } };
 }
 
-/** 跳到下一道没结论的题；都答完了就提交。 */
+/** 跳到下一道没结论的题；都答完了就提交。Confirm 跳过当前题时也算收尾。 */
 function advance(session: Session): Session {
-	if (!isAnswered(session, session.active)) return session;
 	const count = session.questions.length;
-	for (let step = 1; step <= count; step += 1) {
+	for (let step = 1; step < count; step += 1) {
 		const candidate = (session.active + step) % count;
 		if (isAnswered(session, candidate)) continue;
 		return {
@@ -290,24 +318,19 @@ function advance(session: Session): Session {
 }
 
 function submit(session: Session): Session {
+	const answers = buildAnswers(session);
+	if (answers.length === 0) return session;
 	return done(session, {
 		kind: "submit",
-		answers: buildAnswers(session),
-		skipped: [],
+		answers,
+		skipped: session.questions
+			.map((_question, index) => index)
+			.filter((index) => !isAnswered(session, index)),
 	});
 }
 
 function submitEarly(session: Session): Session {
-	const skipped: number[] = [];
-	for (let index = 0; index < session.questions.length; index += 1) {
-		if (!isAnswered(session, index)) skipped.push(index);
-	}
-	if (skipped.length === session.questions.length) return session;
-	return done(session, {
-		kind: "submit",
-		answers: buildAnswers(session),
-		skipped,
-	});
+	return submit(session);
 }
 
 function done(session: Session, outcome: Outcome): Session {

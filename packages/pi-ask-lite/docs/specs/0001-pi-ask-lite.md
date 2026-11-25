@@ -12,7 +12,8 @@
 ## 用户故事
 
 - 模型问一次，我用一次按键给结论。单选按数字或 Enter 就完，不用先高亮再确认。
-- 想多选时 Space 勾几项，Enter 收题。
+- 想多选时 Enter 勾几项，走到 Confirm 行收题。
+- 面板挡着上下文时折叠成一行，再按一次展开，已答与草稿都还在。
 - 选中项想补一句，按 `e` 就地写，不换页。
 - 选项带代码或表格时，右侧先看一眼再决定。屏幕窄了改成上下排。
 - 多选题除勾选外还能写一段自由文本。
@@ -84,18 +85,19 @@ type Outcome =
 
 | 输入 | 焦点 | 结果 |
 |---|---|---|
-| ↑ / ↓ | 选项或 Custom 行 | 光标移动，两端夹住不循环 |
+| ↑ / ↓ | 选项、Custom 行（多选再加 Confirm 行） | 光标移动，两端夹住不循环 |
 | Tab / Shift+Tab / ← / → | 任意 | 切下一题 / 上一题；单题无动作 |
-| Space | 选项 | 多选切换勾选；单选无动作 |
-| Enter | 选项 | 单选：选中并推进；多选：落地已勾选项并推进；该题既没勾选也没输入时不推进 |
+| Enter | 选项 | 单选：选中并推进；多选：切换勾选，不推进（见 [`0005`](../decisions/0005-multi-confirm-row.md)） |
 | Enter | Custom 行 | 进 `custom` 编辑，带出已有草稿 |
+| Enter | Confirm 行（仅多选） | 本题收尾并推进；本题没结论也照常推进，收尾时进 `skipped` |
 | 可打印字符 | Custom 行 | 进 `custom` 编辑，该字符作为首个输入 |
 | 1..9 | 任意 | 单选：选中第 N 项并推进；多选：切换第 N 项 |
 | `keys.annotate`（默认 `e`） | 选项 | 单选进 `note` 编辑；多选无动作 |
 | `keys.submitEarly`（默认 `ctrl+enter`） | 任意 | 至少一题有结论时进 `submit`，`skipped` 是未答下标；一题都没答时无动作 |
+| `keys.collapse`（默认 `ctrl+]`，`off` 关闭） | 任意 | 列表态折叠 / 展开；折叠时只认它与 Esc，其余输入不改状态 |
 | Esc | 任意 | 进 `abort` |
 
-推进 = 跳到下一道没结论的题，循环找。找不到未答题就进 `submit`。最后一题答完但前面还有漏题时，跳回漏题，不提前收尾。
+推进 = 从下一题起循环找没结论的题。找不到未答题就进 `submit`。最后一题答完但前面还有漏题时，跳回漏题，不提前收尾。
 
 `note` 编辑：单行。Enter 落地成该选项的 `note`（该选项尚未选中就先选中），该题算有结论，然后照常推进。Esc 只回 `list`，草稿留着，下次按 `e` 带回。
 
@@ -105,22 +107,27 @@ type Outcome =
 
 `abort`：整次放弃。`answers` 为空数组，已答的也丢；`aborted: true`。同时调 `ctx.abort()` 并给工具结果标 `terminate: true`（理由见 [`0001`](../decisions/0001-esc-aborts-turn.md)）。
 
-`submit`：按题序写 `answers`。`skipped` 只在提前提交时非空。
+`submit`：按题序写 `answers`，`skipped` 是未答的下标（全答完收尾时为空）。
 
-部分提交的口子只有 `submitEarly`。Esc 不产出半成品。
+部分提交的口子只有 `submitEarly` 与多选的 Confirm 行：Confirm 跳过没结论的题时，那题进 `skipped`。Esc 不产出半成品。
 
 ### 界面
 
 - 高度上限 = 终端行数 × `ui.maxHeightRatio`（默认 0.45，可配 0.2–0.8，向下取整，最少 6 行）。头部与底部提示行不裁。
 - 超预算的裁剪顺序按布局分两种（并排的理由见 [`0004`](../decisions/0004-side-by-side-trim.md)）：
-  - 上下堆叠：preview 行 → detail 行 → 选项窗口（滚动，保留焦点项与相邻两项）。
+  - 上下堆叠：preview 行 → detail 行 → 选项窗口（滚动，先留焦点项，再按距离补相邻项；Custom 与 Confirm 行优先保留，预算连它们都放不下时先保焦点项）。
   - 左右并排：两栏各自按同一高度预算裁。左栏 detail 行 → 选项窗口，右栏独立裁 preview 行。右栏让出的行不能变成左栏高度，两栏不互相补偿。
-- 单题不画 Tab 栏。多题时顶部一行 Tab 栏，每题一段，已答的段前标 ✓；只渲染当前题的选项。
-- 每题一行标题（`title`，缺省用 `question` 首行），选项一行一个，`1.` 前缀加 label，`detail` 缩进续行。多选选中标 `✓`，单选用高亮。标题、label、`detail`、`note` 里的换行只取 `/\r?\n/` 切出的首行：`render()` 的每个元素必须是正好一行。
-- Custom 行固定在该题选项下方，显示草稿摘要。
-- 底部一行键提示，随 `list` / `note` / `custom` 换。
-- preview：当前高亮选项带 `preview` 时显示。终端宽 ≥ `ui.preview.minSideBySideWidth`（默认 100）时在右侧并排，否则在该题下方堆叠。并排时各占一半宽，各自截断。
-- `ui.bell` 为真时，提交与中止各响一次（`\x07`）。
+- 面板顶部一条 dim 通栏分割线，其下所有内容统一缩进 2 格；Tab / 题干 / 选项 / 提示之间不留空行，垂直空间全给内容。
+- 单题不画 Tab 栏。多题时顶部一行 Tab 栏，每题一段，标签用 `title`，缺省 `Q1`…`Qn`，已答段前标 ✓；当前题用 accent 加粗并加方括号（如 `[2 细节]`），其余 dim。`title` 只做 Tab 标签，不替代题干。
+- 题干永远完整渲染，按宽自动折行（可多行）。选项一行一个：单选用 `› 1. label` 标焦点、`✓ 1. label` 标已选，不画 `○`/`●`；多选用 `› ■ 1. label` 与 `□ 2. label`。`detail` 缩进到 label 列，高度充裕时最多折 2 行，超出用 `…`。label、detail、note 里的换行只取 `/\r?\n/` 切出的首行：`render()` 的每个元素必须是正好一行。
+- Custom 行固定在该题选项下方：未聚焦时 dim 显示 `+ Custom…`（有草稿显示 `+ Custom: …`），聚焦换 accent。多选在 Custom 下方再加一行 `→ Confirm`（平时 dim，聚焦 accent）。
+- 补充说明就地编辑：按 `e` 后该选项保持高亮，单行输入框紧贴该选项（或它的 `detail`）正下方，缩进到 label 列并加 `↳ ` 前缀，不另占一行提示。
+- 自由输入编辑：保留高亮的 `› + Custom` 行，编辑区紧贴其下，用左侧 dim 的 `▎ ` 竖条标示输入行，不画上下边框。
+- 底部一行 dim 键提示，只列当前形态真能用的键：单选用 `enter pick · e note`，多选用 `enter toggle`；多题补 `tab next` 与 `keys.submitEarly submit`，多选单题补 `keys.submitEarly submit`；`keys.collapse` 有效时再补 `<key> collapse`，最后收在 `esc`。编辑态是 `enter save · esc back`（custom 补 `shift+enter newline`）。`ui.showHints` 为假时整行不画，正文多一行。
+- `keys.collapse` 有效时，列表态按它折叠：只剩一行 dim 的 `Ask collapsed (已答/总题数) · <key> expand`，不再画分割线与正文；再按同键展开，焦点、答案与草稿原样。折叠时别的输入不生效，Esc 仍中止。
+- preview：当前高亮选项带 `preview` 时显示，顶部一行 dim 的 `Preview` 标头。终端宽 ≥ `ui.preview.minSideBySideWidth`（默认 100）时在右侧并排，竖线 `│` 用 dim，左右各留 1 格；否则在该题下方堆叠。并排时左栏宽 `min(floor(width × 0.42), 54)`，其余给右栏，各自截断，并且截断与补齐必须保留左侧的 ANSI 样式（选中高亮、detail 的 dim 不能被剥成纯白）。两栏都不低于 12 列，不够就退回堆叠。
+- `ui.bell` 为真时，对话框挂载响一次（`\x07`）；提交、中止与退出都不再响。
+- 聊天记录里，调用行是 `Ask <title1 · title2>`（`title` 缺省取 `question` 首行）；结果每题一条 `✓ <title>: <answer>`，没答的题用 dim 标 `<title>: skipped`，中止是 dim 的 `✗ aborted`。原始 JSON 参数与模型摘要不直接铺在聊天里。
 - 挂载用 `ctx.ui.custom()` 的非 overlay 形态，占编辑器槽位（理由见 [`0002`](../decisions/0002-inline-editor-slot.md)）。
 
 ### 配置
@@ -134,9 +141,10 @@ type Outcome =
   "ui": {
     "maxHeightRatio": 0.45,
     "bell": true,
+    "showHints": true,
     "preview": { "minSideBySideWidth": 100 }
   },
-  "keys": { "annotate": "e", "submitEarly": "ctrl+enter" },
+  "keys": { "annotate": "e", "submitEarly": "ctrl+enter", "collapse": "ctrl+]" },
   "guidance": {
     "description": "...",
     "promptSnippet": "",
@@ -145,7 +153,7 @@ type Outcome =
 }
 ```
 
-键、默认值、校验、报错在 `src/config.ts`，README 的配置节给人看。未知键与类型不符抛错并带字段路径，错误前缀 `pi-ask config <path>:`。`maxHeightRatio` 越界夹到 0.2–0.8。
+键、默认值、校验、报错在 `src/config.ts`，README 的配置节给人看。未知键与类型不符抛错并带字段路径，错误前缀 `pi-ask config <path>:`。`maxHeightRatio` 越界夹到 0.2–0.8。`keys.collapse` 取 `off` 或严格按键：修饰键按 `ctrl+shift+alt+super` 顺序，基键是单个字母 / 数字 / 符号或特殊键名；不能占导航键（含 `ctrl+m`、`ctrl+j`、`ctrl+i`、`ctrl+[`、`ctrl+h` 这些老终端别名），也不能和 `keys.annotate` / `keys.submitEarly` 重复。
 
 `guidance` 三段都可覆盖，`tool-name` 占位符替换成实际工具名。`promptSnippet` 默认空串，空串不注册工具清单那一行；`description` 与 `promptGuidelines` 的默认文案在 `src/config.ts`。
 
@@ -166,21 +174,21 @@ type Outcome =
 
 | | 验收 |
 |---|---|
-| AC1 | 配置用例：缺文件得默认值；坏 JSON、未知键、类型不符都抛错且带字段路径；`maxHeightRatio` 越界夹取；`tool-name` 每处都替换；改 `tools.ask.name` 后注册名跟着变 |
+| AC1 | 配置用例：缺文件得默认值；坏 JSON、未知键、类型不符都抛错且带字段路径；`maxHeightRatio` 越界夹取；`keys.collapse` 支持 `off`，格式不严、占导航键、与 `annotate` / `submitEarly` 重复都抛错；`ui.showHints` 校验；`tool-name` 每处都替换；改 `tools.ask.name` 后注册名跟着变 |
 | AC2 | 校验用例：1 题 / 4 题、2 选项 / 6 选项的边界通过；0 题、5 题、1 选项、7 选项、空白 `question`、空白 `label`、未知键全部抛错；`multiple` 缺省 `false`；`Other` 与 `Next` 通过 |
-| AC3 | 状态用例：迁移表逐条覆盖；自动推进跳过已答；最后一题答完回跳漏题；全答自动 `submit`；`submitEarly` 带 `skipped`；`note` / `custom` 的 Esc 只退编辑、草稿还在；列表态 Esc 得 `answers: []`、`aborted: true`；`done` 只触发一次 |
-| AC4 | 渲染用例：宽度 80 / 100 / 120 × 高度 20 / 40。并排与堆叠切换、`…` 截断、预算裁剪顺序（堆叠 preview → detail → 选项窗口；并排左栏 detail → 选项窗口、右栏独立裁 preview）、单题无 Tab 栏、键提示随形态换 |
-| AC5 | 接线用例：注册参数含 `exposure: "model-only"`；`mode !== "tui"` 时抛错且零事件；提交、中止、抛错三条路径 `herdr:blocked` 成对；工具结果的 `details` 形状与英文摘要；`terminate: true` 与 `ctx.abort()` 各一次 |
+| AC3 | 状态用例：迁移表逐条覆盖；多选 Enter 只勾选、Confirm 行收题、空 Confirm 记 `skipped`；自动推进跳过已答；最后一题答完回跳漏题；全答自动 `submit`；`submitEarly` 带 `skipped`；折叠只翻标志、焦点 / 答案 / 草稿不动，折叠时其它动作不生效而 Esc 仍中止；`note` / `custom` 的 Esc 只退编辑、草稿还在；列表态 Esc 得 `answers: []`、`aborted: true`；`done` 只触发一次 |
+| AC4 | 渲染用例：宽度 80 / 100 / 120 × 高度 6 / 20 / 40。并排与堆叠切换、`…` 截断、预算裁剪顺序（堆叠 preview → detail → 选项窗口；并排左栏 detail → 选项窗口、右栏独立裁 preview）、单题无 Tab 栏、2 格统一留白、无空行、题干完整折行、当前 Tab 高亮、`›` / `✓` / `■` / `□` 前缀、Confirm 行、note 就地编辑、custom 编辑无边框、左栏 42%、detail 折 2 行、键提示随形态与题型换且随 `collapse` 开关增减、`showHints` 关掉整行、折叠态只有一行进度、并排截断保留 ANSI |
+| AC5 | 接线用例：注册参数含 `exposure: "model-only"`；`mode !== "tui"` 时抛错且零事件；提交、中止、抛错三条路径 `herdr:blocked` 成对；工具结果的 `details` 形状与英文摘要；`renderCall` 只显示 `Ask` 与题目标签、`renderResult` 出每题 `✓` 与 dim `skipped` / `✗ aborted`；铃只在挂载响一次；`terminate: true` 与 `ctx.abort()` 各一次 |
 | AC6 | 包闸：`test/package.test.ts` 的 files / `pi.extensions` 断言与 `test/docs.test.ts` 的两份 README 配置块 = `DEFAULTS` 都通过 |
 | AC7 | 全仓 `pnpm check` 绿：lint、check:imports、typecheck、test |
-| AC8 | 真机：herdr 面板里 `pi -ne -e ./packages/pi-ask-lite/src/index.ts`。面板变红再恢复；单 Esc 回空闲且没有第二次模型回复；`e` 补充；preview 并排切堆叠；Ctrl+Enter 提前提交 |
+| AC8 | 真机：herdr 面板里 `pi -ne -e ./packages/pi-ask-lite/src/index.ts`。面板变红再恢复；单 Esc 回空闲且没有第二次模型回复；`e` 补充；多选 Enter 勾选后走 `→ Confirm`；`ctrl+]` 折叠成一行再展开；preview 并排切堆叠；Ctrl+Enter 提前提交；聊天记录里只看得到一行调用与每题一行结果 |
 
 ## 不做的
 
 - herdr 运行时依赖。只发事件。
 - i18n 与多语言文案包。
 - RPC / ACP 回退，以及任何外部答题通道（文件、HTTP、socket）。
-- 独立备注编辑页、Submit 确认页、`ctrl+]` 折叠、overlay 兜底。
+- 独立备注编辑页、Submit 确认页、overlay 兜底。
 - `dependsOn` / `showIf` 条件题图。
 - Ctrl+G 外置编辑器。首版只有内联多行。
 - 第三方运行时依赖，除宿主 peer（pi-coding-agent / pi-tui / typebox）。

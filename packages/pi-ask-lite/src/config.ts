@@ -8,9 +8,10 @@ export type Config = {
 	ui: {
 		maxHeightRatio: number;
 		bell: boolean;
+		showHints: boolean;
 		preview: { minSideBySideWidth: number };
 	};
-	keys: { annotate: string; submitEarly: string };
+	keys: { annotate: string; submitEarly: string; collapse: string };
 	guidance: {
 		description: string;
 		promptSnippet: string;
@@ -29,9 +30,10 @@ export const DEFAULTS: Config = {
 	ui: {
 		maxHeightRatio: 0.45,
 		bell: true,
+		showHints: true,
 		preview: { minSideBySideWidth: 100 },
 	},
-	keys: { annotate: "e", submitEarly: "ctrl+enter" },
+	keys: { annotate: "e", submitEarly: "ctrl+enter", collapse: "ctrl+]" },
 	guidance: {
 		description:
 			"Ask structured questions when user intent or trade-offs are unclear.",
@@ -118,9 +120,16 @@ function buildConfig(input: unknown, errors: string[]): Config {
 		DEFAULTS.limits.maxOptions;
 
 	const ui = readGroup(input.ui, "ui", errors);
-	checkKeys(ui, "ui", ["maxHeightRatio", "bell", "preview"], errors);
+	checkKeys(
+		ui,
+		"ui",
+		["maxHeightRatio", "bell", "showHints", "preview"],
+		errors,
+	);
 	const ratio = readNumber(ui.maxHeightRatio, "ui.maxHeightRatio", errors);
 	const bell = readBoolean(ui.bell, "ui.bell", errors) ?? DEFAULTS.ui.bell;
+	const showHints =
+		readBoolean(ui.showHints, "ui.showHints", errors) ?? DEFAULTS.ui.showHints;
 	const preview = readGroup(ui.preview, "ui.preview", errors);
 	checkKeys(preview, "ui.preview", ["minSideBySideWidth"], errors);
 	const minSideBySideWidth =
@@ -134,7 +143,7 @@ function buildConfig(input: unknown, errors: string[]): Config {
 		) ?? DEFAULTS.ui.preview.minSideBySideWidth;
 
 	const keys = readGroup(input.keys, "keys", errors);
-	checkKeys(keys, "keys", ["annotate", "submitEarly"], errors);
+	checkKeys(keys, "keys", ["annotate", "submitEarly", "collapse"], errors);
 	const annotate =
 		readString(keys.annotate, "keys.annotate", errors) ??
 		DEFAULTS.keys.annotate;
@@ -144,6 +153,11 @@ function buildConfig(input: unknown, errors: string[]): Config {
 	if (annotate.trim() === "") errors.push("keys.annotate: expected a key");
 	if (submitEarly.trim() === "")
 		errors.push("keys.submitEarly: expected a key");
+	const collapse = readCollapse(
+		keys.collapse,
+		{ annotate, submitEarly },
+		errors,
+	);
 
 	const guidance = readGroup(input.guidance, "guidance", errors);
 	checkKeys(
@@ -171,11 +185,116 @@ function buildConfig(input: unknown, errors: string[]): Config {
 		ui: {
 			maxHeightRatio: clampRatio(ratio ?? DEFAULTS.ui.maxHeightRatio),
 			bell,
+			showHints,
 			preview: { minSideBySideWidth },
 		},
-		keys: { annotate, submitEarly },
+		keys: { annotate, submitEarly, collapse },
 		guidance: { description, promptSnippet, promptGuidelines },
 	};
+}
+
+const SPECIAL_KEYS = new Set([
+	"escape",
+	"esc",
+	"enter",
+	"return",
+	"tab",
+	"space",
+	"backspace",
+	"delete",
+	"insert",
+	"clear",
+	"home",
+	"end",
+	"pageUp",
+	"pageDown",
+	"up",
+	"down",
+	"left",
+	"right",
+	...Array.from({ length: 12 }, (_value, index) => `f${index + 1}`),
+]);
+
+const SYMBOL_KEYS = new Set("`-=[]\\;',./!@#$%^&*()_|~{}:<>?".split(""));
+
+/** 修饰键只能按这个顺序写：与 matchesKey 的 KeyId 一致，也避免 shift+ctrl 这类两种写法。 */
+const MODIFIERS = ["ctrl", "shift", "alt", "super"] as const;
+
+/** 组件里写死的导航键，以及它们在老终端里的同义控制字符。 */
+const RESERVED_KEYS = new Map([
+	["up", "up"],
+	["down", "down"],
+	["left", "left"],
+	["right", "right"],
+	["tab", "tab"],
+	["shift+tab", "shift+tab"],
+	["enter", "enter"],
+	["return", "enter"],
+	["escape", "escape"],
+	["esc", "escape"],
+	["space", "space"],
+	["1", "1"],
+	["2", "2"],
+	["3", "3"],
+	["4", "4"],
+	["5", "5"],
+	["6", "6"],
+	["7", "7"],
+	["8", "8"],
+	["9", "9"],
+	// 老终端把控制字符当别名：ctrl+m 与 ctrl+j 发 \r，ctrl+i 发 \t，ctrl+[ 发 ESC。
+	["ctrl+m", "enter"],
+	["ctrl+j", "enter"],
+	["ctrl+i", "tab"],
+	["ctrl+[", "escape"],
+	["ctrl+h", "backspace"],
+]);
+
+/** `keys.collapse`：具体按键或 "off"。格式不严会让 matchesKey 静默失效。 */
+function readCollapse(
+	value: unknown,
+	taken: { annotate: string; submitEarly: string },
+	errors: string[],
+): string {
+	const text = readString(value, "keys.collapse", errors);
+	if (text === undefined) return DEFAULTS.keys.collapse;
+	if (text === "off") return text;
+	const problem = keyProblem(text);
+	if (problem !== undefined) {
+		errors.push(`keys.collapse: ${problem}`);
+		return DEFAULTS.keys.collapse;
+	}
+	const reserved = RESERVED_KEYS.get(text);
+	if (reserved !== undefined) {
+		errors.push(`keys.collapse: "${text}" is reserved for ${reserved}`);
+		return DEFAULTS.keys.collapse;
+	}
+	for (const [name, key] of Object.entries(taken)) {
+		if (key !== text) continue;
+		errors.push(`keys.collapse: "${text}" conflicts with keys.${name}`);
+		return DEFAULTS.keys.collapse;
+	}
+	return text;
+}
+
+function keyProblem(text: string): string | undefined {
+	const parts = text.split("+");
+	const base = parts.pop() ?? "";
+	if (!isBaseKey(base))
+		return `expected a key like "ctrl+]" or "off", got "${text}"`;
+	let previous = -1;
+	for (const part of parts) {
+		const index = MODIFIERS.indexOf(part as (typeof MODIFIERS)[number]);
+		if (index <= previous)
+			return `expected modifiers in ctrl+shift+alt+super order, got "${text}"`;
+		previous = index;
+	}
+	return undefined;
+}
+
+function isBaseKey(text: string): boolean {
+	if (/^[a-z0-9]$/.test(text)) return true;
+	return SPECIAL_KEYS.has(text) || SYMBOL_KEYS.has(text);
 }
 
 /** 越界夹到区间，不报错：显示比例是口味问题，不是配置错误。 */

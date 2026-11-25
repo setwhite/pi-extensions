@@ -8,7 +8,11 @@ import type {
 	ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import { initTheme } from "@earendil-works/pi-coding-agent";
-import type { Component, TUI } from "@earendil-works/pi-tui";
+import {
+	type Component,
+	stripTerminalSequences,
+	type TUI,
+} from "@earendil-works/pi-tui";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import piAsk from "../src/index.ts";
 
@@ -283,6 +287,98 @@ describe("提交", () => {
 	});
 });
 
+describe("折叠", () => {
+	it("ctrl+] 折叠成一行，再按恢复，答案与焦点都在", async () => {
+		useConfig();
+		const { execute } = setup();
+		const state = controls();
+		const pending = execute(
+			"call",
+			pairParams,
+			undefined,
+			undefined,
+			makeCtx("tui", state),
+		);
+		const expand = state.component?.render(80) ?? [];
+		const toggle = () => state.component?.handleInput?.("\x1d");
+		toggle();
+		const collapsed = state.component?.render(80) ?? [];
+		expect(collapsed).toHaveLength(1);
+		expect(collapsed[0]).toContain("Ask collapsed (0/2)");
+		expect(collapsed[0]).toContain("ctrl+] expand");
+		toggle();
+		expect(state.component?.render(80)).toEqual(expand);
+
+		state.component?.handleInput?.("1");
+		state.component?.handleInput?.("\x1b");
+		await pending;
+	});
+
+	it("collapse 配成 off 时 ctrl+] 不折叠", async () => {
+		useConfig({ keys: { collapse: "off" } });
+		const { execute } = setup();
+		const state = controls();
+		void execute("call", params, undefined, undefined, makeCtx("tui", state));
+		const before = state.component?.render(80) ?? [];
+		state.component?.handleInput?.("\x1d");
+		expect(state.component?.render(80)).toEqual(before);
+	});
+});
+
+describe("多选", () => {
+	it("Enter 只勾选，走到 Confirm 行按 Enter 才收题", async () => {
+		useConfig();
+		const { execute } = setup();
+		const state = controls();
+		const multi = {
+			questions: [
+				{
+					question: "Pick many",
+					multiple: true,
+					options: [{ label: "A" }, { label: "B" }],
+				},
+			],
+		};
+		const pending = execute(
+			"call",
+			multi,
+			undefined,
+			undefined,
+			makeCtx("tui", state),
+		);
+		const input = (data: string) => state.component?.handleInput?.(data);
+		input("\r");
+		input(" ");
+		input("\x1b[B");
+		input("\r");
+		input("\x1b[B");
+		input("\x1b[B");
+		expect(state.settled).toBe(false);
+		input("\r");
+		const result = await pending;
+		expect(result.details.answers[0]).toMatchObject({ selected: [0, 1] });
+	});
+
+	it("Space 不再切换勾选", async () => {
+		useConfig();
+		const { execute } = setup();
+		const state = controls();
+		const multi = {
+			questions: [
+				{
+					question: "Pick many",
+					multiple: true,
+					options: [{ label: "A" }, { label: "B" }],
+				},
+			],
+		};
+		void execute("call", multi, undefined, undefined, makeCtx("tui", state));
+		state.component?.handleInput?.(" ");
+		const lines = state.component?.render(80) ?? [];
+		expect(lines.join("\n")).not.toContain("■");
+	});
+});
+
 describe("中止", () => {
 	it("Esc 返回 terminate、清空答案，并调 ctx.abort", async () => {
 		useConfig();
@@ -346,6 +442,95 @@ describe("中止", () => {
 	});
 });
 
+type ToolRenderers = {
+	renderCall?: (args: unknown, theme: Theme, context: unknown) => Component;
+	renderResult?: (
+		result: unknown,
+		options: unknown,
+		theme: Theme,
+		context: unknown,
+	) => Component;
+};
+
+describe("聊天记录", () => {
+	const theme = {
+		fg: (token: string, text: string) =>
+			token === "muted" ? `\x1b[2m${text}\x1b[22m` : text,
+		bold: (text: string) => text,
+		style: (text: string) => text,
+	} as unknown as Theme;
+	const lines = (component: Component) =>
+		component.render(80).map((line) => stripTerminalSequences(line).trimEnd());
+
+	function renderers(): ToolRenderers {
+		useConfig();
+		return setup().tools[0] as unknown as ToolRenderers;
+	}
+
+	it("调用行只显示 Ask 与题目标签", () => {
+		const { renderCall } = renderers();
+		const component = renderCall?.(
+			{
+				questions: [
+					{ title: "风格", question: "Which one?", options: [] },
+					{ question: "细节？\n第二行", options: [] },
+				],
+			},
+			theme,
+			{},
+		);
+		expect(lines(component as Component)).toEqual(["Ask 风格 · 细节？"]);
+	});
+
+	it("结果每题一行，跳过项 dim", () => {
+		const { renderResult } = renderers();
+		const component = renderResult?.(
+			{
+				content: [],
+				details: {
+					aborted: false,
+					answers: [{ index: 0, question: "Q", selected: [1] }],
+					skipped: [1],
+				},
+			},
+			{},
+			theme,
+			{
+				args: {
+					questions: [
+						{
+							title: "风格",
+							question: "Which one?",
+							options: [{ label: "A" }, { label: "B" }],
+						},
+						{ title: "细节", question: "Second", options: [{ label: "C" }] },
+					],
+				},
+			},
+		);
+		const rendered = (component as Component).render(80);
+		expect(
+			rendered.map((line) => stripTerminalSequences(line).trimEnd()),
+		).toEqual(["✓ 风格: B", "细节: skipped"]);
+		expect(rendered[1]).toContain("\x1b[2m");
+	});
+
+	it("中止只显示 dim 的 ✗ aborted", () => {
+		const { renderResult } = renderers();
+		const component = renderResult?.(
+			{ content: [], details: { aborted: true, answers: [] } },
+			{},
+			theme,
+			{ args: { questions: [] } },
+		);
+		const rendered = (component as Component).render(80);
+		expect(
+			rendered.map((line) => stripTerminalSequences(line).trimEnd()),
+		).toEqual(["✗ aborted"]);
+		expect(rendered[0]).toContain("\x1b[2m");
+	});
+});
+
 describe("渲染与铃", () => {
 	it("带 preview 的题能渲染出并排列", async () => {
 		initTheme();
@@ -373,11 +558,15 @@ describe("渲染与铃", () => {
 		).toBe(true);
 	});
 
-	it("ui.bell 为真时提交响铃，关闭后不响", async () => {
+	it("ui.bell 为真时挂载响一次，提交与中止都不再响", async () => {
 		useConfig();
 		const write = vi
 			.spyOn(process.stdout, "write")
 			.mockImplementation(() => true);
+		const bells = () =>
+			write.mock.calls.filter((call) => String(call[0]).includes("\x07"))
+				.length;
+
 		const first = setup();
 		const firstState = controls();
 		const pending = first.execute(
@@ -387,27 +576,40 @@ describe("渲染与铃", () => {
 			undefined,
 			makeCtx("tui", firstState),
 		);
+		expect(bells()).toBe(1);
 		firstState.component?.handleInput?.("1");
 		await pending;
-		expect(
-			write.mock.calls.some((call) => String(call[0]).includes("\x07")),
-		).toBe(true);
+		expect(bells()).toBe(1);
 
 		write.mockClear();
-		useConfig({ ui: { bell: false } });
 		const second = setup();
 		const secondState = controls();
-		const quiet = second.execute(
+		const aborted = second.execute(
 			"call",
 			params,
 			undefined,
 			undefined,
 			makeCtx("tui", secondState),
 		);
-		secondState.component?.handleInput?.("1");
-		await quiet;
-		expect(
-			write.mock.calls.some((call) => String(call[0]).includes("\x07")),
-		).toBe(false);
+		expect(bells()).toBe(1);
+		secondState.component?.handleInput?.("\x1b");
+		await aborted;
+		expect(bells()).toBe(1);
+
+		write.mockClear();
+		useConfig({ ui: { bell: false } });
+		const quiet = setup();
+		const quietState = controls();
+		const silent = quiet.execute(
+			"call",
+			params,
+			undefined,
+			undefined,
+			makeCtx("tui", quietState),
+		);
+		expect(bells()).toBe(0);
+		quietState.component?.handleInput?.("1");
+		await silent;
+		expect(bells()).toBe(0);
 	});
 });

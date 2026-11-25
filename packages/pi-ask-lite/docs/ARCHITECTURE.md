@@ -7,10 +7,10 @@
 | 文件 | 职责 |
 |---|---|
 | `src/index.ts` | 入口（`package.json` 的 `pi.extensions`）与接线：读配置 → 解析参数 → `mode` 闸 → `herdr:blocked` 配对 → 挂 `ctx.ui.custom` → 收结果或中止。宿主包与渲染实现只在这里 |
-| `src/config.ts` | 读 `pi-ask/config.json`、默认值、校验、`maxHeightRatio` 夹取 |
+| `src/config.ts` | 读 `pi-ask/config.json`、默认值、校验（含折叠键格式与冲突）、`maxHeightRatio` 夹取 |
 | `src/schema.ts` | 把工具入参解析成 `Question[]`，硬错误带字段路径 |
-| `src/state.ts` | 问答状态机：焦点、勾选、`note` / `custom` 草稿、推进、三个出口（`submit` / 提前提交 / `abort`） |
-| `src/view.ts` | 行渲染与文本：Tab 栏、选项、Custom 行、preview、键提示、宽度截断与高度预算、给模型的英文摘要 |
+| `src/state.ts` | 问答状态机：焦点、勾选、`note` / `custom` 草稿、折叠标志、推进、三个出口（`submit` / 提前提交 / `abort`） |
+| `src/view.ts` | 行渲染与文本：Tab 栏、选项、Custom / Confirm 行、就地编辑区、preview、键提示、折叠行、宽度截断与高度预算、聊天记录的调用行与结果摘要、给模型的英文摘要 |
 
 ## 依赖方向
 
@@ -28,13 +28,13 @@
 
 `edges` 与上表由仓库根 `scripts/check-imports.mjs` 校验（`pnpm check:imports`）。改图时两边一起改。
 
-为什么这么切：只有入口 import 宿主包，而且只取纯函数、组件与主题（`visibleWidth`、`truncateToWidth`、`getMarkdownTheme`、`Markdown`、`Input`、`Editor`、`matchesKey`）。其余四个文件只收发普通值，测试不用 mock 宿主。类型边只借形状，不借实现，所以 `state.ts` 与 `view.ts` 仍然可以脱离宿主单测。
+为什么这么切：只有入口 import 宿主包，而且只取纯函数、组件与主题（`visibleWidth`、`truncateToWidth`、`wrapTextWithAnsi`、`getMarkdownTheme`、`Markdown`、`Text`、`Input`、`Editor`、`matchesKey`）。其余四个文件只收发普通值，测试不用 mock 宿主。类型边只借形状，不借实现，所以 `state.ts` 与 `view.ts` 仍然可以脱离宿主单测。
 
 ## 放置规则
 
 - 语义与校验 → `schema.ts`。
 - 状态迁移 → `state.ts`。任何"按了什么键之后答案怎么变"都只在这里。
-- 显示与文本 → `view.ts`。宽度、高度、字形、摘要文案都在这。
+- 显示与文本 → `view.ts`。宽度、高度、字形、聊天记录的调用行与结果摘要、摘要文案都在这。
 - 配置键 → `config.ts`（四处同改：类型、`DEFAULTS`、校验、README 两份配置块）。
 - 只有注册工具、调宿主、挂组件、发事件的文件才碰 `index.ts`。
 

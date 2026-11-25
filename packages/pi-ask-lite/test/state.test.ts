@@ -43,7 +43,7 @@ describe("reduce 初始状态", () => {
 });
 
 describe("光标", () => {
-	it("上下移动夹在两端，Custom 行是最后一行", () => {
+	it("单选最后一行是 Custom，上下夹在两端", () => {
 		let session = single();
 		session = apply(session, { kind: "up" });
 		expect(session.focus).toEqual({ kind: "option", index: 0 });
@@ -56,6 +56,16 @@ describe("光标", () => {
 		expect(session.focus).toEqual({ kind: "custom" });
 		session = apply(session, { kind: "down" });
 		expect(session.focus).toEqual({ kind: "custom" });
+	});
+
+	it("多选在 Custom 下方多一行 Confirm", () => {
+		let session = createSession([question("Pick many", ["A", "B"], true)]);
+		session = apply(session, { kind: "down" }, { kind: "down" });
+		expect(session.focus).toEqual({ kind: "custom" });
+		session = apply(session, { kind: "down" });
+		expect(session.focus).toEqual({ kind: "confirm" });
+		session = apply(session, { kind: "down" });
+		expect(session.focus).toEqual({ kind: "confirm" });
 	});
 });
 
@@ -79,41 +89,64 @@ describe("单选", () => {
 			kind: "list",
 		});
 	});
-
-	it("Space 在单选下不动", () => {
-		expect(isAnswered(apply(single(), { kind: "toggle" }), 0)).toBe(false);
-	});
 });
 
 describe("多选", () => {
-	it("Space 切换勾选，Enter 推进，勾完提交", () => {
+	it("Enter 勾选当前项不推进，Confirm 行才收题", () => {
 		let session = pair();
-		session = apply(session, { kind: "confirm" }, { kind: "confirm" });
+		session = apply(session, { kind: "confirm" });
 		expect(session.active).toBe(1);
+		session = apply(session, { kind: "confirm" });
+		expect(session.selected[1]).toEqual([0]);
+		expect(session.active).toBe(1);
+		session = apply(session, { kind: "down" }, { kind: "confirm" });
+		expect(session.selected[1]).toEqual([0, 1]);
 		session = apply(
 			session,
-			{ kind: "toggle" },
 			{ kind: "down" },
-			{ kind: "toggle" },
+			{ kind: "down" },
+			{ kind: "confirm" },
 		);
-		expect(session.selected[1]).toEqual([0, 1]);
-		session = apply(session, { kind: "confirm" });
-		expect(outcome(session)).toMatchObject({ skipped: [] });
 		expect(outcome(session)).toMatchObject({
 			answers: [{ selected: [0] }, { selected: [0, 1] }],
+			skipped: [],
 		});
-	});
-
-	it("没勾任何项时 Enter 不推进", () => {
-		let session = createSession([question("Pick many", ["A", "B"], true)]);
-		session = apply(session, { kind: "confirm" });
-		expect(session.phase).toEqual({ kind: "list" });
 	});
 
 	it("数字在多选下切换勾选，不推进", () => {
 		let session = createSession([question("Pick many", ["A", "B"], true)]);
 		session = apply(session, { kind: "digit", value: 2 });
 		expect(session.selected[0]).toEqual([1]);
+		expect(session.phase).toEqual({ kind: "list" });
+	});
+
+	it("空着走 Confirm 收尾时把该题记进 skipped", () => {
+		let session = pair();
+		session = apply(session, { kind: "confirm" });
+		expect(session.active).toBe(1);
+		session = apply(
+			session,
+			{ kind: "down" },
+			{ kind: "down" },
+			{ kind: "down" },
+			{ kind: "confirm" },
+		);
+		expect(outcome(session)).toEqual({
+			kind: "submit",
+			answers: [{ index: 0, question: "First", selected: [0] }],
+			skipped: [1],
+		});
+	});
+
+	it("单题多选空着 Confirm 不提交", () => {
+		let session = createSession([question("Pick many", ["A", "B"], true)]);
+		session = apply(
+			session,
+			{ kind: "down" },
+			{ kind: "down" },
+			{ kind: "down" },
+			{ kind: "confirm" },
+		);
 		expect(session.phase).toEqual({ kind: "list" });
 	});
 });
@@ -132,15 +165,47 @@ describe("推进", () => {
 
 	it("答完一题跳到下一道未答；最后一题先答完也会跳回漏题", () => {
 		let session = pair();
+		session = apply(session, { kind: "nextQuestion" }, { kind: "confirm" });
 		session = apply(
 			session,
-			{ kind: "nextQuestion" },
-			{ kind: "toggle" },
+			{ kind: "down" },
+			{ kind: "down" },
+			{ kind: "down" },
 			{ kind: "confirm" },
 		);
 		expect(session.active).toBe(0);
 		session = apply(session, { kind: "confirm" });
 		expect(outcome(session).kind).toBe("submit");
+	});
+});
+
+describe("折叠", () => {
+	it("toggleCollapse 只翻渲染标志，焦点、答案与草稿都不动", () => {
+		let session = apply(pair(), { kind: "annotate" });
+		session = apply(session, { kind: "cancelNote", text: "草稿" });
+		session = apply(session, { kind: "confirm" }, { kind: "confirm" });
+		expect(session.selected).toEqual([[0], [0]]);
+		expect(session.noteDrafts[0]).toBe("草稿");
+		const collapsed = apply(session, { kind: "toggleCollapse" });
+		expect(collapsed.collapsed).toBe(true);
+		expect(collapsed.focus).toEqual(session.focus);
+		expect(collapsed.noteDrafts).toEqual(session.noteDrafts);
+		expect(apply(collapsed, { kind: "toggleCollapse" }).collapsed).toBe(false);
+	});
+
+	it("折叠时别的动作不生效，Esc 仍能中止", () => {
+		const session = apply(pair(), { kind: "toggleCollapse" });
+		expect(apply(session, { kind: "confirm" })).toBe(session);
+		expect(apply(session, { kind: "down" })).toBe(session);
+		expect(apply(session, { kind: "submitEarly" })).toBe(session);
+		expect(outcome(apply(session, { kind: "escape" }))).toEqual({
+			kind: "abort",
+		});
+	});
+
+	it("note 编辑中按 collapse 不折叠", () => {
+		const session = apply(single(), { kind: "annotate" });
+		expect(apply(session, { kind: "toggleCollapse" }).collapsed).toBe(false);
 	});
 });
 
@@ -225,7 +290,7 @@ describe("自由输入", () => {
 		let session = createSession([question("Many", ["A", "B"], true)]);
 		session = apply(
 			session,
-			{ kind: "toggle" },
+			{ kind: "confirm" },
 			{ kind: "down" },
 			{ kind: "down" },
 			{ kind: "confirm" },

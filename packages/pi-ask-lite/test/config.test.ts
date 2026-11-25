@@ -63,6 +63,62 @@ describe("loadConfig", () => {
 		).toThrow(/keys\.annotate: expected a key/);
 	});
 
+	it("折叠键默认 ctrl+]、提示默认开", () => {
+		expect(DEFAULTS.keys.collapse).toBe("ctrl+]");
+		expect(DEFAULTS.ui.showHints).toBe(true);
+	});
+
+	it("collapse 可以是具体按键或 off", () => {
+		const key = loadConfig({
+			configPath: tempConfig('{"keys":{"collapse":"alt+x"}}'),
+		});
+		expect(key.keys.collapse).toBe("alt+x");
+		const off = loadConfig({
+			configPath: tempConfig('{"keys":{"collapse":"off"}}'),
+		});
+		expect(off.keys.collapse).toBe("off");
+	});
+
+	it("collapse 格式不严就报错", () => {
+		for (const bad of ["ctrl++", "Ctrl+]", "ctrl+", "shift+ctrl+x", "foo"]) {
+			expect(
+				() =>
+					loadConfig({
+						configPath: tempConfig(JSON.stringify({ keys: { collapse: bad } })),
+					}),
+				bad,
+			).toThrow(/keys\.collapse: expected/);
+		}
+	});
+
+	it("collapse 不能占导航键或已配的键", () => {
+		expect(() =>
+			loadConfig({ configPath: tempConfig('{"keys":{"collapse":"down"}}') }),
+		).toThrow(/keys\.collapse: "down" is reserved for down/);
+		expect(() =>
+			loadConfig({ configPath: tempConfig('{"keys":{"collapse":"1"}}') }),
+		).toThrow(/reserved for 1/);
+		expect(() =>
+			loadConfig({
+				configPath: tempConfig('{"keys":{"collapse":"ctrl+i"}}'),
+			}),
+		).toThrow(/reserved for tab/);
+		expect(() =>
+			loadConfig({ configPath: tempConfig('{"keys":{"collapse":"e"}}') }),
+		).toThrow(/keys\.collapse: "e" conflicts with keys\.annotate/);
+		expect(() =>
+			loadConfig({
+				configPath: tempConfig('{"keys":{"collapse":"ctrl+enter"}}'),
+			}),
+		).toThrow(/conflicts with keys\.submitEarly/);
+	});
+
+	it("showHints 类型不符报错", () => {
+		expect(() =>
+			loadConfig({ configPath: tempConfig('{"ui":{"showHints":"yes"}}') }),
+		).toThrow(/ui\.showHints: expected boolean, got string/);
+	});
+
 	it("maxHeightRatio 越界夹到 0.2-0.8", () => {
 		expect(
 			loadConfig({ configPath: tempConfig('{"ui":{"maxHeightRatio":1.5}}') }).ui

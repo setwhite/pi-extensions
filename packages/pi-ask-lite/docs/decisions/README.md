@@ -8,3 +8,5 @@
 - [0002](0002-inline-editor-slot.md) 挂编辑器槽位，不用 overlay
 - [0003](0003-tui-only.md) 只支持 TUI：`mode` 不是 `tui` 就报错
 - [0004](0004-side-by-side-trim.md) 并排时两栏独立裁剪：左栏 detail → 选项窗口，右栏独立裁 preview
+- [0005](0005-multi-confirm-row.md) 多选 Enter 只勾选，收题走 `→ Confirm` 行
+- [0006](0006-drop-space-toggle.md) 多选只留 Enter 与数字键，去掉 Space

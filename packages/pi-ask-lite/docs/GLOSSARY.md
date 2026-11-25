@@ -28,9 +28,17 @@ _别叫_: comment、annotation
 每题底部的文本框，可以和勾选并存，多行。
 _别叫_: other、custom option
 
+**确认行（confirm）**:
+多选末尾的 `→ Confirm`。Enter 收本题并推进；空着按也推进，该题进 `skipped`。
+_别叫_: next、submit
+
 **提前提交（submit early）**:
 `keys.submitEarly`（默认 `ctrl+enter`）。提交已答的题，未答的进 `skipped`。
 _别叫_: skip、partial submit
+
+**折叠（collapse）**:
+`keys.collapse`（默认 `ctrl+]`）把面板收成一行进度。只改渲染，不动焦点、答案与草稿；再按同键展开。
+_别叫_: minimize、hide
 
 **中止（abort）**:
 Esc。整次放弃，不带回任何答案，本轮结束。

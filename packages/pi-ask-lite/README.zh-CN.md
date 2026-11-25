@@ -6,11 +6,15 @@
 
 ## 功能
 
-- 单选：`Enter` 或数字键选中当前项，自动跳到下一道未答题。多选：`Space` 勾选，`Enter` 收题。
-- 每题底部有 `Custom…` 自由输入行。`Shift+Enter` 换行，`Enter` 提交。
+- 单选：`Enter` 或数字键选中当前项，自动跳到下一道未答题；多选：`Enter` 或数字键勾选/取消当前项，走到 `→ Confirm` 按 `Enter` 收题。
+- 每题底部有 `+ Custom…` 自由输入行。`Shift+Enter` 换行，`Enter` 提交。
+- 分割线以下统一缩进 2 格、分段之间不留空行，焦点行用 `›` 标，底部只列当前模式真能用的键（`ui.showHints: false` 关掉这一行）。
 - `e` 在当前选项上写补充说明，随答案一起带走。
 - `Ctrl+Enter` 提前提交已答的题，其余标成 skipped。
 - `Esc` 中止。本轮立刻结束，模型拿不到任何答案。
+- Tab 栏用 `title`（缺省 `Q1`、`Q2`…）当标签并高亮当前题；完整 `question` 始终在下方按宽折行显示。
+- `Ctrl+]` 把面板折叠成一行进度，再按一次展开；焦点、答案与草稿都保留。改 `keys.collapse` 换键，设 `off` 关闭。
+- 聊天记录里调用行是 `Ask <title1 · title2>`，结果每题一行 `✓ <title>: <answer>`，没答的题 dim 标 `skipped`。
 - 选项可以带 Markdown 的 `preview`。宽终端显示在选项右侧，窄终端堆叠在下方。
 - 对话框占编辑器槽位，不盖对话区。高度上限由 `ui.maxHeightRatio` 决定。
 
@@ -26,13 +30,13 @@ pi -ne -e ./packages/pi-ask-lite/src/index.ts
 
 | 键 | 作用 |
 | --- | --- |
-| `↑` / `↓` | 在选项与 Custom 行之间移动 |
+| `↑` / `↓` | 在选项、`+ Custom…` 与（多选）`→ Confirm` 之间移动 |
 | `Tab` / `Shift+Tab` / `←` / `→` | 切题 |
 | `1`–`9` | 选第 N 个选项（多选时切换勾选） |
-| `Space` | 多选下切换当前项 |
-| `Enter` | 确认当前选项或当前答案 |
+| `Enter` | 单选：选中并推进；多选：勾选/取消，或在 `→ Confirm` 上收题 |
 | `e` | 给当前选项写补充说明（`keys.annotate`） |
 | `Ctrl+Enter` | 提前提交（`keys.submitEarly`） |
+| `Ctrl+]` | 折叠 / 展开面板（`keys.collapse`） |
 | `Esc` | 中止本轮，或退出当前编辑 |
 
 ## 配置
@@ -62,12 +66,14 @@ pi -ne -e ./packages/pi-ask-lite/src/index.ts
   },
   "ui": {
     "maxHeightRatio": 0.45,                          // 对话框高度占比（0.2–0.8）
-    "bell": true,                                    // 提交与中止时响铃
+    "bell": true,                                    // 弹窗挂载时响一次
+    "showHints": true,                               // 是否画底部快捷键行
     "preview": { "minSideBySideWidth": 100 }         // 窄于此宽度时预览改为堆叠
   },
   "keys": {
     "annotate": "e",                                 // 在当前选项上写补充说明
-    "submitEarly": "ctrl+enter"                      // 提交已答的题，其余跳过
+    "submitEarly": "ctrl+enter",                     // 提交已答的题，其余跳过
+    "collapse": "ctrl+]"                             // 折叠成一行；"off" 关闭
   },
   "guidance": {                                      // 模型看到的文案；`tool-name` 换成工具名
     "description": "Ask structured questions when user intent or trade-offs are unclear.",
@@ -86,6 +92,8 @@ pi -ne -e ./packages/pi-ask-lite/src/index.ts
 `guidance.promptSnippet` 为空串时不注册工具清单那一行。另外两段里的 `tool-name` 换成工具名。
 
 `keys.submitEarly` 默认 `ctrl+enter`，只有 Kitty 协议的终端能区分。老终端发裸 `\r`，这个键等同 `Enter`。介意就换一个。
+
+`keys.collapse` 取 `off` 或严格按键：修饰键按 `ctrl+shift+alt+super` 顺序，后面接单个字母、数字、符号或特殊键名。不能占导航键（含老终端别名 `ctrl+m`、`ctrl+j`、`ctrl+i`、`ctrl+[`、`ctrl+h`），也不能和 `keys.annotate` / `keys.submitEarly` 重复。
 
 ## 文档
 

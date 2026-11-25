@@ -10,22 +10,30 @@ import {
 	type KeyId,
 	Markdown,
 	matchesKey,
-	stripTerminalSequences,
+	Text,
 	type TUI,
 	truncateToWidth,
 	visibleWidth,
+	wrapTextWithAnsi,
 } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import { type Config, loadConfig } from "./config.ts";
 import { parseAskInput, type Question } from "./schema.ts";
 import {
 	type Action,
+	type AskDetails,
 	createSession,
 	type Outcome,
 	reduce,
 	type Session,
 } from "./state.ts";
-import { type PanelStyle, renderPanel, summarize } from "./view.ts";
+import {
+	callLabels,
+	type PanelStyle,
+	renderPanel,
+	resultLines,
+	summarize,
+} from "./view.ts";
 
 const PLACEHOLDER = "tool-name";
 const ELLIPSIS = "…";
@@ -81,7 +89,7 @@ export default function piAsk(pi: ExtensionAPI): void {
 	const toolName = config.tools.ask.name;
 	const guidance = (text: string) => text.replaceAll(PLACEHOLDER, toolName);
 
-	pi.registerTool({
+	pi.registerTool<typeof ASK_PARAMETERS, AskDetails>({
 		name: toolName,
 		label: "Ask",
 		description: guidance(config.guidance.description),
@@ -92,6 +100,33 @@ export default function piAsk(pi: ExtensionAPI): void {
 		promptGuidelines: config.guidance.promptGuidelines.map(guidance),
 		parameters: ASK_PARAMETERS,
 		exposure: "model-only",
+		renderCall(args, theme, context) {
+			const labels = Array.isArray(args.questions)
+				? callLabels(args.questions)
+				: "";
+			const component = textComponent(context.lastComponent);
+			component.setText(
+				labels === ""
+					? theme.fg("toolTitle", theme.bold("Ask"))
+					: `${theme.fg("toolTitle", theme.bold("Ask"))} ${theme.fg("muted", labels)}`,
+			);
+			return component;
+		},
+		renderResult(result, _options, theme, context) {
+			const details = result.details;
+			if (details === undefined) {
+				const content = result.content[0];
+				return new Text(content?.type === "text" ? content.text : "", 0, 0);
+			}
+			const text = resultLines(details, context.args.questions)
+				.map((line) =>
+					line.kind === "answer" ? line.text : theme.fg("muted", line.text),
+				)
+				.join("\n");
+			const component = textComponent(context.lastComponent);
+			component.setText(text);
+			return component;
+		},
 		execute: async (_toolCallId, params, _signal, _onUpdate, ctx) => {
 			const questions = parseAskInput(params, config.limits);
 			if (ctx.mode !== "tui" || typeof ctx.ui?.custom !== "function") {
@@ -155,6 +190,17 @@ class AskComponent implements Component {
 		this.tui = tui;
 		this.theme = theme;
 		this.done = done;
+		this.ring();
+	}
+
+	/** 挂载时提醒一次；提交、中止与退出都不再响。 */
+	private ring(): void {
+		if (!this.config.ui.bell) return;
+		try {
+			process.stdout.write("\x07");
+		} catch {
+			// 响铃失败不影响结果
+		}
 	}
 
 	invalidate(): void {
@@ -168,15 +214,21 @@ class AskComponent implements Component {
 			6,
 			Math.floor(rows * this.config.ui.maxHeightRatio),
 		);
-		const editorLines = this.editorLines(width);
 		return renderPanel(
 			this.session,
 			{
 				width,
 				height,
-				keys: this.config.keys,
+				keys: {
+					annotate: this.config.keys.annotate,
+					submitEarly: this.config.keys.submitEarly,
+					...(this.config.keys.collapse === "off"
+						? {}
+						: { collapse: this.config.keys.collapse }),
+				},
+				showHints: this.config.ui.showHints,
 				minSideBySideWidth: this.config.ui.preview.minSideBySideWidth,
-				...(editorLines === undefined ? {} : { editorLines }),
+				editorLines: (editorWidth) => this.editorLines(editorWidth),
 			},
 			this.panelStyle(),
 		);
@@ -205,6 +257,11 @@ class AskComponent implements Component {
 	}
 
 	private handleListInput(data: string): void {
+		const { collapse } = this.config.keys;
+		if (collapse !== "off" && matches(data, collapse)) {
+			this.dispatch({ kind: "toggleCollapse" });
+			return;
+		}
 		const fixed: Array<[string, Action]> = [
 			["escape", { kind: "escape" }],
 			["up", { kind: "up" }],
@@ -213,7 +270,6 @@ class AskComponent implements Component {
 			["shift+tab", { kind: "prevQuestion" }],
 			["left", { kind: "prevQuestion" }],
 			["right", { kind: "nextQuestion" }],
-			["space", { kind: "toggle" }],
 			["enter", { kind: "confirm" }],
 		];
 		for (const [key, action] of fixed) {
@@ -250,13 +306,6 @@ class AskComponent implements Component {
 	private finish(outcome: Outcome): void {
 		if (this.finished) return;
 		this.finished = true;
-		if (this.config.ui.bell) {
-			try {
-				process.stdout.write("\x07");
-			} catch {
-				// 响铃失败不影响结果
-			}
-		}
 		this.done(outcome);
 	}
 
@@ -264,7 +313,7 @@ class AskComponent implements Component {
 		const phase = this.session.phase;
 		if (phase.kind === "note") {
 			if (this.input === undefined) {
-				const input = new Input({ prompt: "  " });
+				const input = new Input({ prompt: "" });
 				input.setValue(phase.initial);
 				input.onSubmit = (value: string) =>
 					this.dispatch({ kind: "commitNote", text: value });
@@ -293,16 +342,17 @@ class AskComponent implements Component {
 		this.editor = undefined;
 	}
 
-	private editorLines(width: number): string[] | undefined {
+	private editorLines(width: number): string[] {
 		if (this.input !== undefined) {
 			this.input.focused = true;
 			return this.input.render(width);
 		}
 		if (this.editor !== undefined) {
 			this.editor.focused = true;
-			return this.editor.render(width);
+			// 去掉 Editor 自带的上下通栏横线，view 只保留内容行。
+			return this.editor.render(width).slice(1, -1);
 		}
-		return undefined;
+		return [];
 	}
 
 	private panelStyle(): PanelStyle {
@@ -311,12 +361,17 @@ class AskComponent implements Component {
 			muted: (text) => this.theme.style(text, { dim: true }),
 			bold: (text) => this.theme.bold(text),
 			width: visibleWidth,
-			truncate: (text, width) =>
-				stripTerminalSequences(truncateToWidth(text, width, ELLIPSIS)),
+			// 截断要留住 ANSI：并排对齐时左侧的选中高亮与 dim 不能被剥成纯白。
+			truncate: (text, width) => truncateToWidth(text, width, ELLIPSIS),
+			wrap: (text, width) => (width <= 0 ? [] : wrapTextWithAnsi(text, width)),
 			markdown: (text, width) =>
 				new Markdown(text, 0, 0, getMarkdownTheme()).render(width),
 		};
 	}
+}
+
+function textComponent(previous: Component | undefined): Text {
+	return previous instanceof Text ? previous : new Text("", 0, 0);
 }
 
 function matches(data: string, key: string): boolean {
