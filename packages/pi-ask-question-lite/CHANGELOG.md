@@ -2,6 +2,11 @@
 
 本文件记录已发布版本的用户可见变更。更细的过程见 git log。破坏性变更标 **BREAKING**。
 
+## 0.1.3 — 2026-11-25
+
+- 无运行时变更：README 封面图挪到标题下面，语言切换挪到封面之后。
+- 语言切换不再用加粗表示当前页：当前语言写成纯文本排第一，另一个才是链接，如 `English | [简体中文](README.zh-CN.md)`。
+
 ## 0.1.2 — 2026-11-25
 
 - **BREAKING** 配置目录改成 `<agent dir>/pi-ask-question-lite/`，跟包名一致。旧的 `<agent dir>/pi-ask/config.json` 不再读取；要保留配置就挪目录：`mv ~/.pi/agent/pi-ask ~/.pi/agent/pi-ask-question-lite`。

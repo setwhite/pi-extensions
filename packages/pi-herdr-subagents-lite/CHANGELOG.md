@@ -2,6 +2,11 @@
 
 本文件记录已发布版本的用户可见变更。更细的过程见 git log。破坏性变更标 **BREAKING**。0.5.2 及更早的变更见旧仓 `setwhite/pi-herdr-subagents-lite` 的 tag `v0.3.0`–`v0.5.2`。
 
+## 0.11.2 — 2026-11-25
+
+- 无运行时变更：README 封面图挪到标题下面，语言切换挪到封面之后。
+- 语言切换不再用加粗表示当前页：当前语言写成纯文本排第一，另一个才是链接，如 `English | [简体中文](README.zh-CN.md)`。
+
 ## 0.11.1 — 2026-11-25
 
 - 无运行时变更：README 加封面图，截的是 `subagent` 的 `run` 在独立 herdr 标签页起 worker-2、立即返回 `{state: running}` 那一下。
