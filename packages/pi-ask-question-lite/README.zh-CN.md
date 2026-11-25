@@ -22,7 +22,11 @@
 
 ## 安装
 
-还没发到 npm。在仓库里直接跑：
+```bash
+pi install npm:pi-ask-question-lite
+```
+
+要在仓库里跑工作副本：
 
 ```bash
 pi -ne -e ./packages/pi-ask-question-lite/src/index.ts
@@ -43,7 +47,7 @@ pi -ne -e ./packages/pi-ask-question-lite/src/index.ts
 
 ## 配置
 
-配置文件是 `<agent dir>/pi-ask/config.json`。`<agent dir>` 取 `$PI_CODING_AGENT_DIR`，未设置时取 `~/.pi/agent`。目录名是 `pi-ask`，不是包名。
+配置文件是 `<agent dir>/pi-ask-question-lite/config.json`。`<agent dir>` 取 `$PI_CODING_AGENT_DIR`，未设置时取 `~/.pi/agent`。
 
 扩展只读这个文件，不写。文件不存在时全部取默认值。
 
@@ -99,9 +103,16 @@ pi -ne -e ./packages/pi-ask-question-lite/src/index.ts
 
 ## 文档
 
-| | |
+| 文档 | 内容 |
 | --- | --- |
-| [架构](docs/ARCHITECTURE.md) | 模块、依赖规则、测试边界 |
-| [规格](docs/specs/0001-pi-ask-question-lite.md) | 契约、验收标准、不做的 |
-| [决策](docs/decisions/README.md) | 一条决策一份文件 |
-| [术语](docs/GLOSSARY.md) | 每个词指什么 |
+| [ARCHITECTURE](docs/ARCHITECTURE.md) | 模块、依赖规则、测试边界 |
+| [GLOSSARY](docs/GLOSSARY.md) | 每个词指什么 |
+| [Decisions](docs/decisions/README.md) | 一条决策一份文件 |
+| [Spec](docs/specs/0001-pi-ask-question-lite.md) | 契约、验收标准、不做的 |
+| [Audit](docs/audit/) | 一次一份验收记录 |
+| [Todos](docs/todos/) | 实施清单 |
+| [CHANGELOG.md](CHANGELOG.md) | 发布记录 |
+
+## License
+
+MIT © setwhite

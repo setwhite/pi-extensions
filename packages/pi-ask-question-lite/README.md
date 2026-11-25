@@ -23,7 +23,11 @@ One tool: `ask(questions)`. The model asks 1–4 questions with 2–6 options ea
 
 ## Install
 
-Not on npm yet. Run it from this repo:
+```bash
+pi install npm:pi-ask-question-lite
+```
+
+To run the working copy instead:
 
 ```bash
 pi -ne -e ./packages/pi-ask-question-lite/src/index.ts
@@ -44,7 +48,7 @@ pi -ne -e ./packages/pi-ask-question-lite/src/index.ts
 
 ## Configuration
 
-The config file is `<agent dir>/pi-ask/config.json`. `<agent dir>` is `$PI_CODING_AGENT_DIR`, or `~/.pi/agent` when unset. The directory is `pi-ask`, not the package name.
+The config file is `<agent dir>/pi-ask-question-lite/config.json`. `<agent dir>` is `$PI_CODING_AGENT_DIR`, or `~/.pi/agent` when unset.
 
 The extension only reads this file and never writes it. Without the file, all values are defaults.
 
@@ -100,9 +104,16 @@ An empty `guidance.promptSnippet` registers no tool-list line. `tool-name` in th
 
 ## Docs
 
-| | |
+| Document | Content |
 | --- | --- |
 | [Architecture](docs/ARCHITECTURE.md) | Modules, dependency rules, test seams |
-| [Spec](docs/specs/0001-pi-ask-question-lite.md) | Contract, acceptance criteria, non-goals |
-| [Decisions](docs/decisions/README.md) | One file per decision |
 | [Glossary](docs/GLOSSARY.md) | What each term means |
+| [Decisions](docs/decisions/README.md) | One file per decision |
+| [Spec](docs/specs/0001-pi-ask-question-lite.md) | Contract, acceptance criteria, non-goals |
+| [Audit](docs/audit/) | Acceptance runs, one file each |
+| [Todos](docs/todos/) | Implementation checklists |
+| [CHANGELOG.md](CHANGELOG.md) | Release notes |
+
+## License
+
+MIT © setwhite
