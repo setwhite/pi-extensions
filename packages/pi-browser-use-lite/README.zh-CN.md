@@ -1,8 +1,8 @@
 # pi-browser-use-lite
 
-**[简体中文](README.zh-CN.md)** | [English](README.md)
-
 ![pi-browser-use-lite：左边是已登录的 Reddit 标签页，右边 pi 会话用 chrome_seek 取出信息流里的帖子链接](https://raw.githubusercontent.com/setwhite/pi-extensions/main/packages/pi-browser-use-lite/assets/cover.png)
+
+简体中文 | [English](README.md)
 
 五个 `chrome_*` 工具，操作你自己的浏览器：你已经登录的标签页、你的 cookie 和会话。
 

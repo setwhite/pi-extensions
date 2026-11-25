@@ -1,8 +1,8 @@
 # pi-herdr-subagents-lite
 
-[简体中文](README.zh-CN.md) | **English**
-
 ![pi-herdr-subagents-lite: subagent run starts worker-2 in its own herdr tab and returns at once with {state: running, name: Worker-2}](https://raw.githubusercontent.com/setwhite/pi-extensions/main/packages/pi-herdr-subagents-lite/assets/cover.png)
+
+English | [简体中文](README.zh-CN.md)
 
 The extension runs each subagent as a separate pi process in its own herdr pane. The tool has two actions: `run` starts a subagent, `send` delivers a follow-up message. Results come back asynchronously. Behavior follows the [v1 contract](docs/specs/0001-v1-contract.md).
 

@@ -1,8 +1,8 @@
 # pi-browser-use-lite
 
-[简体中文](README.zh-CN.md) | **English**
-
 ![pi-browser-use-lite: chrome_seek pulls the post links out of the logged-in Reddit tab on the left, while the pi session on the right drives it](https://raw.githubusercontent.com/setwhite/pi-extensions/main/packages/pi-browser-use-lite/assets/cover.png)
+
+English | [简体中文](README.zh-CN.md)
 
 Five `chrome_*` tools that drive your own browser: the tabs you are already logged into, with your cookies and your sessions.
 

@@ -1,8 +1,8 @@
 # pi-web-search-lite
 
-**[简体中文](README.zh-CN.md)** | [English](README.md)
-
 ![pi 会话：web_search 用 exa 搜到 5 条结果，web_fetch 紧接着抓到第一页正文](https://raw.githubusercontent.com/setwhite/pi-extensions/main/packages/pi-web-search-lite/assets/cover.png)
+
+简体中文 | [English](README.md)
 
 本扩展给 pi 两个工具：`web_search` 搜网页，`web_fetch` 抓正文。扩展自己的请求只经过一个代理配置点。
 

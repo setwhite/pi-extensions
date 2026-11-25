@@ -1,8 +1,8 @@
 # pi-todo-lite
 
-**[简体中文](README.zh-CN.md)** | [English](README.md)
-
 ![pi-todo-lite：右上角浮窗里的 Todo 表，左边是运行中的工具调用](https://raw.githubusercontent.com/setwhite/pi-extensions/main/packages/pi-todo-lite/assets/cover.png)
+
+简体中文 | [English](README.md)
 
 模型维护一张有序任务表，表显示在角落浮窗里，不占对话行数。compaction、切分支、`--continue` 之后，表照旧回放。本包没有运行时依赖。
 

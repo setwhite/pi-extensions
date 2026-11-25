@@ -1,8 +1,8 @@
 # pi-web-search-lite
 
-[简体中文](README.zh-CN.md) | **English**
-
 ![A pi session: web_search returns 5 results via exa, then web_fetch extracts the first page](https://raw.githubusercontent.com/setwhite/pi-extensions/main/packages/pi-web-search-lite/assets/cover.png)
+
+English | [简体中文](README.zh-CN.md)
 
 Two tools for pi: `web_search` finds pages, `web_fetch` extracts text from a page. The extension's own requests all leave through one proxy setting.
 

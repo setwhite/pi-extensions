@@ -1,8 +1,8 @@
 # pi-herdr-subagents-lite
 
-**[简体中文](README.zh-CN.md)** | [English](README.md)
-
 ![pi-herdr-subagents-lite：subagent 的 run 在独立 herdr 标签页里起了 worker-2，立即返回 {state: running, name: Worker-2}](https://raw.githubusercontent.com/setwhite/pi-extensions/main/packages/pi-herdr-subagents-lite/assets/cover.png)
+
+简体中文 | [English](README.md)
 
 本扩展把子代理跑成独立的 pi 进程，一个子代理占一个 herdr pane。工具有两个 action：`run` 起子代理，`send` 投递后续消息。结果异步回投。行为以 [v1 契约](docs/specs/0001-v1-contract.md) 为准。
 
