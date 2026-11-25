@@ -185,7 +185,7 @@ describe("折叠", () => {
 		session = apply(session, { kind: "cancelNote", text: "草稿" });
 		session = apply(session, { kind: "confirm" }, { kind: "confirm" });
 		expect(session.selected).toEqual([[0], [0]]);
-		expect(session.noteDrafts[0]).toBe("草稿");
+		expect(session.noteDrafts[0]).toEqual({ "0": "草稿" });
 		const collapsed = apply(session, { kind: "toggleCollapse" });
 		expect(collapsed.collapsed).toBe(true);
 		expect(collapsed.focus).toEqual(session.focus);
@@ -245,17 +245,69 @@ describe("补充说明", () => {
 		let session = apply(single(), { kind: "annotate" });
 		session = apply(session, { kind: "cancelNote", text: "半句" });
 		expect(session.phase).toEqual({ kind: "list" });
-		expect(session.notes[0]).toBe("");
-		expect(session.noteDrafts[0]).toBe("半句");
+		expect(session.optionNotes[0]).toEqual({});
+		expect(session.noteDrafts[0]).toEqual({ "0": "半句" });
 		expect(isAnswered(session, 0)).toBe(false);
 		session = apply(session, { kind: "annotate" });
 		expect(session.phase).toEqual({ kind: "note", option: 0, initial: "半句" });
 	});
 
-	it("多选下 e 不动作", () => {
-		const session = createSession([question("Many", ["A", "B"], true)]);
-		expect(apply(session, { kind: "annotate" }).phase).toEqual({
-			kind: "list",
+	it("多选 e 进编辑，Enter 自动勾上该选项、焦点留在列表", () => {
+		let session = createSession([question("Many", ["A", "B"], true)]);
+		session = apply(session, { kind: "down" }, { kind: "annotate" });
+		expect(session.phase).toEqual({ kind: "note", option: 1, initial: "" });
+		session = apply(session, { kind: "commitNote", text: "B 的理由" });
+		expect(session.phase).toEqual({ kind: "list" });
+		expect(session.selected[0]).toEqual([1]);
+		expect(session.focus).toEqual({ kind: "option", index: 1 });
+		expect(session.optionNotes[0]).toEqual({ "1": "B 的理由" });
+	});
+
+	it("多选每个选项各记一条 note，取消勾选就清掉那一条", () => {
+		let session = createSession([question("Many", ["A", "B"], true)]);
+		session = apply(
+			session,
+			{ kind: "annotate" },
+			{ kind: "commitNote", text: "A 的理由" },
+			{ kind: "down" },
+			{ kind: "annotate" },
+			{ kind: "commitNote", text: "B 的理由" },
+		);
+		expect(session.optionNotes[0]).toEqual({
+			"0": "A 的理由",
+			"1": "B 的理由",
+		});
+		session = apply(session, { kind: "digit", value: 1 });
+		expect(session.selected[0]).toEqual([1]);
+		expect(session.optionNotes[0]).toEqual({ "1": "B 的理由" });
+		session = apply(
+			session,
+			{ kind: "down" },
+			{ kind: "down" },
+			{ kind: "down" },
+			{ kind: "confirm" },
+		);
+		const answer = submitted(session).answers[0];
+		expect(answer).toMatchObject({ selected: [1], notes: { "1": "B 的理由" } });
+		expect(answer).not.toHaveProperty("note");
+	});
+
+	it("多选 note 的草稿按选项分开，Esc 后带回自己那条", () => {
+		let session = createSession([question("Many", ["A", "B"], true)]);
+		session = apply(
+			session,
+			{ kind: "annotate" },
+			{ kind: "cancelNote", text: "A 半句" },
+			{ kind: "down" },
+			{ kind: "annotate" },
+		);
+		expect(session.phase).toEqual({ kind: "note", option: 1, initial: "" });
+		session = apply(session, { kind: "cancelNote", text: "B 半句" });
+		session = apply(session, { kind: "up" }, { kind: "annotate" });
+		expect(session.phase).toEqual({
+			kind: "note",
+			option: 0,
+			initial: "A 半句",
 		});
 	});
 
@@ -269,13 +321,13 @@ describe("补充说明", () => {
 			{ kind: "annotate" },
 			{ kind: "commitNote", text: "A 的理由" },
 		);
-		expect(session.notes[0]).toBe("A 的理由");
+		expect(session.optionNotes[0]).toEqual({ "0": "A 的理由" });
 		expect(session.active).toBe(1);
 
 		session = apply(session, { kind: "prevQuestion" });
 		expect(session.active).toBe(0);
 		session = apply(session, { kind: "digit", value: 2 });
-		expect(session.notes[0]).toBe("");
+		expect(session.optionNotes[0]).toEqual({});
 		expect(session.active).toBe(1);
 
 		session = apply(session, { kind: "confirm" });

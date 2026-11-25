@@ -1,11 +1,17 @@
 import type { Question } from "./schema.ts";
 
+/** 按选项下标记的补充说明：多选每个选项一条，单选只可能有选中那一条。 */
+export type OptionNotes = Record<string, string>;
+
 export type Answer = {
 	index: number;
 	question: string;
 	selected: number[];
 	custom?: string;
+	/** 单选的补充说明。 */
 	note?: string;
+	/** 多选的补充说明，键是选项下标。 */
+	notes?: OptionNotes;
 	preview?: string;
 };
 
@@ -37,8 +43,8 @@ export type Session = {
 	focus: Focus;
 	selected: number[][];
 	customs: string[];
-	notes: string[];
-	noteDrafts: string[];
+	optionNotes: OptionNotes[];
+	noteDrafts: OptionNotes[];
 	customDrafts: string[];
 	/** 折叠只改渲染，不动焦点、答案与草稿。 */
 	collapsed: boolean;
@@ -68,8 +74,8 @@ export function createSession(questions: Question[]): Session {
 		focus: { kind: "option", index: 0 },
 		selected: questions.map(() => []),
 		customs: questions.map(() => ""),
-		notes: questions.map(() => ""),
-		noteDrafts: questions.map(() => ""),
+		optionNotes: questions.map(() => ({})),
+		noteDrafts: questions.map(() => ({})),
 		customDrafts: questions.map(() => ""),
 		collapsed: false,
 		phase: { kind: "list" },
@@ -143,19 +149,39 @@ export function buildAnswers(session: Session): Answer[] {
 		if (!isAnswered(session, index)) continue;
 		const selected = [...session.selected[index]].sort((a, b) => a - b);
 		const custom = session.customs[index].trim();
-		const note = selected.length === 1 ? session.notes[index].trim() : "";
+		const stored = session.optionNotes[index];
 		const preview =
 			selected.length > 0 ? question.options[selected[0]].preview : undefined;
+		const notes = question.multiple ? pickedNotes(stored, selected) : undefined;
+		const note = question.multiple
+			? undefined
+			: selected.length === 1
+				? stored[String(selected[0])]
+				: undefined;
 		answers.push({
 			index,
 			question: question.question,
 			selected,
 			...(custom === "" ? {} : { custom }),
-			...(note === "" ? {} : { note }),
+			...(note === undefined ? {} : { note }),
+			...(notes === undefined ? {} : { notes }),
 			...(preview === undefined ? {} : { preview }),
 		});
 	}
 	return answers;
+}
+
+/** 多选只带选中的那几条：取消勾选时已经删过，这里再筛一遍防脏数据。 */
+function pickedNotes(
+	stored: OptionNotes,
+	selected: readonly number[],
+): OptionNotes | undefined {
+	const notes: OptionNotes = {};
+	for (const index of selected) {
+		const note = stored[String(index)];
+		if (note !== undefined) notes[String(index)] = note;
+	}
+	return Object.keys(notes).length === 0 ? undefined : notes;
 }
 
 function move(session: Session, delta: number): Session {
@@ -213,68 +239,93 @@ function pickDigit(session: Session, value: number): Session {
 
 function select(session: Session, index: number): Session {
 	const selected = session.selected.map((entry) => [...entry]);
-	const notes = [...session.notes];
 	const previous = selected[session.active][0];
 	selected[session.active] = [index];
-	if (previous !== undefined && previous !== index) notes[session.active] = "";
-	return { ...session, selected, notes };
+	const optionNotes = copyNotes(session.optionNotes);
+	if (previous !== undefined && previous !== index)
+		delete optionNotes[session.active][String(previous)];
+	return { ...session, selected, optionNotes };
 }
 
 function toggleOption(session: Session, index: number): Session {
 	const selected = session.selected.map((entry) => [...entry]);
 	const current = selected[session.active];
-	selected[session.active] = current.includes(index)
+	const checked = current.includes(index);
+	selected[session.active] = checked
 		? current.filter((entry) => entry !== index)
 		: [...current, index].sort((a, b) => a - b);
-	return { ...session, selected };
+	const optionNotes = copyNotes(session.optionNotes);
+	const noteDrafts = copyNotes(session.noteDrafts);
+	if (checked) {
+		// 取消勾选就把它那条 note 连同草稿一起丢掉，别留着下次按 e 又冒出来。
+		delete optionNotes[session.active][String(index)];
+		delete noteDrafts[session.active][String(index)];
+	}
+	return { ...session, selected, optionNotes, noteDrafts };
 }
 
 function annotate(session: Session): Session {
 	if (session.focus.kind !== "option") return session;
-	if (session.questions[session.active].multiple) return session;
 	const option = session.focus.index;
-	const settled = session.selected[session.active].includes(option)
-		? session.notes[session.active]
-		: "";
+	const key = String(option);
+	const settled = session.optionNotes[session.active][key] ?? "";
+	const draft = session.noteDrafts[session.active][key] ?? "";
 	return {
 		...session,
-		phase: {
-			kind: "note",
-			option,
-			initial: settled || session.noteDrafts[session.active],
-		},
+		phase: { kind: "note", option, initial: settled || draft },
 	};
 }
 
+/**
+ * note 落在选项上：单选一题只留一条、落地就推进；多选每条跟着自己的选项，
+ * 落地只保证该选项勾上，焦点留在列表继续操作。
+ */
 function commitNote(session: Session, text: string): Session {
 	if (session.phase.kind !== "note") return session;
+	const question = session.questions[session.active];
+	const option = session.phase.option;
 	const note = text.trim();
 	const selected = session.selected.map((entry) => [...entry]);
-	selected[session.active] = [session.phase.option];
-	const notes = [...session.notes];
-	notes[session.active] = note;
-	const noteDrafts = [...session.noteDrafts];
-	noteDrafts[session.active] = note;
-	return advance({
+	selected[session.active] = question.multiple
+		? [...new Set([...selected[session.active], option])].sort((a, b) => a - b)
+		: [option];
+	const optionNotes = copyNotes(session.optionNotes);
+	const noteDrafts = copyNotes(session.noteDrafts);
+	// 单选只可能有选中项那一条，其他选项的旧 note 顺带清掉。
+	if (!question.multiple) optionNotes[session.active] = {};
+	setNote(optionNotes[session.active], String(option), note);
+	setNote(noteDrafts[session.active], String(option), note);
+	const next: Session = {
 		...session,
 		selected,
-		notes,
+		optionNotes,
 		noteDrafts,
-		focus: { kind: "option", index: session.phase.option },
+		focus: { kind: "option", index: option },
 		phase: { kind: "list" },
-	});
+	};
+	return question.multiple ? next : advance(next);
 }
 
 function cancelNote(session: Session, text: string): Session {
 	if (session.phase.kind !== "note") return session;
-	const noteDrafts = [...session.noteDrafts];
-	noteDrafts[session.active] = text;
+	const noteDrafts = copyNotes(session.noteDrafts);
+	setNote(noteDrafts[session.active], String(session.phase.option), text);
 	return {
 		...session,
 		noteDrafts,
 		focus: { kind: "option", index: session.phase.option },
 		phase: { kind: "list" },
 	};
+}
+
+function copyNotes(notes: OptionNotes[]): OptionNotes[] {
+	return notes.map((entry) => ({ ...entry }));
+}
+
+/** 空白就是清掉这条，别留空串让界面渲染出一个空的补充行。 */
+function setNote(entry: OptionNotes, key: string, text: string): void {
+	if (text.trim() === "") delete entry[key];
+	else entry[key] = text.trim();
 }
 
 function commitCustom(session: Session, text: string): Session {

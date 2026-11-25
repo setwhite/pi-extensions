@@ -16,7 +16,7 @@
 - 面板挡着上下文时折叠成一行，再按一次展开，已答与草稿都还在。
 - 选中项想补一句，按 `e` 就地写，不换页。
 - 选项带代码或表格时，右侧先看一眼再决定。屏幕窄了改成上下排。
-- 多选题除勾选外还能写一段自由文本。
+- 多选题除勾选外还能给每个选项各补一句，再写一段自由文本。
 - 前面还有题没答、最后一题先答完了：别自作主张收尾，跳回漏题。
 - 答到一半不想答了：Esc 一次退出，模型别再回一句，也别把半成品当答案。
 - 只想交已答的几题：Ctrl+Enter，未答的标成 `skipped`。
@@ -57,13 +57,14 @@ type Answer = {
   selected: number[];
   custom?: string;
   note?: string;
+  notes?: Record<string, string>;
   preview?: string;
 };
 ```
 
 `content[0].text` 是一句英文摘要，给模型读。`details` 给界面、回放和脚本调。
 
-不变量：`selected` 升序去重；单选长度不超过 1；`note` 只在单选且 `selected.length === 1` 时出现；`custom` 去空白非空才写；`preview` 取第一个选中项的原文。有结论 ⟺ `selected` 非空或 `custom` 非空。
+不变量：`selected` 升序去重；单选长度不超过 1；`note` 只在单选且 `selected.length === 1` 时出现；`notes` 只在多选出现，键是 `selected` 里的选项下标，值已去空白、非空；`custom` 去空白非空才写；`preview` 取第一个选中项的原文。有结论 ⟺ `selected` 非空或 `custom` 非空。
 
 ### 状态机
 
@@ -92,16 +93,16 @@ type Outcome =
 | Enter | Confirm 行（仅多选） | 本题收尾并推进；本题没结论也照常推进，收尾时进 `skipped` |
 | 可打印字符 | Custom 行 | 进 `custom` 编辑，该字符作为首个输入 |
 | 1..9 | 任意 | 单选：选中第 N 项并推进；多选：切换第 N 项 |
-| `keys.annotate`（默认 `e`） | 选项 | 单选进 `note` 编辑；多选无动作 |
+| `keys.annotate`（默认 `e`） | 选项 | 进 `note` 编辑，写完挂在这个选项上；单选落地后推进，多选不推进 |
 | `keys.submitEarly`（默认 `ctrl+enter`） | 任意 | 至少一题有结论时进 `submit`，`skipped` 是未答下标；一题都没答时无动作 |
 | `keys.collapse`（默认 `ctrl+]`，`off` 关闭） | 任意 | 列表态折叠 / 展开；折叠时只认它与 Esc，其余输入不改状态 |
 | Esc | 任意 | 进 `abort` |
 
 推进 = 从下一题起循环找没结论的题。找不到未答题就进 `submit`。最后一题答完但前面还有漏题时，跳回漏题，不提前收尾。
 
-`note` 编辑：单行。Enter 落地成该选项的 `note`（该选项尚未选中就先选中），该题算有结论，然后照常推进。Esc 只回 `list`，草稿留着，下次按 `e` 带回。
+`note` 编辑：单行，输入框就地挂在该选项（及其 `detail`）下方。Enter 落地成这个选项的补充说明，该选项还没选中就先选中。单选落地后该题算有结论、照常推进，一题只留一条 `note`；多选只保存、焦点留在列表继续操作，每条 note 跟着自己的选项走，写成 `notes[选项下标]`，取消勾选该选项时连同草稿一起清掉。Esc 只回 `list`，草稿留着，下次按 `e` 带回。
 
-`list` 里 `e` 的起点：该选项已选中就用它的 `note`，否则用 `noteDrafts` 里的草稿。
+`list` 里 `e` 的起点：该选项已有 note 就用它，否则用这个选项在 `noteDrafts` 里的草稿。
 
 `custom` 编辑：多行，Shift+Enter 换行，Enter 落地。Esc 只回 `list`，草稿保留。空白 Enter 等于清掉该题的 `custom`，回 `list`，不推进。
 
@@ -121,13 +122,13 @@ type Outcome =
 - 单题不画 Tab 栏。多题时顶部一行 Tab 栏，每题一段，标签用 `title`，缺省 `Q1`…`Qn`，已答段前标 ✓；当前题用 accent 加粗并加方括号（如 `[2 细节]`），其余 dim。`title` 只做 Tab 标签，不替代题干。
 - 题干永远完整渲染，按宽自动折行（可多行）。选项一行一个：单选用 `› 1. label` 标焦点、`✓ 1. label` 标已选，不画 `○`/`●`；多选用 `› ■ 1. label` 与 `□ 2. label`。`detail` 缩进到 label 列，高度充裕时最多折 2 行，超出用 `…`。label、detail、note 里的换行只取 `/\r?\n/` 切出的首行：`render()` 的每个元素必须是正好一行。
 - Custom 行固定在该题选项下方：未聚焦时 dim 显示 `+ Custom…`（有草稿显示 `+ Custom: …`），聚焦换 accent。多选在 Custom 下方再加一行 `→ Confirm`（平时 dim，聚焦 accent）。
-- 补充说明就地编辑：按 `e` 后该选项保持高亮，单行输入框紧贴该选项（或它的 `detail`）正下方，缩进到 label 列并加 `↳ ` 前缀，不另占一行提示。
+- 已落地的补充说明在选项下方 dim 显示 `↳ …`，多选每个选项各挂各的。按 `e` 后该选项保持高亮，单行输入框紧贴该选项（或它的 `detail`）正下方，缩进到 label 列并加 `↳ ` 前缀，不另占一行提示；正在编辑的那条不再重复画旧值。
 - 自由输入编辑：保留高亮的 `› + Custom` 行，编辑区紧贴其下，用左侧 dim 的 `▎ ` 竖条标示输入行，不画上下边框。
-- 底部一行 dim 键提示，只列当前形态真能用的键：单选用 `enter pick · e note`，多选用 `enter toggle`；多题补 `tab next` 与 `keys.submitEarly submit`，多选单题补 `keys.submitEarly submit`；`keys.collapse` 有效时再补 `<key> collapse`，最后收在 `esc abort`（键 + 动作，与其余提示一致）。编辑态是 `enter save · esc back`（custom 补 `shift+enter newline`）。`ui.showHints` 为假时整行不画，正文多一行。
+- 底部一行 dim 键提示，只列当前形态真能用的键：单选用 `enter pick · e note`，多选用 `enter toggle · e note`；多题补 `tab next` 与 `keys.submitEarly submit`，多选单题补 `keys.submitEarly submit`；`keys.collapse` 有效时再补 `<key> collapse`，最后收在 `esc abort`（键 + 动作，与其余提示一致）。编辑态是 `enter save · esc back`（custom 补 `shift+enter newline`）。`ui.showHints` 为假时整行不画，正文多一行。
 - `keys.collapse` 有效时，列表态按它折叠：只剩一行 dim 的 `Ask collapsed (已答/总题数) · <key> expand`，不再画分割线与正文；再按同键展开，焦点、答案与草稿原样。折叠时别的输入不生效，Esc 仍中止。
 - preview：当前高亮选项带 `preview` 时显示，不画 `Preview` 标头，正文直接起，省下的那一行留给内容。终端宽 ≥ `ui.preview.minSideBySideWidth`（默认 100）时在右侧并排，竖线 `│` 用 dim，左右各留 1 格；否则在该题下方堆叠。并排时右栏从 Tab / 题干那一行就顶对齐，不等选项区，右栏多出的行不把面板往下撑高。左栏宽封顶 `min(floor(width × 0.42), 54)`，封顶内按左侧实际内容最大宽度收紧，其余给右栏，各自截断，并且截断与补齐必须保留左侧的 ANSI 样式（选中高亮、detail 的 dim 不能被剥成纯白）。两栏都不低于 12 列，不够就退回堆叠。
 - `ui.bell` 为真时，对话框挂载响一次（`\x07`）；提交、中止与退出都不再响。
-- 聊天记录里，调用行是 `Ask <title1 · title2>`（`title` 缺省取 `question` 首行）；结果每题一条 `✓ <title>: <answer>`，没答的题用 dim 标 `<title>: skipped`，中止是 dim 的 `✗ aborted`。原始 JSON 参数与模型摘要不直接铺在聊天里。
+- 聊天记录里，调用行是 `Ask <title1 · title2>`（`title` 缺省取 `question` 首行）。结果默认每题一条 `✓ <title>: <answer>`，选项的补充说明紧跟该选项名后写成 `<label> (note: …)`；没答的题用 dim 标 `<title>: skipped`，中止是 dim 的 `✗ aborted`。宿主按 Ctrl+O 展开时（`renderResult` 读 `options.expanded`）每题改成一块：`✓ <title>`、完整题干、每条选中项一行 `- <label> (note: …)`、`custom: …`；跳过项写成 `<title>: skipped` 加完整题干。原始 JSON 参数与模型摘要不直接铺在聊天里。
 - 挂载用 `ctx.ui.custom()` 的非 overlay 形态，占编辑器槽位（理由见 [`0002`](../decisions/0002-inline-editor-slot.md)）。
 
 ### 配置
@@ -176,12 +177,12 @@ type Outcome =
 |---|---|
 | AC1 | 配置用例：缺文件得默认值；坏 JSON、未知键、类型不符都抛错且带字段路径；`maxHeightRatio` 越界夹取；`keys.collapse` 支持 `off`，格式不严、占导航键、与 `annotate` / `submitEarly` 重复都抛错；`ui.showHints` 校验；`tool-name` 每处都替换；改 `tools.ask.name` 后注册名跟着变 |
 | AC2 | 校验用例：1 题 / 4 题、2 选项 / 6 选项的边界通过；0 题、5 题、1 选项、7 选项、空白 `question`、空白 `label`、未知键全部抛错；`multiple` 缺省 `false`；`Other` 与 `Next` 通过 |
-| AC3 | 状态用例：迁移表逐条覆盖；多选 Enter 只勾选、Confirm 行收题、空 Confirm 记 `skipped`；自动推进跳过已答；最后一题答完回跳漏题；全答自动 `submit`；`submitEarly` 带 `skipped`；折叠只翻标志、焦点 / 答案 / 草稿不动，折叠时其它动作不生效而 Esc 仍中止；`note` / `custom` 的 Esc 只退编辑、草稿还在；列表态 Esc 得 `answers: []`、`aborted: true`；`done` 只触发一次 |
-| AC4 | 渲染用例：宽度 80 / 100 / 120 × 高度 6 / 20 / 40。并排与堆叠切换、`…` 截断、预算裁剪顺序（堆叠 preview → detail → 选项窗口；并排左栏 detail → 选项窗口、右栏独立裁 preview）、单题无 Tab 栏、内容贴第 0 列、无空行、题干完整折行、当前 Tab 高亮、`›` / `✓` / `■` / `□` 前缀、Confirm 行、note 就地编辑、custom 编辑无边框、左栏封顶 `min(floor(width × 0.42), 54)` 并按内容收紧、右栏从 Tab / 题干行顶对齐、detail 折 2 行、键提示随形态与题型换（`esc abort` / 编辑态 `esc back`）且随 `collapse` 开关增减、`showHints` 关掉整行、折叠态只有一行进度、并排截断保留 ANSI |
-| AC5 | 接线用例：注册参数含 `exposure: "model-only"`；`mode !== "tui"` 时抛错且零事件；提交、中止、抛错三条路径 `herdr:blocked` 成对；工具结果的 `details` 形状与英文摘要；`renderCall` 只显示 `Ask` 与题目标签、`renderResult` 出每题 `✓` 与 dim `skipped` / `✗ aborted`；铃只在挂载响一次；`terminate: true` 与 `ctx.abort()` 各一次 |
+| AC3 | 状态用例：迁移表逐条覆盖；多选 Enter 只勾选、Confirm 行收题、空 Confirm 记 `skipped`；多选 `e` 写 note 自动勾选该选项、焦点不推进、取消勾选清掉那条 note、草稿按选项分开；自动推进跳过已答；最后一题答完回跳漏题；全答自动 `submit`；`submitEarly` 带 `skipped`；折叠只翻标志、焦点 / 答案 / 草稿不动，折叠时其它动作不生效而 Esc 仍中止；`note` / `custom` 的 Esc 只退编辑、草稿还在；列表态 Esc 得 `answers: []`、`aborted: true`；`done` 只触发一次 |
+| AC4 | 渲染用例：宽度 80 / 100 / 120 × 高度 6 / 20 / 40。并排与堆叠切换、`…` 截断、预算裁剪顺序（堆叠 preview → detail → 选项窗口；并排左栏 detail → 选项窗口、右栏独立裁 preview）、单题无 Tab 栏、内容贴第 0 列、无空行、题干完整折行、当前 Tab 高亮、`›` / `✓` / `■` / `□` 前缀、Confirm 行、note 就地编辑（多选每个选项各挂各的、编辑中不重复旧值）、custom 编辑无边框、左栏封顶 `min(floor(width × 0.42), 54)` 并按内容收紧、右栏从 Tab / 题干行顶对齐、detail 折 2 行、键提示随形态与题型换（`esc abort` / 编辑态 `esc back`）且随 `collapse` 开关增减、`showHints` 关掉整行、折叠态只有一行进度、并排截断保留 ANSI |
+| AC5 | 接线用例：注册参数含 `exposure: "model-only"`；`mode !== "tui"` 时抛错且零事件；提交、中止、抛错三条路径 `herdr:blocked` 成对；工具结果的 `details` 形状与英文摘要；`renderCall` 只显示 `Ask` 与题目标签、`renderResult` 默认出每题 `✓` 与 dim `skipped` / `✗ aborted`，`options.expanded` 为真时换成完整题干、选项 note 与 custom 的展开块；铃只在挂载响一次；`terminate: true` 与 `ctx.abort()` 各一次 |
 | AC6 | 包闸：`test/package.test.ts` 的 files / `pi.extensions` 断言与 `test/docs.test.ts` 的两份 README 配置块 = `DEFAULTS` 都通过 |
 | AC7 | 全仓 `pnpm check` 绿：lint、check:imports、typecheck、test |
-| AC8 | 真机：herdr 面板里 `pi -ne -e ./packages/pi-ask-lite/src/index.ts`。面板变红再恢复；单 Esc 回空闲且没有第二次模型回复；`e` 补充；多选 Enter 勾选后走 `→ Confirm`；`ctrl+]` 折叠成一行再展开；preview 并排切堆叠；Ctrl+Enter 提前提交；聊天记录里只看得到一行调用与每题一行结果 |
+| AC8 | 真机：herdr 面板里 `pi -ne -e ./packages/pi-ask-lite/src/index.ts`。面板变红再恢复；单 Esc 回空闲且没有第二次模型回复；`e` 补充（单选与多选各一条）；多选 Enter 勾选后走 `→ Confirm`；`ctrl+]` 折叠成一行再展开；preview 并排切堆叠；Ctrl+Enter 提前提交；聊天记录里只有一行调用与每题一行结果，Ctrl+O 后展开成完整题干加逐条选项 |
 
 ## 不做的
 

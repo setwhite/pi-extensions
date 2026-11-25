@@ -13,7 +13,7 @@ _别叫_: prompt、问题单
 _别叫_: choice、item
 
 **答案（answer）**:
-一题的结论：`selected` 下标、可选 `custom`、可选 `note`。
+一题的结论：`selected` 下标、可选 `custom`、可选 `note`（单选）/ `notes`（多选，按选项下标）。
 _别叫_: result、response
 
 **有结论（answered）**:
@@ -21,7 +21,7 @@ _别叫_: result、response
 _别叫_: completed、filled
 
 **补充（note）**:
-单选下挂在选中项上的一句话。多选没有。
+挂在某个选项上的一句话。单选取选中项那一条（`note`），多选每个选项各一条（`notes`），取消勾选就一起清掉。
 _别叫_: comment、annotation
 
 **自由输入（custom）**:

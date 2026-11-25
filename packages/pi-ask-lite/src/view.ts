@@ -132,9 +132,10 @@ function hintFor(session: Session, layout: PanelLayout): string {
 		return "enter save · shift+enter newline · esc back";
 
 	const multiple = session.questions[session.active].multiple;
-	const parts = multiple
-		? ["enter toggle"]
-		: ["enter pick", `${keys.annotate} note`];
+	const parts = [
+		multiple ? "enter toggle" : "enter pick",
+		`${keys.annotate} note`,
+	];
 	if (session.questions.length > 1) {
 		parts.push("tab next", `${keys.submitEarly} submit`);
 	} else if (multiple) {
@@ -190,17 +191,16 @@ function bodyRows(
 				});
 		}
 
-		if (!multi && selected.length === 1 && selected[0] === index) {
-			const note = oneLine(session.notes[session.active]);
-			if (note !== "")
-				body.push({
-					text: style.muted(
-						style.truncate(`${indent}${NOTE_MARK}${note}`, width),
-					),
-					kind: "note",
-					group: index,
-				});
-		}
+		const note = session.optionNotes[session.active][String(index)];
+		// 正在编辑这一条时输入框里就是它，别再画一遍旧值。
+		if (note !== undefined && editing !== index)
+			body.push({
+				text: style.muted(
+					style.truncate(`${indent}${NOTE_MARK}${oneLine(note)}`, width),
+				),
+				kind: "note",
+				group: index,
+			});
 
 		// 补充说明就地编辑：紧贴该选项（含 detail）下方，不另占一行提示。
 		if (editing === index) {
@@ -507,6 +507,36 @@ export function resultLines(
 ): ResultLine[] {
 	if (details.aborted) return [{ text: "✗ aborted", kind: "aborted" }];
 
+	const lines: ResultLine[] = [];
+	for (const entry of resultEntries(details, questions)) {
+		if (entry.answer === undefined) {
+			if (entry.skipped)
+				lines.push({
+					text: `${questionLabel(entry.question, entry.index)}: skipped`,
+					kind: "skipped",
+				});
+			continue;
+		}
+		lines.push({
+			text: `✓ ${questionLabel(entry.question, entry.index)}: ${answerText(entry.answer, entry.question)}`,
+			kind: "answer",
+		});
+	}
+	return lines;
+}
+
+type ResultEntry = {
+	index: number;
+	question: DisplayQuestion | undefined;
+	answer: Answer | undefined;
+	skipped: boolean;
+};
+
+/** 结果行的公共骨架：按题序把答题、跳过、没提到的题都排出来。 */
+function resultEntries(
+	details: AskDetails,
+	questions: readonly DisplayQuestion[],
+): ResultEntry[] {
 	const answers = new Map(
 		details.answers.map((answer) => [answer.index, answer]),
 	);
@@ -516,23 +546,77 @@ export function resultLines(
 		...details.answers.map((answer) => answer.index + 1),
 		...[...skipped].map((index) => index + 1),
 	);
+	const entries: ResultEntry[] = [];
+	for (let index = 0; index < count; index += 1)
+		entries.push({
+			index,
+			question: questions[index],
+			answer: answers.get(index),
+			skipped: skipped.has(index),
+		});
+	return entries;
+}
+
+/**
+ * 展开态（宿主 Ctrl+O）：每题给出完整题干、选中的选项与各自的 note、custom，
+ * 跳过的题也带上题干，不再压成一行短标签。
+ */
+export function expandedLines(
+	details: AskDetails,
+	questions: readonly DisplayQuestion[],
+): ResultLine[] {
+	if (details.aborted) return [{ text: "✗ aborted", kind: "aborted" }];
+
 	const lines: ResultLine[] = [];
-	for (let index = 0; index < count; index += 1) {
-		const question = questions[index];
-		const answer = answers.get(index);
-		if (answer === undefined) {
-			if (skipped.has(index))
+	for (const entry of resultEntries(details, questions)) {
+		const label = questionLabel(entry.question, entry.index);
+		const body = questionLines(entry.question, label);
+		if (entry.answer === undefined) {
+			if (entry.skipped)
 				lines.push({
-					text: `${questionLabel(question, index)}: skipped`,
+					text: block(`${label}: skipped`, body),
 					kind: "skipped",
 				});
 			continue;
 		}
 		lines.push({
-			text: `✓ ${questionLabel(question, index)}: ${answerText(answer, question)}`,
+			text: block(`✓ ${label}`, [
+				...body,
+				...answerLines(entry.answer, entry.question),
+			]),
 			kind: "answer",
 		});
 	}
+	return lines;
+}
+
+function block(header: string, body: readonly string[]): string {
+	return [header, ...body.map((line) => `  ${line}`)].join("\n");
+}
+
+/** 完整题干；没有 title 且只有一行时它已经写在标题里了，不再重复。 */
+function questionLines(
+	question: DisplayQuestion | undefined,
+	label: string,
+): string[] {
+	if (question === undefined) return [];
+	const lines = question.question.split(/\r?\n/).map((line) => line.trimEnd());
+	while (lines.length > 0 && lines.at(-1) === "") lines.pop();
+	return lines.length === 1 && lines[0] === label ? [] : lines;
+}
+
+function answerLines(
+	answer: Answer,
+	question: DisplayQuestion | undefined,
+): string[] {
+	const lines = answer.selected.map((index) => {
+		const label = question?.options[index]?.label;
+		return `- ${withNote(
+			label === undefined ? `#${index + 1}` : oneLine(label),
+			noteFor(answer, index),
+		)}`;
+	});
+	if (answer.custom !== undefined) lines.push(`custom: ${answer.custom}`);
 	return lines;
 }
 
@@ -551,11 +635,22 @@ function answerText(
 ): string {
 	const parts = answer.selected.map((index) => {
 		const label = question?.options[index]?.label;
-		return label === undefined ? `#${index + 1}` : oneLine(label);
+		return withNote(
+			label === undefined ? `#${index + 1}` : oneLine(label),
+			noteFor(answer, index),
+		);
 	});
 	if (answer.custom !== undefined) parts.push(`custom: ${answer.custom}`);
-	if (answer.note !== undefined) parts.push(`note: ${answer.note}`);
 	return parts.join(" · ");
+}
+
+/** 补充说明紧跟它说明的那个选项；单选只有一条，多选按选项下标取。 */
+function noteFor(answer: Answer, index: number): string | undefined {
+	return answer.notes?.[String(index)] ?? answer.note;
+}
+
+function withNote(label: string, note: string | undefined): string {
+	return note === undefined ? label : `${label} (note: ${note})`;
 }
 
 function displayTitle(question: DisplayQuestion, index: number): string {
@@ -571,15 +666,16 @@ export function summarize(outcome: Outcome, questions: Question[]): string {
 	}
 	const lines = outcome.answers.map((answer) => {
 		const labels = answer.selected
-			.map(
-				(index) =>
+			.map((index) =>
+				withNote(
 					questions[answer.index]?.options[index]?.label ?? `#${index + 1}`,
+					noteFor(answer, index),
+				),
 			)
 			.join(", ");
 		const parts: string[] = [];
 		if (labels !== "") parts.push(labels);
 		if (answer.custom !== undefined) parts.push(`custom: ${answer.custom}`);
-		if (answer.note !== undefined) parts.push(`note: ${answer.note}`);
 		return `${answer.index + 1}. ${answer.question} => ${parts.join(" | ")}`;
 	});
 	const skipped =

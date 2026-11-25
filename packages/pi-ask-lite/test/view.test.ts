@@ -11,6 +11,7 @@ import { createSession, reduce } from "../src/state.ts";
 import type { PanelStyle } from "../src/view.ts";
 import {
 	callLabels,
+	expandedLines,
 	renderPanel,
 	resultLines,
 	summarize,
@@ -194,6 +195,61 @@ describe("renderPanel", () => {
 		const lines = plain(renderPanel(session, { ...layout, width: 60 }, style));
 		expect(lines).toContain("     detail A");
 		expect(lines).toContain("     ↳ 选 A");
+	});
+
+	it("多选每个选项的 note 各自挂在它下面", () => {
+		const session = apply(
+			createSession([question("Pick", ["A", "B"], { multiple: true })]),
+			{ kind: "annotate" },
+			{ kind: "commitNote", text: "A 的理由" },
+			{ kind: "down" },
+			{ kind: "annotate" },
+			{ kind: "commitNote", text: "B 的理由" },
+		);
+		const lines = plain(renderPanel(session, { ...layout, width: 60 }, style));
+		expect(lines.indexOf("       ↳ A 的理由")).toBe(
+			lines.indexOf("  ■ 1. A") + 1,
+		);
+		expect(lines.indexOf("       ↳ B 的理由")).toBe(
+			lines.indexOf("› ■ 2. B") + 1,
+		);
+	});
+
+	it("重新编辑已落地的 note 时只画输入行，不重复旧值", () => {
+		const session = apply(
+			createSession([question("Pick", ["A", "B"], { multiple: true })]),
+			{ kind: "annotate" },
+			{ kind: "commitNote", text: "旧理由" },
+			{ kind: "annotate" },
+		);
+		const lines = plain(
+			renderPanel(
+				session,
+				{ ...layout, width: 60, editorLines: () => ["新理由"] },
+				style,
+			),
+		);
+		expect(lines.filter((line) => line.includes("理由"))).toEqual([
+			"       ↳ 新理由",
+		]);
+	});
+
+	it("多选 note 就地编辑：输入行挂在该选项下方，焦点不跳走", () => {
+		const session = apply(
+			createSession([question("Pick", ["A", "B"], { multiple: true })]),
+			{ kind: "down" },
+			{ kind: "annotate" },
+		);
+		const lines = plain(
+			renderPanel(
+				session,
+				{ ...layout, width: 60, editorLines: () => ["写 B 的理由"] },
+				style,
+			),
+		);
+		const option = lines.indexOf("› □ 2. B");
+		expect(option).toBeGreaterThan(-1);
+		expect(lines[option + 1]).toBe("       ↳ 写 B 的理由");
 	});
 
 	it("note 就地编辑：输入行紧跟该选项（detail 之后），不再有占行提示", () => {
@@ -567,14 +623,14 @@ describe("renderPanel", () => {
 		);
 	});
 
-	it("多选题的提示是 enter toggle，单题省略 tab next", () => {
+	it("多选题的提示是 enter toggle 加 e note，单题省略 tab next", () => {
 		const one = renderPanel(
 			createSession([question("Q", ["A", "B"], { multiple: true })]),
 			{ ...layout, width: 80 },
 			style,
 		);
 		expect(one.at(-1)).toBe(
-			"enter toggle · ctrl+enter submit · ctrl+] collapse · esc abort",
+			"enter toggle · e note · ctrl+enter submit · ctrl+] collapse · esc abort",
 		);
 
 		const two = renderPanel(
@@ -582,11 +638,11 @@ describe("renderPanel", () => {
 				question("First", ["A", "B"], { multiple: true }),
 				question("Second", ["C", "D"]),
 			]),
-			{ ...layout, width: 80 },
+			{ ...layout, width: 120 },
 			style,
 		);
 		expect(two.at(-1)).toBe(
-			"enter toggle · tab next · ctrl+enter submit · ctrl+] collapse · esc abort",
+			"enter toggle · e note · tab next · ctrl+enter submit · ctrl+] collapse · esc abort",
 		);
 	});
 
@@ -749,8 +805,96 @@ describe("聊天记录", () => {
 			questions,
 		);
 		expect(lines).toEqual([
-			{ text: "✓ One: A · note: 理由", kind: "answer" },
+			{ text: "✓ One: A (note: 理由)", kind: "answer" },
 			{ text: "✓ Second: custom: 自由文本", kind: "answer" },
+		]);
+	});
+
+	it("多选的 note 跟在各自选项名后", () => {
+		const lines = resultLines(
+			{
+				aborted: false,
+				answers: [
+					{
+						index: 0,
+						question: "Many",
+						selected: [0, 2],
+						notes: { "0": "A 的理由", "2": "C 的理由" },
+					},
+				],
+			},
+			[
+				{
+					question: "Many",
+					options: [{ label: "A" }, { label: "B" }, { label: "C" }],
+				},
+			],
+		);
+		expect(lines).toEqual([
+			{
+				text: "✓ Many: A (note: A 的理由) · C (note: C 的理由)",
+				kind: "answer",
+			},
+		]);
+	});
+
+	it("展开态给出完整题干、选中项与 note，跳过项也带题干", () => {
+		const questions = [
+			{
+				title: "One",
+				question: "First\nsecond line",
+				options: [{ label: "A" }, { label: "B" }],
+			},
+			{ question: "Second", options: [{ label: "C" }] },
+		];
+		const lines = expandedLines(
+			{
+				aborted: false,
+				answers: [
+					{
+						index: 0,
+						question: "First\nsecond line",
+						selected: [0, 1],
+						notes: { "0": "理由 A" },
+					},
+				],
+				skipped: [1],
+			},
+			questions,
+		);
+		expect(lines).toEqual([
+			{
+				text: [
+					"✓ One",
+					"  First",
+					"  second line",
+					"  - A (note: 理由 A)",
+					"  - B",
+				].join("\n"),
+				kind: "answer",
+			},
+			{ text: "Second: skipped", kind: "skipped" },
+		]);
+	});
+
+	it("展开态带上 custom，中止仍只有一行", () => {
+		const lines = expandedLines(
+			{
+				aborted: false,
+				answers: [
+					{ index: 0, question: "Q", selected: [], custom: "自由文本" },
+				],
+			},
+			[{ title: "Q", question: "问题", options: [{ label: "A" }] }],
+		);
+		expect(lines).toEqual([
+			{
+				text: ["✓ Q", "  问题", "  custom: 自由文本"].join("\n"),
+				kind: "answer",
+			},
+		]);
+		expect(expandedLines({ aborted: true, answers: [] }, [])).toEqual([
+			{ text: "✗ aborted", kind: "aborted" },
 		]);
 	});
 
@@ -778,9 +922,8 @@ describe("summarize", () => {
 			{ kind: "down" },
 			{ kind: "annotate" },
 			{ kind: "commitNote", text: "选 B" },
-			{ kind: "confirm" },
-			...downs(2),
-			{ kind: "confirm" },
+			{ kind: "annotate" },
+			{ kind: "commitNote", text: "C 的理由" },
 			...downs(2),
 			{ kind: "confirm" },
 			{ kind: "commitCustom", text: "再加一条" },
@@ -788,8 +931,8 @@ describe("summarize", () => {
 		const phase = session.phase;
 		if (phase.kind !== "done") throw new Error("expected done");
 		const text = summarize(phase.outcome, questions);
-		expect(text).toContain("1. Pick one => B | note: 选 B");
-		expect(text).toContain("2. Many => C | custom: 再加一条");
+		expect(text).toContain("1. Pick one => B (note: 选 B)");
+		expect(text).toContain("2. Many => C (note: C 的理由) | custom: 再加一条");
 	});
 
 	it("提前提交写出 skipped 题号", () => {

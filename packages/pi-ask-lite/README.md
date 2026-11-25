@@ -10,12 +10,12 @@ One tool: `ask(questions)`. The model asks 1–4 questions with 2–6 options ea
 - Multi select: `Enter` or a digit toggles the focused option. Walk down to `→ Confirm` and press `Enter` to finish the question.
 - Every question has a `+ Custom…` row for free text. `Shift+Enter` adds a newline, `Enter` confirms.
 - Everything below the top divider starts at column 0, flush with Pi's own footer, with no blank lines between sections; the focused row is marked with `›`, and the hint line only lists keys the current mode can use (`ui.showHints: false` hides it).
-- `e` opens a note on the focused option. The note lands with the answer.
+- `e` opens a note on the focused option: single select carries one `note`, multi select keeps one `notes` entry per option, and unchecking that option drops it.
 - `Ctrl+Enter` submits what is answered and marks the rest as skipped.
 - `Esc` aborts. The turn ends immediately and the model gets no answers.
 - The tab bar labels each question with its `title` (or `Q1`, `Q2`…) and highlights the active one. The full `question` always renders below, wrapped to width.
 - `Ctrl+]` collapses the panel to one line with progress; press it again to expand. Focus, answers and drafts stay. Change it with `keys.collapse`, or set `off` to disable.
-- In the chat, the call line is `Ask <title1 · title2>` and the result is one `✓ <title>: <answer>` line per question; skipped questions are dim `skipped`.
+- In the chat, the call line is `Ask <title1 · title2>` and the result is one `✓ <title>: <answer>` line per question with notes written as `<label> (note: …)`; skipped questions are dim `skipped`. `Ctrl+O` expands a result into full questions with per-option lines.
 - An option can carry a `preview` in Markdown. Wide terminals show it beside the options, narrow ones stack it below.
 - The dialog takes the editor slot, never the chat. Height is capped by `ui.maxHeightRatio`.
 

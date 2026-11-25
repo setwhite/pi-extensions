@@ -9,12 +9,12 @@
 - 单选：`Enter` 或数字键选中当前项，自动跳到下一道未答题；多选：`Enter` 或数字键勾选/取消当前项，走到 `→ Confirm` 按 `Enter` 收题。
 - 每题底部有 `+ Custom…` 自由输入行。`Shift+Enter` 换行，`Enter` 提交。
 - 分割线以下全部贴第 0 列、与 Pi 自己的 footer 左对齐，分段之间不留空行，焦点行用 `›` 标，底部只列当前模式真能用的键（`ui.showHints: false` 关掉这一行）。
-- `e` 在当前选项上写补充说明，随答案一起带走。
+- `e` 在当前选项上就地写补充说明：单选随答案带走，多选每个选项各记一条（`notes`），取消勾选就一起清掉。
 - `Ctrl+Enter` 提前提交已答的题，其余标成 skipped。
 - `Esc` 中止。本轮立刻结束，模型拿不到任何答案。
 - Tab 栏用 `title`（缺省 `Q1`、`Q2`…）当标签并高亮当前题；完整 `question` 始终在下方按宽折行显示。
 - `Ctrl+]` 把面板折叠成一行进度，再按一次展开；焦点、答案与草稿都保留。改 `keys.collapse` 换键，设 `off` 关闭。
-- 聊天记录里调用行是 `Ask <title1 · title2>`，结果每题一行 `✓ <title>: <answer>`，没答的题 dim 标 `skipped`。
+- 聊天记录里调用行是 `Ask <title1 · title2>`，结果每题一行 `✓ <title>: <answer>`（补充说明写在选项名后 `(note: …)`），没答的题 dim 标 `skipped`；按 `Ctrl+O` 展开成完整题干加逐条选项。
 - 选项可以带 Markdown 的 `preview`。宽终端显示在选项右侧，窄终端堆叠在下方。
 - 对话框占编辑器槽位，不盖对话区。高度上限由 `ui.maxHeightRatio` 决定。
 

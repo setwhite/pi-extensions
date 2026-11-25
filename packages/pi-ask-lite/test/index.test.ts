@@ -49,6 +49,7 @@ type Result = {
 			selected: number[];
 			custom?: string;
 			note?: string;
+			notes?: Record<string, string>;
 		}[];
 		skipped?: number[];
 		aborted: boolean;
@@ -359,6 +360,45 @@ describe("多选", () => {
 		expect(result.details.answers[0]).toMatchObject({ selected: [0, 1] });
 	});
 
+	it("e 给单个选项写 note：Enter 保存并自动勾选，焦点留在列表", async () => {
+		useConfig();
+		const { execute } = setup();
+		const state = controls();
+		const multi = {
+			questions: [
+				{
+					question: "Pick many",
+					multiple: true,
+					options: [{ label: "A" }, { label: "B" }],
+				},
+			],
+		};
+		const pending = execute(
+			"call",
+			multi,
+			undefined,
+			undefined,
+			makeCtx("tui", state),
+		);
+		const input = (data: string) => state.component?.handleInput?.(data);
+		input("e");
+		input("A 的理由");
+		input("\r");
+		expect(state.settled).toBe(false);
+		input("\x1b[B");
+		input("e");
+		input("B 的理由");
+		input("\r");
+		input("\x1b[B");
+		input("\x1b[B");
+		input("\r");
+		const result = await pending;
+		expect(result.details.answers[0]).toMatchObject({
+			selected: [0, 1],
+			notes: { "0": "A 的理由", "1": "B 的理由" },
+		});
+	});
+
 	it("Space 不再切换勾选", async () => {
 		useConfig();
 		const { execute } = setup();
@@ -513,6 +553,54 @@ describe("聊天记录", () => {
 			rendered.map((line) => stripTerminalSequences(line).trimEnd()),
 		).toEqual(["✓ 风格: B", "细节: skipped"]);
 		expect(rendered[1]).toContain("\x1b[2m");
+	});
+
+	it("展开态按题列出完整题干与选项 note", () => {
+		const { renderResult } = renderers();
+		const component = renderResult?.(
+			{
+				content: [],
+				details: {
+					aborted: false,
+					answers: [
+						{
+							index: 0,
+							question: "First\nsecond",
+							selected: [0, 1],
+							notes: { "0": "理由 A" },
+						},
+					],
+					skipped: [1],
+				},
+			},
+			{ expanded: true },
+			theme,
+			{
+				args: {
+					questions: [
+						{
+							title: "One",
+							question: "First\nsecond",
+							options: [{ label: "A" }, { label: "B" }],
+						},
+						{
+							title: "Two",
+							question: "Second question",
+							options: [{ label: "C" }],
+						},
+					],
+				},
+			},
+		);
+		expect(lines(component as Component)).toEqual([
+			"✓ One",
+			"  First",
+			"  second",
+			"  - A (note: 理由 A)",
+			"  - B",
+			"Two: skipped",
+			"  Second question",
+		]);
 	});
 
 	it("中止只显示 dim 的 ✗ aborted", () => {

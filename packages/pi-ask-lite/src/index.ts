@@ -29,6 +29,7 @@ import {
 } from "./state.ts";
 import {
 	callLabels,
+	expandedLines,
 	type PanelStyle,
 	renderPanel,
 	resultLines,
@@ -112,15 +113,24 @@ export default function piAsk(pi: ExtensionAPI): void {
 			);
 			return component;
 		},
-		renderResult(result, _options, theme, context) {
+		renderResult(result, options, theme, context) {
 			const details = result.details;
 			if (details === undefined) {
 				const content = result.content[0];
 				return new Text(content?.type === "text" ? content.text : "", 0, 0);
 			}
-			const text = resultLines(details, context.args.questions)
+			const questions = context.args.questions;
+			const lines = options.expanded
+				? expandedLines(details, questions)
+				: resultLines(details, questions);
+			const text = lines
 				.map((line) =>
-					line.kind === "answer" ? line.text : theme.fg("muted", line.text),
+					line.kind === "answer"
+						? line.text
+						: line.text
+								.split("\n")
+								.map((part) => theme.fg("muted", part))
+								.join("\n"),
 				)
 				.join("\n");
 			const component = textComponent(context.lastComponent);
