@@ -161,7 +161,7 @@ type Outcome =
 ### 宿主协作
 
 - 无 UI 时：`ctx.mode !== "tui"` 直接抛错，不挂组件、不发事件。RPC 模式 `hasUI` 为真但 `custom()` 返回 `undefined`，没有可用回退（见 [`0003`](../decisions/0003-tui-only.md)）。
-- `herdr:blocked`：调 `custom()` 前发 `{ active: true, label: toolName }`，`finally` 里发 `{ active: false }`。提交、中止、抛错三条路径都要成对。
+- `herdr:blocked`：调 `custom()` 前发 `{ active: true, label: toolName }`，`finally` 里发 `{ active: false }`。提交、中止、抛错三条路径都要成对。事件由用户侧的 `herdr-agent-state.ts` 消费，真机验收不能带 `-ne`（见 [`0009`](../decisions/0009-herdr-blocked-needs-discovery.md)）。
 - 工具声明 `exposure: "model-only"`。
 - Esc 由组件自己收：宿主把焦点交给 custom 组件，编辑器的 `onEscape` 不触发。
 - PageUp / PageDown / 滚轮不在组件里处理。宿主 alt-screen 在输入送进焦点组件之前就拦下它们，组件吞掉反倒会挡住翻页。
@@ -182,7 +182,7 @@ type Outcome =
 | AC5 | 接线用例：注册参数含 `exposure: "model-only"`；`mode !== "tui"` 时抛错且零事件；提交、中止、抛错三条路径 `herdr:blocked` 成对；工具结果的 `details` 形状与英文摘要；`renderCall` 只显示 `Ask` 与题目标签、`renderResult` 默认出每题 `✓` 与 dim `skipped` / `✗ aborted`，`options.expanded` 为真时换成完整题干、选项 note 与 custom 的展开块；铃只在挂载响一次；`terminate: true` 与 `ctx.abort()` 各一次 |
 | AC6 | 包闸：`test/package.test.ts` 的 files / `pi.extensions` 断言与 `test/docs.test.ts` 的两份 README 配置块 = `DEFAULTS` 都通过 |
 | AC7 | 全仓 `pnpm check` 绿：lint、check:imports、typecheck、test |
-| AC8 | 真机：herdr 面板里 `pi -ne -e ./packages/pi-ask-lite/src/index.ts`。面板变红再恢复；单 Esc 回空闲且没有第二次模型回复；`e` 补充（单选与多选各一条）；多选 Enter 勾选后走 `→ Confirm`；`ctrl+]` 折叠成一行再展开；preview 并排切堆叠；Ctrl+Enter 提前提交；聊天记录里只有一行调用与每题一行结果，Ctrl+O 后展开成完整题干加逐条选项 |
+| AC8 | 真机：herdr 隔离 pane 里 `pi -e ./packages/pi-ask-lite/src/index.ts`（不带 `-ne`，否则 `herdr-agent-state.ts` 不加载、面板不会变红）。`herdr agent get` 在弹窗期间为 `blocked`，提交或 Esc 后恢复；单 Esc 回空闲且没有第二次模型回复；`e` 补充（单选与多选各一条）；多选 Enter 勾选后走 `→ Confirm`；`ctrl+]` 折叠成一行再展开；preview 并排切堆叠；Ctrl+Enter 提前提交；聊天记录里只有一行调用与每题一行结果，Ctrl+O 后展开成完整题干加逐条选项 |
 
 ## 不做的
 

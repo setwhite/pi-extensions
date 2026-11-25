@@ -12,3 +12,4 @@
 - [0006](0006-drop-space-toggle.md) 多选只留 Enter 与数字键，去掉 Space
 - [0007](0007-preview-column-top-aligned.md) 预览不画标头、右栏与 Tab / 题干顶对齐、左栏按内容收紧（宽度部分由 0008 取代）
 - [0008](0008-fixed-left-column-width.md) 左栏宽度按整题内容定死，滚动与换高亮不抖
+- [0009](0009-herdr-blocked-needs-discovery.md) 真机验收不带 `-ne`：变红要靠扩展发现加载的 herdr 状态扩展
