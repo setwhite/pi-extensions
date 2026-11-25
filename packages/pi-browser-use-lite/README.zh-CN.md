@@ -2,6 +2,8 @@
 
 **[简体中文](README.zh-CN.md)** | [English](README.md)
 
+![pi-browser-use-lite：左边是已登录的 Reddit 标签页，右边 pi 会话用 chrome_seek 取出信息流里的帖子链接](https://raw.githubusercontent.com/setwhite/pi-extensions/main/packages/pi-browser-use-lite/assets/cover.png)
+
 五个 `chrome_*` 工具，操作你自己的浏览器：你已经登录的标签页、你的 cookie 和会话。
 
 包分两半。pi 扩展注册这些工具，并在 `127.0.0.1` 上跑一个本地桥。配套的 Chrome 扩展轮询这个桥，用 `chrome.debugger` 执行每条命令。

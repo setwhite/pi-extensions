@@ -2,6 +2,8 @@
 
 [简体中文](README.zh-CN.md) | **English**
 
+![pi-browser-use-lite: chrome_seek pulls the post links out of the logged-in Reddit tab on the left, while the pi session on the right drives it](https://raw.githubusercontent.com/setwhite/pi-extensions/main/packages/pi-browser-use-lite/assets/cover.png)
+
 Five `chrome_*` tools that drive your own browser: the tabs you are already logged into, with your cookies and your sessions.
 
 The package has two halves. The pi extension registers the tools and runs a local bridge on `127.0.0.1`. The companion Chrome extension polls that bridge and runs each command through `chrome.debugger`.
