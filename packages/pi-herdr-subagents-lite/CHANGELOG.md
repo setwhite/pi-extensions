@@ -2,6 +2,11 @@
 
 本文件记录已发布版本的用户可见变更。更细的过程见 git log。破坏性变更标 **BREAKING**。0.5.2 及更早的变更见旧仓 `setwhite/pi-herdr-subagents-lite` 的 tag `v0.3.0`–`v0.5.2`。
 
+## 0.11.1 — 2026-11-25
+
+- 无运行时变更：README 加封面图，截的是 `subagent` 的 `run` 在独立 herdr 标签页起 worker-2、立即返回 `{state: running}` 那一下。
+- 封面链接用 `raw.githubusercontent.com` 绝对地址：`assets/` 不在 `files` 里，相对路径在 npm 页面上是死链。
+
 ## 0.11.0 — 2026-11-24
 
 - **BREAKING**：删掉 bridge。本包不再监听 `ui_prompt_*`，不再 emit `herdr:blocked`，`bridge` 配置键变成未知键（老配置加载失败）。要上报 blocked，装会开模态对话框并自己 emit `herdr:blocked` 的扩展（DEC-0070）。
