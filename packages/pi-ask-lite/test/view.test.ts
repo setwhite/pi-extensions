@@ -359,6 +359,36 @@ describe("renderPanel", () => {
 		expect(lines[1]?.indexOf("│")).toBe(51);
 	});
 
+	it("并排左栏按整题内容定宽，滚动选项窗口或换高亮都不挪竖线", () => {
+		const long = "L".repeat(80);
+		const options = [long, "A", "B", "C", "D", "E"].map((label) => ({
+			label,
+			preview: "line",
+		}));
+		const render = (session: Session) =>
+			plain(renderPanel(session, { ...layout, width: 120, height: 8 }, style));
+		const barColumns = (lines: string[]) =>
+			lines
+				.filter((line) => line.includes("│"))
+				.map((line) => line.indexOf("│"));
+		const topLines = render(
+			createSession([{ question: "Pick", multiple: false, options }]),
+		);
+		const top = barColumns(topLines);
+		expect(top.length).toBeGreaterThan(0);
+		expect(new Set(top)).toEqual(new Set([51]));
+		expect(topLines.some((line) => line.includes("LLLL"))).toBe(true);
+
+		const scrolled = render(
+			apply(
+				createSession([{ question: "Pick", multiple: false, options }]),
+				...downs(5),
+			),
+		);
+		expect(scrolled.some((line) => line.includes("LLLL"))).toBe(false);
+		expect(barColumns(scrolled)).toEqual(top);
+	});
+
 	it("并排时不剥左栏颜色：选中项 accent，detail 保持 dim", () => {
 		const session = createSession([
 			{

@@ -354,6 +354,27 @@ function leftColumnWidth(width: number, contentWidth: number): number {
 	);
 }
 
+/**
+ * 左栏宽度只按当前题的完整左侧内容量一次：滚动选项窗口、换高亮都不挪竖线。
+ * 编辑中的输入行不算，否则每敲一个键宽度就跟着跳。
+ */
+function leftContentWidth(
+	head: readonly string[],
+	body: readonly Row[],
+	style: PanelStyle,
+): number {
+	return widest(
+		[
+			...head,
+			...body.filter((row) => row.kind !== "editor").map((row) => row.text),
+			// 列表态之外这两行写法更短，按固定字面量兜底。
+			`${CURSOR}${CUSTOM_MARK}Custom…`,
+			`${CURSOR}${CONFIRM_LABEL}`,
+		],
+		style,
+	);
+}
+
 function widest(lines: readonly string[], style: PanelStyle): number {
 	let width = 0;
 	for (const line of lines)
@@ -380,11 +401,14 @@ function composeContent(
 
 	if (markdown !== undefined && isSideBySide(layout)) {
 		// 两栏各自裁：左栏先丢 detail 再收选项窗口，右栏只留前 budget 行。
+		const leftWidth = leftColumnWidth(
+			width,
+			leftContentWidth(head, body, style),
+		);
 		const left = [
 			...head,
 			...trimRows(body, Math.max(0, budget - head.length), focus, pinned),
 		];
-		const leftWidth = leftColumnWidth(width, widest(left, style));
 		const right = markdownLines(
 			markdown,
 			Math.max(0, width - leftWidth - SEPARATOR.length),
@@ -394,7 +418,7 @@ function composeContent(
 		const merged: string[] = [];
 		const depth = Math.max(left.length, right.length);
 		for (let index = 0; index < depth; index += 1) {
-			const cell = left[index] ?? "";
+			const cell = style.truncate(left[index] ?? "", leftWidth);
 			const padding = " ".repeat(Math.max(0, leftWidth - style.width(cell)));
 			merged.push(`${cell}${padding} ${bar} ${right[index] ?? ""}`.trimEnd());
 		}

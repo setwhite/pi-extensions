@@ -10,4 +10,5 @@
 - [0004](0004-side-by-side-trim.md) 并排时两栏独立裁剪：左栏 detail → 选项窗口，右栏独立裁 preview
 - [0005](0005-multi-confirm-row.md) 多选 Enter 只勾选，收题走 `→ Confirm` 行
 - [0006](0006-drop-space-toggle.md) 多选只留 Enter 与数字键，去掉 Space
-- [0007](0007-preview-column-top-aligned.md) 预览不画标头、右栏与 Tab / 题干顶对齐、左栏按内容收紧
+- [0007](0007-preview-column-top-aligned.md) 预览不画标头、右栏与 Tab / 题干顶对齐、左栏按内容收紧（宽度部分由 0008 取代）
+- [0008](0008-fixed-left-column-width.md) 左栏宽度按整题内容定死，滚动与换高亮不抖
