@@ -2,6 +2,12 @@
 
 本文件记录已发布版本的用户可见变更。更细的过程见 git log。破坏性变更标 **BREAKING**。
 
+## 0.1.2 — 2026-11-25
+
+- **BREAKING** 配置目录改成 `<agent dir>/pi-ask-question-lite/`，跟包名一致。旧的 `<agent dir>/pi-ask/config.json` 不再读取；要保留配置就挪目录：`mv ~/.pi/agent/pi-ask ~/.pi/agent/pi-ask-question-lite`。
+- README 安装节改成 `pi install npm:pi-ask-question-lite`：包已在 npm 上。
+- README 文档表补上 Audit、Todos 与 CHANGELOG，补 License 节。
+
 ## 0.1.1 — 2026-11-25
 
 - 无运行时变更：README 加封面图，截的是 `ask` 问第 1 题（共 2 题）时的面板：左边题目与选项，右边预览，底部一行按键提示。

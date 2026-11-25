@@ -3,8 +3,6 @@
 # 认证走 npm 可信发布（OIDC），仓库里不存 token；需在 npmjs.com 每个包的设置里加一个
 # Trusted Publisher：仓库 setwhite/pi-extensions、workflow 文件名 npm-publish.yml。
 # 新包首次发布只能手动 npm publish：包在 npm 上还不存在时没有设置页可加 Trusted Publisher。
-# pi-ask-question-lite 还没首发：推版本号前先手动 npm publish 0.1.0 并给它配好 Trusted Publisher，
-# 否则这一格会在最后一步失败（判断步骤查不到已发布版本，会继续往下走）。
 # 发布前对真实 tarball 再查一遍：package.json 的 files 少写一个目录时，
 # 装在用户侧才会崩，而 lint / test 都是绿的。
 name: Publish
