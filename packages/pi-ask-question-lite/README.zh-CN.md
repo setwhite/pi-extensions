@@ -2,6 +2,8 @@
 
 **[简体中文](README.zh-CN.md)** | [English](README.md)
 
+![pi-ask-question-lite：ask 正在问第 1 题（共 2 题），三个选项加 Custom，右边是所选选项的预览，底部一行是按键提示](https://raw.githubusercontent.com/setwhite/pi-extensions/main/packages/pi-ask-question-lite/assets/cover.png)
+
 一个工具 `ask(questions)`：模型问 1–4 题，每题 2–6 个选项，用户一次按键就给结论。Esc 整次中止本轮，模型不会再来一句，也不会拿到半成品答案。本包没有运行时依赖。
 
 ## 功能

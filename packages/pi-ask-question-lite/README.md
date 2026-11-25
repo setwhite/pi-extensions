@@ -2,6 +2,8 @@
 
 [简体中文](README.zh-CN.md) | **English**
 
+![pi-ask-question-lite: one ask call asking question 1 of 2, three options plus Custom, a preview on the right and the key hints on the bottom row](https://raw.githubusercontent.com/setwhite/pi-extensions/main/packages/pi-ask-question-lite/assets/cover.png)
+
 One tool: `ask(questions)`. The model asks 1–4 questions with 2–6 options each, and the user answers with one keystroke. Esc aborts the whole turn: no second model reply, no half-finished answers. The package has no runtime dependencies.
 
 ## Features
