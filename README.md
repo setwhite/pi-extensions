@@ -1,6 +1,6 @@
 # pi-extensions
 
-四个独立发布的 pi 扩展。装哪个都行，互不依赖。
+五个独立发布的 pi 扩展。装哪个都行，互不依赖。
 
 | 包 | 做什么 | 额外要求 |
 |---|---|---|
@@ -8,6 +8,7 @@
 | [`pi-todo-lite`](packages/pi-todo-lite) | 角落浮窗里一张有序任务表，不占对话行数 | 无 |
 | [`pi-herdr-subagents-lite`](packages/pi-herdr-subagents-lite) | 在 herdr 分格里跑 pi 子代理 | herdr，父会话跑在 pane 里 |
 | [`pi-browser-use-lite`](packages/pi-browser-use-lite) | 5 个 `chrome_*` 工具，经本地桥驱动你已登录的真实浏览器 | Chromium 系浏览器，手动加载扩展 |
+| [`pi-ask-lite`](packages/pi-ask-lite) | `ask` 一次问 1–4 题：单选、多选、就地补充，Esc 一次中止 | 无 |
 
 ## 安装
 
@@ -25,7 +26,7 @@ pi 的 git 安装只认仓库根，指不到子目录。所以发布版只能从
 需要 Node `>= 22.19` 与 pnpm。根 `package.json` 的 `packageManager` 固定 pnpm 版本。
 
 ```sh
-pnpm install # 在仓库根装一次，四个包共用 pnpm-lock.yaml
+pnpm install # 在仓库根装一次，五个包共用 pnpm-lock.yaml
 ```
 
 ### 全仓检查
@@ -82,20 +83,20 @@ CI 在 Linux（Node 22 / 24）与 Windows（Node 22）上跑完整四闸，见 [
 
 ## 发版
 
-改 `packages/<pkg>/package.json` 的 version，然后推 main。`npm-publish.yml` 对四个包各判断一次，只发布版本号变了的包。
+改 `packages/<pkg>/package.json` 的 version，然后推 main。`npm-publish.yml` 对五个包各判断一次，只发布版本号变了的包。
 
 ## 文档
 
 每个包的 `docs/` 跟代码同仓，不进 npm 包，只在 GitHub 读。
 
-| 位置 | 写什么 | web-search | todo | herdr | browser-use |
-|---|---|---|---|---|---|
-| `docs/ARCHITECTURE.md` | 模块、依赖方向、测试 seam | ✓ | ✓ | ✓ | ✓ |
-| `docs/GLOSSARY.md` | 术语的唯一命名来源 | ✓ | ✓ | ✓ | ✓ |
-| `docs/modules/` | 单模块的取舍与坑 | ✓ | — | ✓ | ✓ |
-| `docs/decisions/` | 一条决策一份文件 | ✓ | ✓ | ✓ | ✓ |
-| `docs/specs/` | 对外契约 | — | ✓ | ✓ | ✓ |
-| `docs/research/` | 外部实测记录 | — | — | ✓ | ✓ |
+| 位置 | 写什么 | web-search | todo | herdr | browser-use | ask |
+|---|---|---|---|---|---|---|
+| `docs/ARCHITECTURE.md` | 模块、依赖方向、测试 seam | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `docs/GLOSSARY.md` | 术语的唯一命名来源 | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `docs/modules/` | 单模块的取舍与坑 | ✓ | — | ✓ | ✓ | — |
+| `docs/decisions/` | 一条决策一份文件 | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `docs/specs/` | 对外契约 | — | ✓ | ✓ | ✓ | ✓ |
+| `docs/research/` | 外部实测记录 | — | — | ✓ | ✓ | ✓ |
 
 仓库级决策在 [docs/decisions/](docs/decisions/)：为什么合并成一个仓库。
 
