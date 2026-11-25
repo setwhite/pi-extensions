@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) | **English**
 
-![pi-todo-lite: the Todo table in a corner overlay, next to a running tool call](assets/cover.png)
+![pi-todo-lite: the Todo table in a corner overlay, next to a running tool call](https://raw.githubusercontent.com/setwhite/pi-extensions/main/packages/pi-todo-lite/assets/cover.png)
 
 The model keeps one ordered task table in a corner overlay. The table takes no lines from the chat, and it replays after compaction, after a branch switch or after `--continue`. The package has no runtime dependencies.
 
