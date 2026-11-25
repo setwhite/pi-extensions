@@ -5,7 +5,7 @@
 ## 交付物
 
 - 包骨架：`package.json`（`pi.extensions` 指 `./src/index.ts`）、`tsconfig.json`、`vitest.config.ts`、`biome.json`、`scripts/import-graph.mjs`、`CHANGELOG.md`
-- `src/config.ts`：读 `pi-ask/config.json`、默认值、校验、比例夹取、`tool-name` 占位
+- `src/config.ts`：读 `pi-ask-question-lite/config.json`、默认值、校验、比例夹取、`tool-name` 占位
 - `src/schema.ts`：`Question` / `Option` 解析，硬错误带字段路径
 - `src/state.ts`：`Phase` / `Outcome` 迁移、推进、`submit`、`submitEarly`、`abort`
 - `src/view.ts`：行渲染、宽度截断、高度预算、并排/堆叠、键提示

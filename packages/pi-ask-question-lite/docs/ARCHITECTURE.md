@@ -7,7 +7,7 @@
 | 文件 | 职责 |
 |---|---|
 | `src/index.ts` | 入口（`package.json` 的 `pi.extensions`）与接线：读配置 → 解析参数 → `mode` 闸 → `herdr:blocked` 配对 → 挂 `ctx.ui.custom` → 收结果或中止。宿主包与渲染实现只在这里 |
-| `src/config.ts` | 读 `pi-ask/config.json`、默认值、校验（含折叠键格式与冲突）、`maxHeightRatio` 夹取 |
+| `src/config.ts` | 读 `pi-ask-question-lite/config.json`、默认值、校验（含折叠键格式与冲突）、`maxHeightRatio` 夹取 |
 | `src/schema.ts` | 把工具入参解析成 `Question[]`，硬错误带字段路径 |
 | `src/state.ts` | 问答状态机：焦点、勾选、`note` / `custom` 草稿、折叠标志、推进、三个出口（`submit` / 提前提交 / `abort`） |
 | `src/view.ts` | 行渲染与文本：Tab 栏、选项、Custom / Confirm 行、就地编辑区、preview、键提示、折叠行、宽度截断与高度预算、聊天记录的调用行与结果摘要、给模型的英文摘要 |

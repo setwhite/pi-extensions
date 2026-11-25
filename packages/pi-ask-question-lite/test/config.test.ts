@@ -9,9 +9,9 @@ const dirs: string[] = [];
 function tempConfig(content?: string): string {
 	const dir = mkdtempSync(join(tmpdir(), "pi-ask-config-"));
 	dirs.push(dir);
-	const path = join(dir, "pi-ask", "config.json");
+	const path = join(dir, "pi-ask-question-lite", "config.json");
 	if (content !== undefined) {
-		mkdirSync(join(dir, "pi-ask"), { recursive: true });
+		mkdirSync(join(dir, "pi-ask-question-lite"), { recursive: true });
 		writeFileSync(path, content, "utf-8");
 	}
 	return path;
@@ -23,10 +23,10 @@ afterEach(() => {
 });
 
 describe("resolveConfigPath", () => {
-	it("走 PI_CODING_AGENT_DIR，拼 pi-ask/config.json", () => {
+	it("走 PI_CODING_AGENT_DIR，拼 pi-ask-question-lite/config.json", () => {
 		expect(
 			resolveConfigPath({ env: { PI_CODING_AGENT_DIR: "/tmp/agent" } }),
-		).toBe(join(resolve("/tmp/agent"), "pi-ask", "config.json"));
+		).toBe(join(resolve("/tmp/agent"), "pi-ask-question-lite", "config.json"));
 	});
 });
 

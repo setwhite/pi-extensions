@@ -58,7 +58,7 @@ export function resolveConfigPath(options: LoadOptions = {}): string {
 	const agentDir = env.PI_CODING_AGENT_DIR
 		? resolve(env.PI_CODING_AGENT_DIR)
 		: join(homedir(), ".pi", "agent");
-	return join(agentDir, "pi-ask", "config.json");
+	return join(agentDir, "pi-ask-question-lite", "config.json");
 }
 
 export function loadConfig(options: LoadOptions = {}): Config {

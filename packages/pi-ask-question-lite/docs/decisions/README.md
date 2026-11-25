@@ -14,3 +14,4 @@
 - [0008](0008-fixed-left-column-width.md) 左栏宽度按整题内容定死，滚动与换高亮不抖
 - [0009](0009-herdr-blocked-needs-discovery.md) 真机验收不带 `-ne`：变红要靠扩展发现加载的 herdr 状态扩展
 - [0010](0010-package-name.md) 包名与目录改为 `pi-ask-question-lite`：npm 上 `pi-ask-lite` 已被占用
+- [0011](0011-config-dir-package-name.md) 配置目录改用包名：`<agent dir>/pi-ask-question-lite/config.json`

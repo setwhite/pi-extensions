@@ -22,9 +22,9 @@ function useConfig(config?: unknown): void {
 	const dir = mkdtempSync(join(tmpdir(), "pi-ask-index-"));
 	dirs.push(dir);
 	if (config !== undefined) {
-		mkdirSync(join(dir, "pi-ask"), { recursive: true });
+		mkdirSync(join(dir, "pi-ask-question-lite"), { recursive: true });
 		writeFileSync(
-			join(dir, "pi-ask", "config.json"),
+			join(dir, "pi-ask-question-lite", "config.json"),
 			JSON.stringify(config),
 			"utf-8",
 		);

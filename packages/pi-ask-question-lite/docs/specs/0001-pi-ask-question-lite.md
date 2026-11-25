@@ -133,7 +133,7 @@ type Outcome =
 
 ### 配置
 
-`$PI_CODING_AGENT_DIR/pi-ask/config.json`，没设环境变量时是 `~/.pi/agent/pi-ask/config.json`。只读，文件缺失走默认值，不改写。
+`$PI_CODING_AGENT_DIR/pi-ask-question-lite/config.json`，没设环境变量时是 `~/.pi/agent/pi-ask-question-lite/config.json`。只读，文件缺失走默认值，不改写。
 
 ```jsonc
 {
@@ -175,7 +175,7 @@ type Outcome =
 
 | | 验收 |
 |---|---|
-| AC1 | 配置用例：缺文件得默认值；坏 JSON、未知键、类型不符都抛错且带字段路径；`maxHeightRatio` 越界夹取；`keys.collapse` 支持 `off`，格式不严、占导航键、与 `annotate` / `submitEarly` 重复都抛错；`ui.showHints` 校验；`tool-name` 每处都替换；改 `tools.ask.name` 后注册名跟着变 |
+| AC1 | 配置用例：`resolveConfigPath` 拼 `<agent dir>/pi-ask-question-lite/config.json`；缺文件得默认值；坏 JSON、未知键、类型不符都抛错且带字段路径；`maxHeightRatio` 越界夹取；`keys.collapse` 支持 `off`，格式不严、占导航键、与 `annotate` / `submitEarly` 重复都抛错；`ui.showHints` 校验；`tool-name` 每处都替换；改 `tools.ask.name` 后注册名跟着变 |
 | AC2 | 校验用例：1 题 / 4 题、2 选项 / 6 选项的边界通过；0 题、5 题、1 选项、7 选项、空白 `question`、空白 `label`、未知键全部抛错；`multiple` 缺省 `false`；`Other` 与 `Next` 通过 |
 | AC3 | 状态用例：迁移表逐条覆盖；多选 Enter 只勾选、Confirm 行收题、空 Confirm 记 `skipped`；多选 `e` 写 note 自动勾选该选项、焦点不推进、取消勾选清掉那条 note、草稿按选项分开；自动推进跳过已答；最后一题答完回跳漏题；全答自动 `submit`；`submitEarly` 带 `skipped`；折叠只翻标志、焦点 / 答案 / 草稿不动，折叠时其它动作不生效而 Esc 仍中止；`note` / `custom` 的 Esc 只退编辑、草稿还在；列表态 Esc 得 `answers: []`、`aborted: true`；`done` 只触发一次 |
 | AC4 | 渲染用例：宽度 80 / 100 / 120 × 高度 6 / 20 / 40。并排与堆叠切换、`…` 截断、预算裁剪顺序（堆叠 preview → detail → 选项窗口；并排左栏 detail → 选项窗口、右栏独立裁 preview）、单题无 Tab 栏、内容贴第 0 列、无空行、题干完整折行、当前 Tab 高亮、`›` / `✓` / `■` / `□` 前缀、Confirm 行、note 就地编辑（多选每个选项各挂各的、编辑中不重复旧值）、custom 编辑无边框、左栏封顶 `min(floor(width × 0.42), 54)` 后按整题内容定宽（滚动选项窗口与换高亮时竖线列号不变）、右栏从 Tab / 题干行顶对齐、detail 折 2 行、键提示随形态与题型换（`esc abort` / 编辑态 `esc back`）且随 `collapse` 开关增减、`showHints` 关掉整行、折叠态只有一行进度、并排截断保留 ANSI |
@@ -194,7 +194,6 @@ type Outcome =
 - Ctrl+G 外置编辑器。首版只有内联多行。
 - 第三方运行时依赖，除宿主 peer（pi-coding-agent / pi-tui / typebox）。
 - 跨轮记忆答题进度：一次调用一次问答，答完即弃。
-- 发布接线：根 README 包表、`npm-publish.yml` 矩阵、npm 上线。
 
 这份清单是契约。要加，先改这份 spec。
 
@@ -202,7 +201,7 @@ type Outcome =
 
 - **影响范围**：新增 `packages/pi-ask-question-lite`。不改其他包。根脚本 `pnpm -r` 会自动覆盖新包。
 - **回退**：删目录。没有持久化状态，不碰用户配置。
-- **交付形态**：源码运行（`pi -ne -e`），本轮不发 npm。
+- **交付形态**：npm 包 `pi-ask-question-lite`，`pi install npm:pi-ask-question-lite` 安装；仓库里调试用 `pi -ne -e ./packages/pi-ask-question-lite/src/index.ts`。
 - **已知偏差**：
   - `ctrl+enter` 只有 Kitty 协议的终端能区分。老终端发裸 `\r`，退化成 Enter，等于确认当前题。用户可改 `keys.submitEarly`。
   - 中止会在会话里留一条工具结果，下一轮模型看得到（见 [research 0001](../research/0001-abort-on-esc.md)）。
