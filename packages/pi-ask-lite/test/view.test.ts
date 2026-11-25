@@ -67,16 +67,17 @@ const layout = {
 };
 
 describe("renderPanel", () => {
-	it("顶部一条 dim 通栏分割线，其余行统一缩进 2 格，单题不画 Tab 栏", () => {
+	it("顶部一条 dim 通栏分割线，其下 Tab、题干、选项与提示都贴第 0 列，单题不画 Tab 栏", () => {
 		const session = createSession([question("Which one?", ["A", "B"])]);
 		const lines = renderPanel(session, { ...layout, width: 60 }, colored);
 		expect(lines[0]).toBe(`\x1b[2m${"─".repeat(60)}\x1b[22m`);
-		for (const line of lines.slice(1)) {
-			const text = stripTerminalSequences(line);
-			if (text === "") continue;
-			expect(text.startsWith("  ")).toBe(true);
-		}
-		expect(plain(lines).some((line) => line.includes("Q1"))).toBe(false);
+		const text = plain(lines);
+		expect(text[1]).toBe("Which one?");
+		expect(text[2]).toBe("› 1. A");
+		expect(text.at(-1)).toBe(
+			"enter pick · e note · ctrl+] collapse · esc abort",
+		);
+		expect(text.some((line) => line.includes("Q1"))).toBe(false);
 	});
 
 	it("题干永远完整折行显示，title 只做 Tab 标签", () => {
@@ -90,12 +91,12 @@ describe("renderPanel", () => {
 			question("Next question", ["D", "E"], { title: "Later" }),
 		]);
 		const lines = plain(renderPanel(session, { ...layout, width: 60 }, style));
-		expect(lines).toContain("  Which one?");
-		expect(lines).toContain("  Extra context line");
+		expect(lines).toContain("Which one?");
+		expect(lines).toContain("Extra context line");
 		expect(lines.some((line) => line.includes("1 MyTitle"))).toBe(true);
 		expect(lines.some((line) => line.includes("2 Later"))).toBe(true);
 		expect(lines.some((line) => line.includes("隐藏的第二行"))).toBe(false);
-		expect(lines).toContain("  › 1. A");
+		expect(lines).toContain("› 1. A");
 	});
 
 	it("当前 Tab 用 accent 加粗加括号，其余 Tab 用 dim", () => {
@@ -136,8 +137,8 @@ describe("renderPanel", () => {
 			{ kind: "prevQuestion" },
 		);
 		const lines = plain(renderPanel(session, { ...layout, width: 60 }, style));
-		expect(lines).toContain("  › 1. A");
-		expect(lines).toContain("  ✓ 2. B");
+		expect(lines).toContain("› 1. A");
+		expect(lines).toContain("✓ 2. B");
 		expect(lines.join("\n")).not.toMatch(/[○●>]/);
 	});
 
@@ -147,8 +148,8 @@ describe("renderPanel", () => {
 			{ kind: "confirm" },
 		);
 		const lines = plain(renderPanel(session, { ...layout, width: 60 }, style));
-		expect(lines).toContain("  › ■ 1. A");
-		expect(lines).toContain("    □ 2. B");
+		expect(lines).toContain("› ■ 1. A");
+		expect(lines).toContain("  □ 2. B");
 	});
 
 	it("多选末尾有 Confirm 行：平时 dim，聚焦高亮", () => {
@@ -167,7 +168,7 @@ describe("renderPanel", () => {
 	it("Custom 未聚焦 dim，聚焦高亮", () => {
 		const session = createSession([question("Q", ["A", "B"])]);
 		const idle = plain(renderPanel(session, { ...layout, width: 60 }, style));
-		expect(idle).toContain("    + Custom…");
+		expect(idle).toContain("  + Custom…");
 
 		const focused = apply(session, ...downs(2));
 		expect(focused.focus).toEqual({ kind: "custom" });
@@ -191,8 +192,8 @@ describe("renderPanel", () => {
 			{ kind: "prevQuestion" },
 		);
 		const lines = plain(renderPanel(session, { ...layout, width: 60 }, style));
-		expect(lines).toContain("       detail A");
-		expect(lines).toContain("       ↳ 选 A");
+		expect(lines).toContain("     detail A");
+		expect(lines).toContain("     ↳ 选 A");
 	});
 
 	it("note 就地编辑：输入行紧跟该选项（detail 之后），不再有占行提示", () => {
@@ -215,10 +216,10 @@ describe("renderPanel", () => {
 				style,
 			),
 		);
-		const option = lines.indexOf("  › 2. B");
+		const option = lines.indexOf("› 2. B");
 		expect(option).toBeGreaterThan(-1);
-		expect(lines[option + 1]).toBe("       detail B");
-		expect(lines[option + 2]).toBe("       ↳ 写了一半");
+		expect(lines[option + 1]).toBe("     detail B");
+		expect(lines[option + 2]).toBe("     ↳ 写了一半");
 		expect(lines.some((line) => line.includes("note for option"))).toBe(false);
 	});
 
@@ -252,13 +253,13 @@ describe("renderPanel", () => {
 				style,
 			),
 		);
-		expect(lines).toContain("  › + Custom");
-		expect(lines).toContain("  ▎ 第一行");
-		expect(lines).toContain("  ▎ 第二行");
+		expect(lines).toContain("› + Custom");
+		expect(lines).toContain("▎ 第一行");
+		expect(lines).toContain("▎ 第二行");
 		expect(lines.filter((line) => line.includes("─")).length).toBe(1);
 	});
 
-	it("并排 preview 有 dim 的 Preview 标头、dim 竖线，左栏收窄到 42%", () => {
+	it("并排时右栏从题干那一行就顶对齐，竖线 dim，不画 Preview 标头", () => {
 		const session = createSession([
 			{
 				question: "Pick",
@@ -269,22 +270,37 @@ describe("renderPanel", () => {
 				],
 			},
 		]);
-		const lines = renderPanel(
+		const raw = renderPanel(
 			session,
 			{ ...layout, width: 120, minSideBySideWidth: 100 },
 			colored,
 		);
-		const header = lines.find((line) =>
-			stripTerminalSequences(line).includes("Preview"),
+		const lines = plain(raw);
+		// 左栏收到 12 列下限：8 格补齐 + 1 格留白，右栏在题干那行就开始画。
+		expect(lines[1]).toBe(`Pick${" ".repeat(9)}│ line one`);
+		expect(lines[2]).toBe(`› 1. A${" ".repeat(7)}│ line two`);
+		expect(raw[1]).toContain("\x1b[2m│\x1b[22m");
+		expect(lines.some((line) => line.includes("Preview"))).toBe(false);
+		for (const line of raw) expect(visibleWidth(line)).toBeLessThanOrEqual(120);
+	});
+
+	it("并排时左栏宽度不超过 min(floor(width × 0.42), 54)", () => {
+		const session = createSession([
+			{
+				question: "Pick",
+				multiple: false,
+				options: [{ label: "L".repeat(80), preview: "p" }, { label: "B" }],
+			},
+		]);
+		const lines = plain(
+			renderPanel(
+				session,
+				{ ...layout, width: 120, minSideBySideWidth: 100 },
+				style,
+			),
 		);
-		expect(header).toContain("\x1b[2m│\x1b[22m");
-		const text = stripTerminalSequences(header ?? "");
-		const bar = text.indexOf("│");
-		// 2 格左留白 + 50 列左栏 + 1 格空格。
-		expect(bar).toBe(53);
-		expect(text.slice(bar, bar + 11)).toBe("│ Preview");
-		for (const line of lines)
-			expect(visibleWidth(line)).toBeLessThanOrEqual(120);
+		// 封顶 50 列：竖线落在第 51 列。
+		expect(lines[1]?.indexOf("│")).toBe(51);
 	});
 
 	it("并排时不剥左栏颜色：选中项 accent，detail 保持 dim", () => {
@@ -350,8 +366,8 @@ describe("renderPanel", () => {
 			),
 		);
 		expect(lines.some((line) => line.includes("│"))).toBe(false);
-		expect(lines).toContain("  Preview");
-		expect(lines).toContain("  line two");
+		expect(lines.some((line) => line.includes("Preview"))).toBe(false);
+		expect(lines).toContain("line two");
 	});
 
 	it("超预算先裁 detail，行数不超过高度，提示行留在最后", () => {
@@ -419,7 +435,7 @@ describe("renderPanel", () => {
 		expect(lines.some((line) => line.includes("detail"))).toBe(false);
 		expect(lines.some((line) => line.includes("p1"))).toBe(true);
 		expect(lines.some((line) => line.includes("p5"))).toBe(false);
-		expect(lines.filter((line) => /│ p\d/.test(line)).length).toBe(2);
+		expect(lines.filter((line) => /│ p\d/.test(line)).length).toBe(3);
 	});
 
 	it("选项多时收成围绕焦点的窗口，Custom 与 Confirm 留着", () => {
@@ -439,8 +455,8 @@ describe("renderPanel", () => {
 			),
 		).toBe(true);
 		expect(lines.some((line) => line.includes("1. A"))).toBe(false);
-		expect(lines).toContain("    + Custom…");
-		expect(lines).toContain("    → Confirm");
+		expect(lines).toContain("  + Custom…");
+		expect(lines).toContain("  → Confirm");
 	});
 
 	it("note 编辑时输入行不会被裁掉", () => {
@@ -465,7 +481,7 @@ describe("renderPanel", () => {
 				style,
 			),
 		);
-		expect(lines).toContain("       ↳ 在写");
+		expect(lines).toContain("     ↳ 在写");
 		expect(lines.some((line) => line.includes("detail of"))).toBe(false);
 	});
 
@@ -475,7 +491,9 @@ describe("renderPanel", () => {
 			{ ...layout, width: 80 },
 			style,
 		);
-		expect(lines.at(-1)).toBe("  enter pick · e note · ctrl+] collapse · esc");
+		expect(lines.at(-1)).toBe(
+			"enter pick · e note · ctrl+] collapse · esc abort",
+		);
 	});
 
 	it("showHints 为 false 时不画提示行，正文多留一行", () => {
@@ -489,7 +507,7 @@ describe("renderPanel", () => {
 		expect(shown.at(-1)).toContain("esc");
 		expect(hidden.some((line) => line.includes("esc"))).toBe(false);
 		expect(hidden.length).toBe(shown.length - 1);
-		expect(hidden.at(-1)).toBe("    + Custom…");
+		expect(hidden.at(-1)).toBe("  + Custom…");
 	});
 
 	it("collapse 配成 off 时提示不提折叠", () => {
@@ -498,7 +516,7 @@ describe("renderPanel", () => {
 			{ ...layout, width: 80, keys: { ...layout.keys, collapse: undefined } },
 			style,
 		);
-		expect(lines.at(-1)).toBe("  enter pick · e note · esc");
+		expect(lines.at(-1)).toBe("enter pick · e note · esc abort");
 	});
 
 	it("折叠后只剩一行：已答进度与展开键", () => {
@@ -513,7 +531,7 @@ describe("renderPanel", () => {
 		const lines = renderPanel(session, { ...layout, width: 80 }, colored);
 		expect(lines).toHaveLength(1);
 		expect(stripTerminalSequences(lines[0] ?? "")).toBe(
-			"  Ask collapsed (1/2) · ctrl+] expand",
+			"Ask collapsed (1/2) · ctrl+] expand",
 		);
 		expect(lines[0]).toContain("\x1b[2m");
 	});
@@ -545,7 +563,7 @@ describe("renderPanel", () => {
 			style,
 		);
 		expect(lines.at(-1)).toBe(
-			"  enter pick · e note · tab next · ctrl+enter submit · ctrl+] collapse · esc",
+			"enter pick · e note · tab next · ctrl+enter submit · ctrl+] collapse · esc abort",
 		);
 	});
 
@@ -556,7 +574,7 @@ describe("renderPanel", () => {
 			style,
 		);
 		expect(one.at(-1)).toBe(
-			"  enter toggle · ctrl+enter submit · ctrl+] collapse · esc",
+			"enter toggle · ctrl+enter submit · ctrl+] collapse · esc abort",
 		);
 
 		const two = renderPanel(
@@ -568,7 +586,7 @@ describe("renderPanel", () => {
 			style,
 		);
 		expect(two.at(-1)).toBe(
-			"  enter toggle · tab next · ctrl+enter submit · ctrl+] collapse · esc",
+			"enter toggle · tab next · ctrl+enter submit · ctrl+] collapse · esc abort",
 		);
 	});
 
@@ -578,7 +596,7 @@ describe("renderPanel", () => {
 			{ ...layout, width: 80 },
 			style,
 		);
-		expect(note.at(-1)).toBe("  enter save · esc back");
+		expect(note.at(-1)).toBe("enter save · esc back");
 
 		const custom = renderPanel(
 			apply(createSession([question("Q", ["A", "B"])]), ...downs(2), {
@@ -587,7 +605,7 @@ describe("renderPanel", () => {
 			{ ...layout, width: 80 },
 			style,
 		);
-		expect(custom.at(-1)).toBe("  enter save · shift+enter newline · esc back");
+		expect(custom.at(-1)).toBe("enter save · shift+enter newline · esc back");
 	});
 
 	it("超宽文本截断出 …", () => {
@@ -670,8 +688,8 @@ describe("renderPanel", () => {
 		);
 		expect(lines.length).toBeLessThanOrEqual(8);
 		expect(lines.at(-1)).toContain("esc back");
-		expect(lines).toContain("  ▎ line 8");
-		expect(lines).not.toContain("  ▎ line 1");
+		expect(lines).toContain("▎ line 8");
+		expect(lines).not.toContain("▎ line 1");
 	});
 
 	it("每行都不超过终端宽度", () => {

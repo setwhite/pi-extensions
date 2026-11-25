@@ -24,10 +24,8 @@ export type PanelLayout = {
 
 type RowKind = "option" | "detail" | "note" | "custom" | "confirm" | "editor";
 type Row = { text: string; kind: RowKind; group: number };
-type PreviewBlock = { lines: string[]; sideBySide: boolean };
 
 const DIVIDER = "─";
-const CONTENT_INDENT = "  ";
 const TAB_SEPARATOR = "  ";
 const LABEL_GAP = "   ";
 const CURSOR = "› ";
@@ -35,9 +33,8 @@ const CUSTOM_MARK = "+ ";
 const CONFIRM_LABEL = "→ Confirm";
 const NOTE_MARK = "↳ ";
 const EDITOR_BAR = "▎ ";
-const PREVIEW_HEADER = "Preview";
 const MAX_DETAIL_LINES = 2;
-/** 左栏按比例收窄，中间不再留一条黑沟；上限保证长选项不被压得太碎。 */
+/** 左栏封顶按比例收窄，中间不再留一条黑沟；上限保证长选项不被压得太碎。 */
 const LEFT_COLUMN_RATIO = 0.42;
 const MAX_LEFT_COLUMN = 54;
 const MIN_LEFT_COLUMN = 12;
@@ -45,7 +42,7 @@ const MIN_RIGHT_COLUMN = 12;
 const SEPARATOR = " │ ";
 /** 两栏都留够可读宽度才并排，否则退回堆叠。 */
 const MIN_SIDE_BY_SIDE_WIDTH =
-	CONTENT_INDENT.length + MIN_LEFT_COLUMN + SEPARATOR.length + MIN_RIGHT_COLUMN;
+	MIN_LEFT_COLUMN + SEPARATOR.length + MIN_RIGHT_COLUMN;
 const COLLAPSED_PREFIX = "Ask collapsed";
 
 export function renderPanel(
@@ -57,40 +54,35 @@ export function renderPanel(
 	if (session.collapsed) return [collapsedLine(session, layout, style)];
 
 	const question = session.questions[session.active];
-	const contentWidth = Math.max(0, width - CONTENT_INDENT.length);
+	const preview = previewMarkdown(session);
+	const sideBySide = preview !== undefined && isSideBySide(layout);
+	const columnCap = sideBySide ? leftColumnCap(width) : width;
 
-	const head: string[] = [style.muted(DIVIDER.repeat(width))];
-	if (session.questions.length > 1)
-		head.push(renderTabs(session, width, style));
-
+	const tabs =
+		session.questions.length > 1 ? [renderTabs(session, width, style)] : [];
 	const tail = layout.showHints
-		? [
-				style.muted(
-					style.truncate(`${CONTENT_INDENT}${hintFor(session, layout)}`, width),
-				),
-			]
+		? [style.muted(style.truncate(hintFor(session, layout), width))]
 		: [];
-	const questionRoom = Math.max(1, height - head.length - tail.length - 1);
-	for (const line of wrapBlock(
-		question.question,
-		contentWidth,
-		questionRoom,
-		style,
-	))
-		head.push(style.bold(style.truncate(`${CONTENT_INDENT}${line}`, width)));
-
-	const budget = Math.max(1, height - head.length - tail.length);
-	const preview = previewBlock(session, layout, style);
-	const body = bodyRows(
-		session,
+	// 题干永远完整折行，但至少给下面的 body 留一行。
+	const questionRoom = Math.max(1, height - 1 - tabs.length - tail.length - 1);
+	const head = [
+		...tabs,
+		...wrapBlock(question.question, columnCap, questionRoom, style).map(
+			(line) => style.bold(style.truncate(line, columnCap)),
+		),
+	];
+	const budget = Math.max(1, height - 1 - head.length - tail.length);
+	const body = bodyRows(session, layout, style, columnCap);
+	const content = composeContent(
+		head,
+		body,
+		preview,
 		layout,
+		budget,
+		session,
 		style,
-		preview.sideBySide ? leftColumnWidth(width) : contentWidth,
 	);
-	const middle = composeBody(body, preview, budget, session, layout, style).map(
-		(line) => (line === "" ? "" : `${CONTENT_INDENT}${line}`),
-	);
-	return [...head, ...middle, ...tail];
+	return [style.muted(DIVIDER.repeat(width)), ...content, ...tail];
 }
 
 function renderTabs(
@@ -106,7 +98,7 @@ function renderTabs(
 			? style.accent(style.bold(`[${text}]`))
 			: style.muted(text);
 	});
-	return style.truncate(`${CONTENT_INDENT}${tabs.join(TAB_SEPARATOR)}`, width);
+	return style.truncate(tabs.join(TAB_SEPARATOR), width);
 }
 
 function isAnsweredAt(session: Session, index: number): boolean {
@@ -129,12 +121,10 @@ function collapsedLine(
 	];
 	if (layout.keys.collapse !== undefined)
 		parts.push(`${layout.keys.collapse} expand`);
-	return style.muted(
-		style.truncate(`${CONTENT_INDENT}${parts.join(" · ")}`, layout.width),
-	);
+	return style.muted(style.truncate(parts.join(" · "), layout.width));
 }
 
-/** 提示收短并只留当前形态能用的键；调用方负责 dim 与缩进。 */
+/** 提示收短并只留当前形态能用的键；调用方负责 dim 与截断。 */
 function hintFor(session: Session, layout: PanelLayout): string {
 	const keys = layout.keys;
 	if (session.phase.kind === "note") return "enter save · esc back";
@@ -151,7 +141,7 @@ function hintFor(session: Session, layout: PanelLayout): string {
 		parts.push(`${keys.submitEarly} submit`);
 	}
 	if (keys.collapse !== undefined) parts.push(`${keys.collapse} collapse`);
-	parts.push("esc");
+	parts.push("esc abort");
 	return parts.join(" · ");
 }
 
@@ -315,36 +305,20 @@ function wrapBlock(
 	return kept;
 }
 
-function previewBlock(
-	session: Session,
-	layout: PanelLayout,
-	style: PanelStyle,
-): PreviewBlock {
+/** 只有列表态、焦点在选项上、且该项带非空 preview 时才画预览。 */
+function previewMarkdown(session: Session): string | undefined {
 	if (session.phase.kind !== "list" || session.focus.kind !== "option")
-		return { lines: [], sideBySide: false };
+		return undefined;
 	const option = session.questions[session.active].options[session.focus.index];
 	const markdown = option?.preview;
-	if (markdown === undefined || markdown.trim() === "")
-		return { lines: [], sideBySide: false };
+	if (markdown === undefined || markdown.trim() === "") return undefined;
+	return markdown;
+}
 
-	const sideBySide =
-		layout.width >= Math.max(layout.minSideBySideWidth, MIN_SIDE_BY_SIDE_WIDTH);
-	const contentWidth = sideBySide
-		? rightColumnWidth(layout.width)
-		: Math.max(0, layout.width - CONTENT_INDENT.length);
-	const content =
-		contentWidth <= 0 ? [] : markdownLines(markdown, contentWidth, style);
-	while (content.length > 0 && content.at(-1) === "") content.pop();
-
-	if (sideBySide)
-		return { lines: [style.muted(PREVIEW_HEADER), ...content], sideBySide };
-	return {
-		lines: [
-			style.muted(style.truncate(PREVIEW_HEADER, contentWidth)),
-			...content.map((line) => style.truncate(line, contentWidth)),
-		],
-		sideBySide: false,
-	};
+function isSideBySide(layout: PanelLayout): boolean {
+	return (
+		layout.width >= Math.max(layout.minSideBySideWidth, MIN_SIDE_BY_SIDE_WIDTH)
+	);
 }
 
 function markdownLines(
@@ -352,66 +326,90 @@ function markdownLines(
 	width: number,
 	style: PanelStyle,
 ): string[] {
-	return style
+	const lines = style
 		.markdown(markdown, width)
 		.flatMap((line) => line.split(/\r?\n/))
 		.map((line) => style.truncate(line.trimEnd(), width));
+	while (lines.length > 0 && lines.at(-1) === "") lines.pop();
+	return lines;
 }
 
-function leftColumnWidth(width: number): number {
-	const content = Math.max(0, width - CONTENT_INDENT.length);
-	const budget = Math.max(0, content - SEPARATOR.length - MIN_RIGHT_COLUMN);
+/** 左栏封顶：不超过 min(floor(width × 0.42), 54)，并给右栏留够最低宽度。 */
+function leftColumnCap(width: number): number {
 	return Math.max(
 		0,
-		Math.min(Math.floor(width * LEFT_COLUMN_RATIO), MAX_LEFT_COLUMN, budget),
+		Math.min(
+			Math.floor(width * LEFT_COLUMN_RATIO),
+			MAX_LEFT_COLUMN,
+			width - SEPARATOR.length - MIN_RIGHT_COLUMN,
+		),
 	);
 }
 
-function rightColumnWidth(width: number): number {
-	return Math.max(
-		0,
-		width - CONTENT_INDENT.length - leftColumnWidth(width) - SEPARATOR.length,
+/** 封顶之下按左侧实际内容收紧，省下的列全给右栏。 */
+function leftColumnWidth(width: number, contentWidth: number): number {
+	return Math.min(
+		leftColumnCap(width),
+		Math.max(MIN_LEFT_COLUMN, contentWidth),
 	);
 }
 
-function composeBody(
+function widest(lines: readonly string[], style: PanelStyle): number {
+	let width = 0;
+	for (const line of lines)
+		if (line !== "") width = Math.max(width, style.width(line));
+	return width;
+}
+
+/**
+ * 并排时右栏从 Tab / 题干那一行就顶对齐，右栏省下的行不把面板撑高。
+ * 堆叠时 preview 接在选项下方，两者抢同一列才需要统一的裁剪顺序。
+ */
+function composeContent(
+	head: string[],
 	body: Row[],
-	preview: PreviewBlock,
+	markdown: string | undefined,
+	layout: PanelLayout,
 	budget: number,
 	session: Session,
-	layout: PanelLayout,
 	style: PanelStyle,
 ): string[] {
+	const width = layout.width;
 	const focus = focusRow(session);
 	const pinned = pinnedGroups(session);
 
-	if (preview.sideBySide) {
-		const leftWidth = leftColumnWidth(layout.width);
-		const rightWidth = rightColumnWidth(layout.width);
+	if (markdown !== undefined && isSideBySide(layout)) {
 		// 两栏各自裁：左栏先丢 detail 再收选项窗口，右栏只留前 budget 行。
-		const rows = trimRows(body, budget, focus, pinned);
-		const right = preview.lines
-			.slice(0, budget)
-			.map((line) => style.truncate(line, rightWidth));
-		const depth = Math.min(budget, Math.max(rows.length, right.length));
+		const left = [
+			...head,
+			...trimRows(body, Math.max(0, budget - head.length), focus, pinned),
+		];
+		const leftWidth = leftColumnWidth(width, widest(left, style));
+		const right = markdownLines(
+			markdown,
+			Math.max(0, width - leftWidth - SEPARATOR.length),
+			style,
+		).slice(0, Math.max(0, budget));
 		const bar = style.muted("│");
 		const merged: string[] = [];
+		const depth = Math.max(left.length, right.length);
 		for (let index = 0; index < depth; index += 1) {
-			const left = style.truncate(rows[index] ?? "", leftWidth);
-			const padding = " ".repeat(Math.max(0, leftWidth - style.width(left)));
-			const text = right[index] ?? "";
-			merged.push(`${left}${padding} ${bar} ${text}`.trimEnd());
+			const cell = left[index] ?? "";
+			const padding = " ".repeat(Math.max(0, leftWidth - style.width(cell)));
+			merged.push(`${cell}${padding} ${bar} ${right[index] ?? ""}`.trimEnd());
 		}
 		return merged;
 	}
 
 	// 堆叠：先裁 preview 行，再裁 detail 行，最后收选项窗口。
+	const preview =
+		markdown === undefined ? [] : markdownLines(markdown, width, style);
 	const room = budget - body.length;
-	if (room >= preview.lines.length)
-		return [...body.map((row) => row.text), ...preview.lines];
+	if (room >= preview.length)
+		return [...head, ...body.map((row) => row.text), ...preview];
 	if (room >= 2)
-		return [...body.map((row) => row.text), ...preview.lines.slice(0, room)];
-	return trimRows(body, budget, focus, pinned);
+		return [...head, ...body.map((row) => row.text), ...preview.slice(0, room)];
+	return [...head, ...trimRows(body, budget, focus, pinned)];
 }
 
 /** 焦点行号：选项序号 / Custom / Confirm。 */
