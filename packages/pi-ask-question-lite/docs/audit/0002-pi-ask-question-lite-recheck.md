@@ -1,15 +1,15 @@
-# AUDIT · pi-ask-lite 0001 复审
+# AUDIT · pi-ask-question-lite 0001 复审
 
 结论：退回开发。4 条缺陷修了 3 条；剩 1 条（并排裁剪顺序）没修，反而被测试锁死，且 spec 没改。
 
 ## 验收
 
-- AC1 通过 — `pnpm --filter pi-ask-lite exec vitest run test/config.test.ts`
-- AC2 通过 — `pnpm --filter pi-ask-lite exec vitest run test/schema.test.ts`
-- AC3 通过 — `pnpm --filter pi-ask-lite exec vitest run test/state.test.ts test/index.test.ts`；上次那条「改选别的选项会丢掉旧 note」的假测试已改成真跑（两题、prevQuestion、digit 改选、断言 note 清空）
+- AC1 通过 — `pnpm --filter pi-ask-question-lite exec vitest run test/config.test.ts`
+- AC2 通过 — `pnpm --filter pi-ask-question-lite exec vitest run test/schema.test.ts`
+- AC3 通过 — `pnpm --filter pi-ask-question-lite exec vitest run test/state.test.ts test/index.test.ts`；上次那条「改选别的选项会丢掉旧 note」的假测试已改成真跑（两题、prevQuestion、digit 改选、断言 note 清空）
 - AC4 未通过 — `test/view.test.ts` 已补 AC4 矩阵（80/100/120 × 20/40）、键提示切换、`…` 截断、选项窗口；但裁剪顺序仍与 spec 相反（见缺陷 3）
-- AC5 通过 — `pnpm --filter pi-ask-lite exec vitest run test/index.test.ts`
-- AC6 通过 — `pnpm --filter pi-ask-lite exec vitest run test/package.test.ts test/docs.test.ts`
+- AC5 通过 — `pnpm --filter pi-ask-question-lite exec vitest run test/index.test.ts`
+- AC6 通过 — `pnpm --filter pi-ask-question-lite exec vitest run test/package.test.ts test/docs.test.ts`
 - AC7 通过 — 仓库根 `pnpm check`：exit 0
 
 ## 缺陷复验（实跑）

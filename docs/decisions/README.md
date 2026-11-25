@@ -6,4 +6,4 @@
 
 - [0001](0001-monorepo.md) 三个 pi 扩展并成一个 monorepo，包仍各自独立发版
 
-0001 写的是最初三个包。第四个包 `pi-browser-use-lite`、第五个包 `pi-ask-lite` 都直接建在本仓库，没有独立旧仓。
+0001 写的是最初三个包。第四个包 `pi-browser-use-lite`、第五个包 `pi-ask-question-lite` 都直接建在本仓库，没有独立旧仓。

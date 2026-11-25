@@ -1,5 +1,5 @@
 {
-  "name": "pi-ask-lite",
+  "name": "pi-ask-question-lite",
   "version": "0.1.0",
   "description": "Pi ask extension: one structured question dialog, one Esc to abort.",
   "keywords": [
@@ -15,7 +15,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/setwhite/pi-extensions.git",
-    "directory": "packages/pi-ask-lite"
+    "directory": "packages/pi-ask-question-lite"
   },
   "packageManager": "pnpm@12.3.4",
   "pi": {

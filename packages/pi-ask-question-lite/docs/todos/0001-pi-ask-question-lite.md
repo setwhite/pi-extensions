@@ -1,5 +1,5 @@
 - [x] 已完成
-- Spec: docs/specs/0001-pi-ask-lite.md
+- Spec: docs/specs/0001-pi-ask-question-lite.md
 - 验收: AC1、AC2、AC3、AC4、AC5、AC6、AC7
 
 ## 交付物

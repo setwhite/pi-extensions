@@ -1,4 +1,4 @@
-# pi-ask-lite
+# pi-ask-question-lite
 
 **[简体中文](README.zh-CN.md)** | [English](README.md)
 
@@ -23,7 +23,7 @@
 还没发到 npm。在仓库里直接跑：
 
 ```bash
-pi -ne -e ./packages/pi-ask-lite/src/index.ts
+pi -ne -e ./packages/pi-ask-question-lite/src/index.ts
 ```
 
 ## 键位
@@ -100,6 +100,6 @@ pi -ne -e ./packages/pi-ask-lite/src/index.ts
 | | |
 | --- | --- |
 | [架构](docs/ARCHITECTURE.md) | 模块、依赖规则、测试边界 |
-| [规格](docs/specs/0001-pi-ask-lite.md) | 契约、验收标准、不做的 |
+| [规格](docs/specs/0001-pi-ask-question-lite.md) | 契约、验收标准、不做的 |
 | [决策](docs/decisions/README.md) | 一条决策一份文件 |
 | [术语](docs/GLOSSARY.md) | 每个词指什么 |

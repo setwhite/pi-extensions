@@ -6,7 +6,7 @@
 ## 问题
 
 `pi-todo-lite` 原先通过 `ctx.ui.setWidget` 挂在 `aboveEditor` 或 `belowEditor`，会直接吃掉对话阅读区的垂直行数。
-配合输入框与 `pi-ask-lite` 等交互弹窗同时使用时，屏幕可用高度被上下夹扁，视觉也显得杂乱。
+配合输入框与 `pi-ask-question-lite` 等交互弹窗同时使用时，屏幕可用高度被上下夹扁，视觉也显得杂乱。
 需要改为不挤占对话区垂直行数的展示方式，同时保持「不翻 transcript 就能看清进度」和「`alt+t` 一键显隐全表」的体验。
 
 ## 契约
@@ -64,7 +64,7 @@
 - 不保留 `aboveEditor`、`belowEditor` 与任何 `ctx.ui.setWidget` 兼容路径。
 - 不在浮层内做交互式勾选、排序或编辑任务（保持只读展示）。
 - 不调用 `ctx.ui.setFooter` 替换宿主整个页脚，也不针对第三方 footer 做专用适配。
-- 不在 `pi-todo-lite` 与 `pi-ask-lite` 之间建立自定义事件总线耦合。
+- 不在 `pi-todo-lite` 与 `pi-ask-question-lite` 之间建立自定义事件总线耦合。
 - 不改动 `todo(tasks)` 工具参数 schema、模型侧 token 开销预算、账本格式或 `/todos` 子命令集合。
 
 ## 已决（原「未决」）

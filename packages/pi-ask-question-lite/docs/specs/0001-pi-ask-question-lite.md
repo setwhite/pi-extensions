@@ -1,4 +1,4 @@
-# SPEC · pi-ask-lite
+# SPEC · pi-ask-question-lite
 
 > 契约 = 用户故事 + 验收表（AC）+ 不做的清单。改这三样，先改这里。字段、默认值、报错一律看源码。
 > 为什么这么定，见 `docs/decisions/`。模块见 `docs/ARCHITECTURE.md`。术语见 `docs/GLOSSARY.md`。
@@ -182,7 +182,7 @@ type Outcome =
 | AC5 | 接线用例：注册参数含 `exposure: "model-only"`；`mode !== "tui"` 时抛错且零事件；提交、中止、抛错三条路径 `herdr:blocked` 成对；工具结果的 `details` 形状与英文摘要；`renderCall` 只显示 `Ask` 与题目标签、`renderResult` 默认出每题 `✓` 与 dim `skipped` / `✗ aborted`，`options.expanded` 为真时换成完整题干、选项 note 与 custom 的展开块；铃只在挂载响一次；`terminate: true` 与 `ctx.abort()` 各一次 |
 | AC6 | 包闸：`test/package.test.ts` 的 files / `pi.extensions` 断言与 `test/docs.test.ts` 的两份 README 配置块 = `DEFAULTS` 都通过 |
 | AC7 | 全仓 `pnpm check` 绿：lint、check:imports、typecheck、test |
-| AC8 | 真机：herdr 隔离 pane 里 `pi -e ./packages/pi-ask-lite/src/index.ts`（不带 `-ne`，否则 `herdr-agent-state.ts` 不加载、面板不会变红）。`herdr agent get` 在弹窗期间为 `blocked`，提交或 Esc 后恢复；单 Esc 回空闲且没有第二次模型回复；`e` 补充（单选与多选各一条）；多选 Enter 勾选后走 `→ Confirm`；`ctrl+]` 折叠成一行再展开；preview 并排切堆叠；Ctrl+Enter 提前提交；聊天记录里只有一行调用与每题一行结果，Ctrl+O 后展开成完整题干加逐条选项 |
+| AC8 | 真机：herdr 隔离 pane 里 `pi -e ./packages/pi-ask-question-lite/src/index.ts`（不带 `-ne`，否则 `herdr-agent-state.ts` 不加载、面板不会变红）。`herdr agent get` 在弹窗期间为 `blocked`，提交或 Esc 后恢复；单 Esc 回空闲且没有第二次模型回复；`e` 补充（单选与多选各一条）；多选 Enter 勾选后走 `→ Confirm`；`ctrl+]` 折叠成一行再展开；preview 并排切堆叠；Ctrl+Enter 提前提交；聊天记录里只有一行调用与每题一行结果，Ctrl+O 后展开成完整题干加逐条选项 |
 
 ## 不做的
 
@@ -200,7 +200,7 @@ type Outcome =
 
 ## 其他
 
-- **影响范围**：新增 `packages/pi-ask-lite`。不改其他包。根脚本 `pnpm -r` 会自动覆盖新包。
+- **影响范围**：新增 `packages/pi-ask-question-lite`。不改其他包。根脚本 `pnpm -r` 会自动覆盖新包。
 - **回退**：删目录。没有持久化状态，不碰用户配置。
 - **交付形态**：源码运行（`pi -ne -e`），本轮不发 npm。
 - **已知偏差**：

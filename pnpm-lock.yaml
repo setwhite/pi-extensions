@@ -112,7 +112,7 @@ importers:
 
   .: {}
 
-  packages/pi-ask-lite:
+  packages/pi-ask-question-lite:
     devDependencies:
       '@biomejs/biome':
         specifier: 2.5.15

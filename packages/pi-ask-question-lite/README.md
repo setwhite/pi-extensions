@@ -1,4 +1,4 @@
-# pi-ask-lite
+# pi-ask-question-lite
 
 [简体中文](README.zh-CN.md) | **English**
 
@@ -24,7 +24,7 @@ One tool: `ask(questions)`. The model asks 1–4 questions with 2–6 options ea
 Not on npm yet. Run it from this repo:
 
 ```bash
-pi -ne -e ./packages/pi-ask-lite/src/index.ts
+pi -ne -e ./packages/pi-ask-question-lite/src/index.ts
 ```
 
 ## Keys
@@ -101,6 +101,6 @@ An empty `guidance.promptSnippet` registers no tool-list line. `tool-name` in th
 | | |
 | --- | --- |
 | [Architecture](docs/ARCHITECTURE.md) | Modules, dependency rules, test seams |
-| [Spec](docs/specs/0001-pi-ask-lite.md) | Contract, acceptance criteria, non-goals |
+| [Spec](docs/specs/0001-pi-ask-question-lite.md) | Contract, acceptance criteria, non-goals |
 | [Decisions](docs/decisions/README.md) | One file per decision |
 | [Glossary](docs/GLOSSARY.md) | What each term means |

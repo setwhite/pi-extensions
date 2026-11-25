@@ -8,7 +8,7 @@
 | [`pi-todo-lite`](packages/pi-todo-lite) | 角落浮窗里一张有序任务表，不占对话行数 | 无 |
 | [`pi-herdr-subagents-lite`](packages/pi-herdr-subagents-lite) | 在 herdr 分格里跑 pi 子代理 | herdr，父会话跑在 pane 里 |
 | [`pi-browser-use-lite`](packages/pi-browser-use-lite) | 5 个 `chrome_*` 工具，经本地桥驱动你已登录的真实浏览器 | Chromium 系浏览器，手动加载扩展 |
-| [`pi-ask-lite`](packages/pi-ask-lite) | `ask` 一次问 1–4 题：单选、多选、就地补充，Esc 一次中止 | 无 |
+| [`pi-ask-question-lite`](packages/pi-ask-question-lite) | `ask` 一次问 1–4 题：单选、多选、就地补充，Esc 一次中止 | 无 |
 
 ## 安装
 

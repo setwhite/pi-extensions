@@ -1,16 +1,16 @@
-# AUDIT · pi-ask-lite 0001
+# AUDIT · pi-ask-question-lite 0001
 
 结论：退回开发。
 
 ## 验收
 
-- AC1 通过 — `pnpm --filter pi-ask-lite exec vitest run test/config.test.ts`（9 passed）；补探针：三处 guidance 的 `tool-name` 都换成 `question`，坏 JSON 消息带绝对路径。
-- AC2 通过 — `pnpm --filter pi-ask-lite exec vitest run test/schema.test.ts`（9 passed）；读断言：1/4 题、2/6 选项、0/5/1/7、空白 question/label、未知键、`multiple` 缺省、Other/Next 都有断言。
-- AC3 通过 — `pnpm --filter pi-ask-lite exec vitest run test/state.test.ts`（22 passed）加 `test/index.test.ts`（12 passed）；补探针：kitty `ctrl+enter` 提前提交、done 后按键不再出口、tab/←/→/shift+tab/space 映射、note 草稿回填。
-- AC4 未通过 — `pnpm --filter pi-ask-lite exec vitest run test/view.test.ts`（11 passed）。期望「超预算的裁剪顺序：preview 行 → detail 行 → 选项窗口」在并排布局也成立；实际 width 120 / height 6 时先删 detail，preview 保留 4 行（缺陷 3）。另有覆盖缺口：无 height 20 组合、无「键提示随形态换」断言、无 `…` 断言、无选项窗口断言。
-- AC5 通过 — `pnpm --filter pi-ask-lite exec vitest run test/index.test.ts`（12 passed）；补探针：提交/中止/抛错三条路径 `herdr:blocked` 成对，`terminate: true` 与 `ctx.abort()` 各 1 次，`mode: "rpc"` 抛错且零事件。
-- AC6 通过 — `pnpm --filter pi-ask-lite exec vitest run test/package.test.ts test/docs.test.ts`（5 + 2 passed）。
-- AC7 通过 — 仓库根 `pnpm check`：exit 0，pi-ask-lite 7 files / 70 tests passed；单跑 `pnpm --filter pi-ask-lite run lint`（13 files clean）、`run check:imports`（ok: 5 files）、`run typecheck`（无输出）。
+- AC1 通过 — `pnpm --filter pi-ask-question-lite exec vitest run test/config.test.ts`（9 passed）；补探针：三处 guidance 的 `tool-name` 都换成 `question`，坏 JSON 消息带绝对路径。
+- AC2 通过 — `pnpm --filter pi-ask-question-lite exec vitest run test/schema.test.ts`（9 passed）；读断言：1/4 题、2/6 选项、0/5/1/7、空白 question/label、未知键、`multiple` 缺省、Other/Next 都有断言。
+- AC3 通过 — `pnpm --filter pi-ask-question-lite exec vitest run test/state.test.ts`（22 passed）加 `test/index.test.ts`（12 passed）；补探针：kitty `ctrl+enter` 提前提交、done 后按键不再出口、tab/←/→/shift+tab/space 映射、note 草稿回填。
+- AC4 未通过 — `pnpm --filter pi-ask-question-lite exec vitest run test/view.test.ts`（11 passed）。期望「超预算的裁剪顺序：preview 行 → detail 行 → 选项窗口」在并排布局也成立；实际 width 120 / height 6 时先删 detail，preview 保留 4 行（缺陷 3）。另有覆盖缺口：无 height 20 组合、无「键提示随形态换」断言、无 `…` 断言、无选项窗口断言。
+- AC5 通过 — `pnpm --filter pi-ask-question-lite exec vitest run test/index.test.ts`（12 passed）；补探针：提交/中止/抛错三条路径 `herdr:blocked` 成对，`terminate: true` 与 `ctx.abort()` 各 1 次，`mode: "rpc"` 抛错且零事件。
+- AC6 通过 — `pnpm --filter pi-ask-question-lite exec vitest run test/package.test.ts test/docs.test.ts`（5 + 2 passed）。
+- AC7 通过 — 仓库根 `pnpm check`：exit 0，pi-ask-question-lite 7 files / 70 tests passed；单跑 `pnpm --filter pi-ask-question-lite run lint`（13 files clean）、`run check:imports`（ok: 5 files）、`run typecheck`（无输出）。
 
 范围蔓延（小）— `src/index.ts:130`：`herdr:blocked` 的 `false` 事件额外带 `label`，spec 写 `{ active: false }`。
 
@@ -24,7 +24,7 @@
 - 缺陷 4（低）— `src/view.ts:171-174`：极窄终端堆叠 preview 超宽。复现：真实组件 width 12（真实 Markdown，columns=12）preview 行宽 14；width 13 仍宽 14；下面探针用 stub markdown，同条件行宽 13。`Math.max(12, width - 2)` 的下限比屏宽大，再加 2 空格前缀。默认 `TuiMainScreen` 对超宽行直接抛 `Rendered line ... exceeds terminal width`（pi-tui `tui-main-screen.js:475-492`），默认 `tuiMode` 是 regular，会崩 UI。
 - 安全前提 — 宿主在 RPC 下 `hasUI === true` 但 `custom()` 返回 `undefined`，所以无 UI 闸必须看 `ctx.mode`：`@earendil-works/pi-coding-agent/dist/modes/rpc/rpc-mode.js:152`、`docs/rpc-extension-ui.md`「`custom()` returns `undefined`」。探针把 mode 伪装成 `tui`、`custom` 返回 `undefined` → `TypeError: Cannot read properties of undefined (reading 'kind')`，证明 `ctx.mode` 闸必要，`hasUI` 不够。非 overlay 默认与焦点归属也有一手证据：`modes/interactive/interactive-mode.js:2290` `options?.overlay ?? false`、`:2129` `setFocus(component)`、`pi-tui/dist/tui.js:780` 把按键送 `focusedComponent.handleInput`。
 
-### 复现脚本（跑完已删，可原样重建到 `packages/pi-ask-lite/.tmp/repro.ts`）
+### 复现脚本（跑完已删，可原样重建到 `packages/pi-ask-question-lite/.tmp/repro.ts`）
 
 ```ts
 import { stripTerminalSequences, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";

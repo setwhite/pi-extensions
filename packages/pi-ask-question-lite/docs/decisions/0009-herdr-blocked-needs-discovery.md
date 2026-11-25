@@ -2,7 +2,7 @@
 
 ## 决定
 
-- 验收"面板变红"时用 `pi -e ./packages/pi-ask-lite/src/index.ts`，让扩展发现照常跑；`-ne` 只用于隔离其它扩展看渲染。
+- 验收"面板变红"时用 `pi -e ./packages/pi-ask-question-lite/src/index.ts`，让扩展发现照常跑；`-ne` 只用于隔离其它扩展看渲染。
 - AC8 的命令同步去掉 `-ne`。
 
 ## 为什么
@@ -11,7 +11,7 @@
 
 实测（2026-11-25，herdr 0.9.5，隔离 tab `w31:tB` / pane `w31:pC`）：
 
-- 启动：`herdr agent start askprobe --kind pi --pane w31:pC -- -e packages/pi-ask-lite/src/index.ts`，扩展列表里同时有 `herdr-agent-state.ts` 与 pi-ask-lite。
+- 启动：`herdr agent start askprobe --kind pi --pane w31:pC -- -e packages/pi-ask-question-lite/src/index.ts`，扩展列表里同时有 `herdr-agent-state.ts` 与 pi-ask-question-lite。
 - 弹窗期间 `herdr agent get askprobe` 的 `agent_status` 是 `blocked`（`state_change_seq` 从 67 到 69）。
 - 按 `1` 选第一项：`blocked` → `working` → `done`，聊天里出 `✓ Choose: A`，模型回一句后停。
 - 再来一轮按 `esc`：`blocked` → `done`，聊天里是 `✗ aborted`，没有第二次模型回复。
