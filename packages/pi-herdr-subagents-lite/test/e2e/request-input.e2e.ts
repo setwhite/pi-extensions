@@ -25,6 +25,14 @@ describe.skipIf(!state.ok)(`e2e: request_input loop${state.ok ? "" : ` (skipped:
         "Call the request_input tool exactly once with questions: [{question: 'Which branch should I use?', options: ['main', 'next']}]. Then end the turn without doing anything else.",
     });
 
+    // 真机上 herdr 只在 agent.get 里推进 managed agent 的启动状态：先轮询再 prompt，顺序不能反。
+    const started = env.calls.indexOf("startAgent");
+    const polled = env.calls.indexOf("getAgent");
+    const prompted = env.calls.indexOf("prompt");
+    expect(started).toBeGreaterThanOrEqual(0);
+    expect(polled).toBeGreaterThan(started);
+    expect(prompted).toBeGreaterThan(polled);
+
     const envelope = await waitFor(
       () => env.envelopes().find((entry) => entry.id === id),
       "needs_input envelope",

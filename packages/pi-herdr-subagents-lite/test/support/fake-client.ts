@@ -10,6 +10,8 @@ export interface FakeClient {
   tabs: CreateTabInput[];
   agents: StartAgentInput[];
   waitTargets: string[];
+  readyPolls: string[];
+  queueReadiness(...values: boolean[]): void;
   pendingWaits(): number;
   resolveWait(status: AgentStatus): void;
   rejectWait(error: Error): void;
@@ -23,6 +25,8 @@ export function fakeClient(): FakeClient {
   const tabs: CreateTabInput[] = [];
   const agents: StartAgentInput[] = [];
   const waitTargets: string[] = [];
+  const readyPolls: string[] = [];
+  const readiness: boolean[] = [];
   const waiters: Waiter[] = [];
   const failures = new Map<string, Error>();
   let panes = 0;
@@ -62,6 +66,11 @@ export function fakeClient(): FakeClient {
       guard("startAgent");
       agents.push(input);
     },
+    async getAgent(target) {
+      calls.push("getAgent");
+      readyPolls.push(target);
+      return { status: "idle", interactiveReady: readiness.shift() ?? true };
+    },
     async prompt(target, text) {
       calls.push("prompt");
       guard("prompt");
@@ -97,6 +106,10 @@ export function fakeClient(): FakeClient {
     tabs,
     agents,
     waitTargets,
+    readyPolls,
+    queueReadiness(...values) {
+      readiness.push(...values);
+    },
     pendingWaits: () => waiters.length,
     resolveWait(status) {
       const waiter = waiters.shift();

@@ -1,6 +1,7 @@
 // 隔离的 pi agent 目录与临时项目：只从真实目录借 auth.json 与模型选择。
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { PI_BIN, REAL_AGENT_DIR, REPO } from "./prereq.ts";
 import { run } from "./process.ts";
 
@@ -20,11 +21,20 @@ export function prepareDirs(root: string): IsolatedEnv {
   mkdirSync(runsDir, { recursive: true });
   mkdirSync(project, { recursive: true });
   writeFileSync(join(project, "README.md"), README);
+  // 装上 herdr 的 pi 集成（hook authority）：不装时 herdr 靠屏幕检测推进状态，
+  // agent.get 轮询缺失这类 bug 就测不出来。
+  const extensions = join(agentDir, "extensions");
+  mkdirSync(extensions, { recursive: true });
+  copyFileSync(fixturePath("herdr-agent-state.ts"), join(extensions, "herdr-agent-state.ts"));
   copyFileSync(join(REAL_AGENT_DIR, "auth.json"), join(agentDir, "auth.json"));
   writeFileSync(join(agentDir, "trust.json"), JSON.stringify({ [root]: true, [project]: true }));
   writeSettings(agentDir);
   writeConfig(agentDir);
   return { agentDir, project, runsDir };
+}
+
+function fixturePath(name: string): string {
+  return fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url));
 }
 
 /** 子代理继承 defaultProjectTrust，才不会在自己的 pane 里卡信任提示。 */

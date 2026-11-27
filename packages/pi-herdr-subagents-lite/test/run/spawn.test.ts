@@ -52,6 +52,18 @@ describe("spawn", () => {
     service.shutdown();
   });
 
+  it("polls agent.get until herdr reports the agent interactive, then prompts once", async () => {
+    const { service, fake } = setupRun();
+    fake.queueReadiness(false, false, true);
+
+    const spawned = await service.spawn({ id: "alpha", objective: "do the thing" });
+
+    expect(spawned.status).toBe("running");
+    expect(fake.readyPolls).toEqual(["w1:p1", "w1:p1", "w1:p1"]);
+    expect(fake.prompts).toHaveLength(1);
+    service.shutdown();
+  });
+
   it("retries the prompt until herdr registers the agent", async () => {
     const { service, fake } = setupRun();
     fake.failNext("prompt", new HerdrError("agent_not_ready", "agent w1:p1 is not an active named agent"));

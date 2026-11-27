@@ -20,6 +20,8 @@ export interface E2e {
   socket: string;
   client: HerdrClient;
   service: RunService;
+  /** run 服务实际发出的 client 调用，按顺序记录。 */
+  calls: string[];
   batches: Envelope[][];
   problems: string[];
   /** 原生 RPC：单测覆盖不到的命令（如 pane.process_info）在这里直接调。 */
@@ -53,8 +55,19 @@ export async function startE2e(): Promise<E2e> {
     await transport.request("workspace.create", { cwd: project, label: "e2e", focus: true });
     const batches: Envelope[][] = [];
     const problems: string[] = [];
+    const calls: string[] = [];
+    // 记录 run 服务的调用顺序：真机上要验证它先轮询 agent.get 再 prompt。
+    const recorded = Object.fromEntries(
+      Object.entries(client).map(([name, method]) => [
+        name,
+        (...args: unknown[]) => {
+          calls.push(name);
+          return (method as (...inner: unknown[]) => unknown)(...args);
+        },
+      ]),
+    ) as unknown as HerdrClient;
     service = createRunService({
-      client,
+      client: recorded,
       runsDir,
       maxConcurrent: 4,
       summaryMaxChars: 2000,
@@ -74,6 +87,7 @@ export async function startE2e(): Promise<E2e> {
       socket,
       client: active.client,
       service: active.service,
+      calls,
       batches,
       problems,
       call: (method, params) => (transport as Transport).request(method, params, { timeoutMs: 20_000 }),

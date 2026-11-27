@@ -24,6 +24,24 @@ async function clientFor(
 const pane = (paneId: string) => ({ result: { type: "pane_info", pane: { pane_id: paneId } } });
 
 describe("herdr client", () => {
+  it("reads interactive_ready from agent.get", async () => {
+    const { client, server } = await clientFor(() => ({
+      result: { type: "agent_info", agent: { pane_id: "w1:p2", agent_status: "idle", interactive_ready: true } },
+    }));
+
+    await expect(client.getAgent("w1:p2")).resolves.toEqual({ status: "idle", interactiveReady: true });
+    expect(server.requests[0]?.method).toBe("agent.get");
+    expect(server.requests[0]?.params).toMatchObject({ target: "w1:p2" });
+  });
+
+  it("treats a missing interactive_ready as not ready", async () => {
+    const { client } = await clientFor(() => ({
+      result: { type: "agent_info", agent: { pane_id: "w1:p2", agent_status: "unknown" } },
+    }));
+
+    await expect(client.getAgent("w1:p2")).resolves.toEqual({ status: "unknown", interactiveReady: false });
+  });
+
   it("reads a standalone wait that matches the current state", async () => {
     const { client } = await clientFor(() => ({
       result: {

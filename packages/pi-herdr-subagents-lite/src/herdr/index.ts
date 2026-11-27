@@ -12,6 +12,12 @@ export interface PaneState {
   agentStatus: AgentStatus;
 }
 
+/** herdr 的启动就绪状态：interactive_ready 只有在 agent.get 里才会被推进。 */
+export interface AgentState {
+  status: AgentStatus;
+  interactiveReady: boolean;
+}
+
 export interface CreateTabInput {
   cwd: string;
   label: string;
@@ -45,6 +51,7 @@ export interface HerdrClient {
   splitPane(input: SplitPaneInput): Promise<string>;
   removeWorktree(workspaceId: string): Promise<void>;
   startAgent(input: StartAgentInput): Promise<void>;
+  getAgent(target: string): Promise<AgentState>;
   prompt(target: string, text: string): Promise<void>;
   sendKeys(target: string, keys: string[]): Promise<void>;
   waitAgent(target: string, until: AgentStatus[], timeoutMs?: number): Promise<AgentStatus>;
@@ -134,6 +141,17 @@ export function createHerdrClient(endpoint: string): HerdrClient {
         { name, kind: "pi", pane_id: paneId, args, timeout_ms: 60_000 },
         { timeoutMs: MUTATION_MS },
       );
+    },
+
+    async getAgent(target) {
+      // agent.get 是唯一会推进 herdr 启动状态的查询：agent.list 不碰 reconcile。
+      const result = resultOf(await call("agent.get", { target }, { timeoutMs: QUERY_MS }), "agent_info");
+      const holder = nested(result, "agent");
+      const status = holder.agent_status;
+      if (typeof status !== "string") {
+        throw new HerdrError("herdr_protocol", "agent.get: missing agent_status");
+      }
+      return { status: status as AgentStatus, interactiveReady: holder.interactive_ready === true };
     },
 
     async prompt(target, promptText) {

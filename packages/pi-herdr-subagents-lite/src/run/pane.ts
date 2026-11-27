@@ -20,22 +20,50 @@ export async function ensurePane(state: RunState, record: RunRecord): Promise<vo
   await state.client.startAgent({ name: record.id, paneId, args: record.args });
 }
 
-const NOT_READY_BUDGET_MS = 30_000;
-const NOT_READY_PAUSE_MS = 250;
+const READY_BUDGET_MS = 30_000;
+const READY_POLL_MS = 100;
+
+function isStarting(error: unknown): boolean {
+  return error instanceof HerdrError && (error.code === "agent_not_ready" || error.code === "agent_not_found");
+}
+
+/**
+ * 等 herdr 把这个 pane 的 agent 标成 interactive_ready。
+ * 必须用 agent.get 轮询：只有它的 handler 会推进启动状态，agent.list 与 agent.prompt 都不会，
+ * 不轮询的话 agent.start 会一直停在 launch pending，prompt 回 agent_not_ready 直到超时。
+ */
+async function awaitAgentReady(state: RunState, target: string, deadline: number): Promise<void> {
+  for (;;) {
+    try {
+      const agent = await state.client.getAgent(target);
+      if (agent.interactiveReady) {
+        return;
+      }
+    } catch (error) {
+      if (!isStarting(error)) {
+        throw error;
+      }
+    }
+    if (state.now() >= deadline) {
+      throw new HerdrError("agent_not_ready", `agent ${target} was not interactive within ${READY_BUDGET_MS}ms`);
+    }
+    await state.delay(READY_POLL_MS);
+  }
+}
 
 /** 刚起的 agent 要等 herdr 把它认成这个 pane 的具名 agent；在那之前 prompt 回 agent_not_ready。 */
 export async function promptWhenReady(state: RunState, target: string, message: string): Promise<void> {
-  const deadline = state.now() + NOT_READY_BUDGET_MS;
+  const deadline = state.now() + READY_BUDGET_MS;
   for (;;) {
+    await awaitAgentReady(state, target, deadline);
     try {
       await state.client.prompt(target, message);
       return;
     } catch (error) {
-      const starting = error instanceof HerdrError && error.code === "agent_not_ready";
-      if (!starting || state.now() >= deadline) {
+      if (!isStarting(error) || state.now() >= deadline) {
         throw error;
       }
-      await state.delay(NOT_READY_PAUSE_MS);
+      await state.delay(READY_POLL_MS);
     }
   }
 }
