@@ -1,75 +1,43 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, utimesSync } from "node:fs";
+import { readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, expect, it } from "vitest";
-import { pruneRuns } from "../../src/run/prune.ts";
+import { describe, expect, it } from "vitest";
+import { pruneRuns } from "../../src/run/index.ts";
 
 const DAY = 86_400_000;
-const NOW = 1_800_000_000_000;
-const dirs: string[] = [];
 
-afterEach(() => {
-  for (const dir of dirs.splice(0)) {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-function runsDir(): string {
+function runsDirWith(ages: Array<{ name: string; ageMs: number }>): { dir: string; now: number } {
   const dir = mkdtempSync(join(tmpdir(), "pi-herdr-prune-"));
-  dirs.push(dir);
-  return dir;
+  const now = Date.now();
+  for (const entry of ages) {
+    const path = join(dir, entry.name);
+    mkdirSync(path, { recursive: true });
+    const at = (now - entry.ageMs) / 1000;
+    utimesSync(path, at, at);
+  }
+  return { dir, now };
 }
 
-function age(path: string, days: number): void {
-  const time = new Date(NOW - days * DAY);
-  utimesSync(path, time, time);
-}
+describe("pruneRuns", () => {
+  it("removes only runs past the retention window", async () => {
+    const { dir, now } = runsDirWith([
+      { name: "old", ageMs: 10 * DAY },
+      { name: "fresh", ageMs: DAY },
+    ]);
 
-function runFile(dir: string, name: string, ageDays: number): string {
-  const path = join(dir, name);
-  writeFileSync(path, "x");
-  age(path, ageDays);
-  return path;
-}
+    await expect(pruneRuns(dir, 5 * DAY, now)).resolves.toBe(1);
+    await expect(readdir(dir)).resolves.toEqual(["fresh"]);
+  });
 
-function turnsDir(dir: string, name: string, ageDays: number): string {
-  const path = join(dir, name);
-  mkdirSync(path, { recursive: true });
-  runFile(path, "000001.json", ageDays);
-  age(path, ageDays);
-  return path;
-}
+  it("keeps everything when retention is disabled", async () => {
+    const { dir, now } = runsDirWith([{ name: "old", ageMs: 100 * DAY }]);
 
-it("deletes run files older than the retention and keeps the rest", () => {
-  const dir = runsDir();
-  const old = runFile(dir, "worker-1.brief.md", 40);
-  const fresh = runFile(dir, "worker-2.brief.md", 1);
-  const oldTurns = turnsDir(dir, "worker-3.turns", 40);
+    await expect(pruneRuns(dir, 0, now)).resolves.toBe(0);
+    await expect(readdir(dir)).resolves.toEqual(["old"]);
+  });
 
-  pruneRuns(dir, 30 * DAY, NOW, []);
-
-  expect([existsSync(old), existsSync(fresh), existsSync(oldTurns)]).toEqual([false, true, false]);
-});
-
-it("keeps every file of a run that is still known to this session", () => {
-  const dir = runsDir();
-  const brief = runFile(dir, "worker-1.brief.md", 40);
-  const turns = turnsDir(dir, "worker-1.turns", 40);
-
-  pruneRuns(dir, 30 * DAY, NOW, ["worker-1"]);
-
-  expect([existsSync(brief), existsSync(turns)]).toEqual([true, true]);
-});
-
-it("deletes nothing when the retention is zero", () => {
-  const dir = runsDir();
-  const old = runFile(dir, "worker-1.brief.md", 400);
-
-  pruneRuns(dir, 0, NOW, []);
-
-  expect(existsSync(old)).toBe(true);
-});
-
-it("survives a runs directory that does not exist", () => {
-  expect(() => pruneRuns(join(tmpdir(), "pi-herdr-prune-missing"), DAY, NOW, [])).not.toThrow();
+  it("ignores a missing runs directory", async () => {
+    await expect(pruneRuns(join(tmpdir(), "pi-herdr-absent-dir"), DAY, Date.now())).resolves.toBe(0);
+  });
 });

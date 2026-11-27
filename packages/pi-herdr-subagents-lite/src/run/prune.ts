@@ -1,29 +1,24 @@
-import { readdirSync, rmSync, statSync } from "node:fs";
+import { readdir, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 
-// 按修改时间清理 run 附属文件。maxAgeMs <= 0 表示不清理；keep 是本次会话在跑的 run 基名。
-export function pruneRuns(dir: string, maxAgeMs: number, now: number, keep: readonly string[]): void {
-  if (maxAgeMs <= 0) {
-    return;
+/** 会话启动时清掉过期的 run 目录；retentionMs 为 0 表示永不清理。 */
+export async function pruneRuns(runsDir: string, retentionMs: number, now: number): Promise<number> {
+  if (retentionMs <= 0) {
+    return 0;
   }
-  let entries: string[];
-  try {
-    entries = readdirSync(dir);
-  } catch {
-    return;
-  }
-  const cutoff = now - maxAgeMs;
-  for (const name of entries) {
-    if (keep.some((base) => name.startsWith(base))) {
+  const entries = await readdir(runsDir, { withFileTypes: true }).catch(() => []);
+  let removed = 0;
+  for (const entry of entries) {
+    if (!entry.isDirectory()) {
       continue;
     }
-    try {
-      const path = join(dir, name);
-      if (statSync(path).mtimeMs < cutoff) {
-        rmSync(path, { recursive: true, force: true });
-      }
-    } catch {
-      // 清理失败不影响主流程。
+    const path = join(runsDir, entry.name);
+    const info = await stat(path).catch(() => undefined);
+    if (info === undefined || now - info.mtimeMs <= retentionMs) {
+      continue;
     }
+    await rm(path, { recursive: true, force: true }).catch(() => undefined);
+    removed += 1;
   }
+  return removed;
 }

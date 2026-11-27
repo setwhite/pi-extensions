@@ -1,100 +1,114 @@
-import { errorText } from "../error/index.ts";
-import { createAggregator } from "./aggregate.ts";
-import { type CloseChildrenResult, closeRuns } from "./close.ts";
-import { createNamer } from "./naming.ts";
-import type { ResultHandler, RunResult } from "./result.ts";
-import { type SendResult, send } from "./send.ts";
-import { type RunStarted, start } from "./start.ts";
-import type { RunRecord, RunServiceDeps, RunState } from "./state.ts";
-import { startWatch, stopWatch } from "./watch.ts";
+import { flushBatch } from "./batch.ts";
+import type { Envelope } from "./result.ts";
+import type { RunStatus } from "./rules.ts";
+import { type Spawned, spawn } from "./spawn.ts";
+import type { EnvelopeHandler, RunRecord, RunState } from "./state.ts";
+import { type SteerResult, steer } from "./steer.ts";
+import { type CloseChildrenResult, closeChildren, stop } from "./stop.ts";
 
-export interface RunService {
-  run(profile: string, task: string, cwd?: string, signal?: AbortSignal): Promise<RunStarted>;
-  send(name: string, message: string, signal?: AbortSignal): Promise<SendResult>;
-  onResult(handler: ResultHandler): void;
-  shutdown(): void;
-  closeChildren(): Promise<CloseChildrenResult>;
-  active(): string[];
+export interface RunView {
+  id: string;
+  status: RunStatus;
+  sessionFile: string;
+  runDir: string;
+  cwd: string;
+  paneId?: string;
+  worktree?: string;
 }
 
-function takeRuns(state: RunState): RunRecord[] {
-  const runs = [...state.runs];
-  for (const run of runs) {
-    state.release(run);
+export interface RunServiceDeps {
+  client: RunState["client"];
+  runsDir: string;
+  maxConcurrent: number;
+  summaryMaxChars: number;
+  aggregateWindowMs: number;
+  interruptGraceMs: number;
+  /** 子代理 settle 后仍未写 result.json 的容忍窗口；只有测试会调小。 */
+  emptyResultGraceMs?: number;
+  onProblem: (message: string) => void;
+}
+
+export interface RunService {
+  spawn(input: Parameters<typeof spawn>[1]): Promise<Spawned>;
+  steer(id: string, message: string): Promise<SteerResult>;
+  stop(id: string): Promise<SteerResult>;
+  inspect(id?: string): RunView[];
+  onBatch(handler: EnvelopeHandler): void;
+  shutdown(): void;
+  closeChildren(): Promise<CloseChildrenResult>;
+}
+
+function viewOf(record: RunRecord): RunView {
+  const view: RunView = {
+    id: record.id,
+    status: record.status,
+    sessionFile: record.sessionFile,
+    runDir: record.runDir,
+    cwd: record.cwd,
+  };
+  if (record.paneId !== undefined) {
+    view.paneId = record.paneId;
   }
-  return runs;
+  if (record.worktree !== undefined) {
+    view.worktree = record.worktree.path;
+  }
+  return view;
 }
 
 export function createRunService(deps: RunServiceDeps): RunService {
   const state: RunState = {
     ...deps,
-    runs: [],
-    pending: new Set(),
+    emptyResultGraceMs: deps.emptyResultGraceMs ?? 30_000,
+    runs: new Map<string, RunRecord>(),
+    watchers: new Set<Promise<void>>(),
     stopped: false,
-    resultHandler: undefined,
-    results: undefined,
-    scanning: false,
-    scanAgain: false,
-    checkingLiveness: false,
-    now: deps.now ?? Date.now,
-    delay:
-      deps.delay ??
-      ((ms) =>
-        new Promise<void>((resolve) => {
-          const timer = setTimeout(resolve, ms);
-          timer.unref?.();
-        })),
-    nextName: createNamer(),
-    active() {
-      return state.runs.filter((run) => run.phase === "starting" || run.phase === "running").map((run) => run.name);
-    },
-    available() {
-      return state.runs.map((run) => run.name);
-    },
-    release(run) {
-      run.phase = "closed";
-      const index = state.runs.indexOf(run);
-      if (index >= 0) {
-        state.runs.splice(index, 1);
-      }
-    },
+    onBatch: undefined,
+    pending: [] as Envelope[],
+    batchTimer: undefined,
+    now: Date.now,
+    delay: (ms: number) =>
+      new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, ms);
+        timer.unref?.();
+      }),
   };
-  state.results = createAggregator<RunResult>({
-    windowMs: deps.aggregateWindowMs,
-    deliver: (batch) => state.resultHandler?.(batch),
-    onError: (error) => state.onProblem(errorText(error)),
-  });
-  startWatch(state);
 
   return {
-    run: (profile, task, cwd, signal) => start(state, profile, task, cwd, signal),
-    send: (name, message, signal) => send(state, name, message, signal),
-    onResult(handler) {
-      state.resultHandler = handler;
+    spawn: (input) => spawn(state, input),
+    steer: (id, message) => steer(state, id, message),
+    stop: (id) => stop(state, id),
+    inspect(id) {
+      if (id === undefined) {
+        return [...state.runs.values()].map(viewOf);
+      }
+      const record = state.runs.get(id);
+      if (record === undefined) {
+        return [];
+      }
+      return [viewOf(record)];
+    },
+    onBatch(handler) {
+      state.onBatch = handler;
     },
     shutdown() {
       state.stopped = true;
-      stopWatch(state);
-      state.results?.stop();
-      takeRuns(state);
+      flushBatch(state);
+      state.onBatch = undefined;
     },
-    async closeChildren() {
+    closeChildren() {
       state.stopped = true;
-      stopWatch(state);
-      state.results?.stop();
-      await Promise.allSettled([...state.pending]);
-      const runs = takeRuns(state);
-      return closeRuns(state, runs);
+      flushBatch(state);
+      return closeChildren(state);
     },
-    active: () => state.active(),
   };
 }
 
-export type { CloseChildrenResult } from "./close.ts";
-export { ToolError } from "./errors.ts";
-export { childSessionsDir, runBaseOf, runsDir } from "./paths.ts";
-export { profileLabel } from "./resolve.ts";
-export type { ResultHandler, RunResult } from "./result.ts";
-export type { SendResult } from "./send.ts";
-export type { RunStarted } from "./start.ts";
-export type { RunServiceDeps };
+export { clearChildQuestions, writeChildResult } from "./child-result.ts";
+export { errorText, ToolError } from "./errors.ts";
+export { pruneRuns } from "./prune.ts";
+export type { Envelope } from "./result.ts";
+export { readChildResult } from "./result.ts";
+export type { RunStatus } from "./rules.ts";
+export type { Spawned, SpawnInput } from "./spawn.ts";
+export type { ChildQuestion, EnvelopeHandler } from "./state.ts";
+export type { SteerResult } from "./steer.ts";

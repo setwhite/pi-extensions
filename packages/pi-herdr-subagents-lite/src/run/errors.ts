@@ -1,5 +1,4 @@
-import { errorText } from "../error/index.ts";
-import { HerdrHostError } from "../herdr/index.ts";
+import { HerdrError } from "../herdr/index.ts";
 
 export class ToolError extends Error {
   readonly code: string;
@@ -11,24 +10,10 @@ export class ToolError extends Error {
   }
 }
 
-export function cancelled(): ToolError {
-  return new ToolError("spawn_failed", "the run was cancelled before it was ready");
-}
-
-// 会话在关，或者调用方中止了这一轮：两条路都走 cancelled()。
-export function shouldCancel(state: { stopped: boolean }, signal: AbortSignal | undefined): boolean {
-  return state.stopped || signal?.aborted === true;
-}
-
-export function spawnFailed(error: unknown, paneId: string | undefined, created = true): ToolError {
-  const detail = errorText(error);
-  const createdNote = created && paneId ? `. A pane was created: ${paneId}.` : "";
-  const started = error instanceof HerdrHostError && error.code === "agent_not_ready";
-  const stalled = error instanceof HerdrHostError && error.code === "timeout";
-  const trust = started
-    ? " It is probably waiting for a trust dialog. Answer the dialog, then retry."
-    : stalled
-      ? " The pane never became idle. Check the tab for a dialog, then retry."
-      : "";
-  return new ToolError("spawn_failed", `${detail}${createdNote}${trust}`);
+/** 传输层错误带 herdr 错误码：父代理看到 `agent_not_found: ...` 才知道是 pane 没了。 */
+export function errorText(error: unknown): string {
+  if (error instanceof HerdrError) {
+    return `${error.code}: ${error.message}`;
+  }
+  return error instanceof Error ? error.message : String(error);
 }

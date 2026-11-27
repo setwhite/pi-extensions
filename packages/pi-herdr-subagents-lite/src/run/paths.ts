@@ -1,35 +1,30 @@
-import { basename, dirname, join, relative } from "node:path";
-import { dataDir } from "../config/index.ts";
-import { agentDir } from "../profile/index.ts";
+import { mkdir } from "node:fs/promises";
+import { join } from "node:path";
 
-export function samePath(left: string, right: string): boolean {
-  return relative(left, right) === "";
+export function runDirOf(runsDir: string, id: string): string {
+  return join(runsDir, id);
 }
 
-export function runsDir(): string {
-  return join(dataDir(agentDir()), "runs");
+export function sessionFileOf(runDir: string): string {
+  return join(runDir, "session.jsonl");
 }
 
-// run 的附属文件共用一个前缀：brief、identity、inbox、turn 事件、结果 artifact。
-export function runBaseOf(sessionFile: string): string {
-  return join(runsDir(), basename(sessionFile, ".jsonl"));
+export function resultPath(runDir: string): string {
+  return join(runDir, "result.json");
 }
 
-export interface RunFiles {
-  sessionFile: string;
-  runBase: string;
-  briefFile: string;
-  identityFile: string;
+export function questionsPath(runDir: string): string {
+  return join(runDir, "questions.json");
 }
 
-export function runFiles(sessionsDir: string, name: string, runId: string): RunFiles {
-  const sessionFile = join(sessionsDir, `${name}-${runId}.jsonl`);
-  const runBase = runBaseOf(sessionFile);
-  return { sessionFile, runBase, briefFile: `${runBase}.brief.md`, identityFile: `${runBase}.identity.md` };
+export function outputPath(runDir: string): string {
+  return join(runDir, "output.md");
 }
 
-// 子会话进父会话所在的桶，与父会话同为 sessions 下的目录。
-export function childSessionsDir(parentSessionFile: string | undefined): string {
-  const sessionsDir = parentSessionFile === undefined ? join(agentDir(), "sessions") : dirname(parentSessionFile);
-  return join(sessionsDir, "runs");
+export function absentPath(runDir: string, id: string): string {
+  return join(runDir, `absent-${id}.txt`);
+}
+
+export async function ensureRunDir(runDir: string): Promise<void> {
+  await mkdir(runDir, { recursive: true });
 }

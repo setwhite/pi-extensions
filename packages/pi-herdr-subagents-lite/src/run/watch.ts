@@ -1,113 +1,87 @@
-import { mkdirSync } from "node:fs";
-import { basename } from "node:path";
-import { errorText } from "../error/index.ts";
-import { listTurns, readTurn, turnsDir } from "../turn/index.ts";
-import { findAgent } from "./find.ts";
-import { runsDir } from "./paths.ts";
-import { pruneRuns } from "./prune.ts";
-import { settleLost, settleTurn } from "./settle.ts";
+import { errorText } from "./errors.ts";
+import { submitPending } from "./interrupt.ts";
+import { readChildResult } from "./result.ts";
+import { isActive } from "./rules.ts";
+import { blockedRun, failRun, settleRun } from "./settle.ts";
 import type { RunRecord, RunState } from "./state.ts";
 
-// 500ms 一次 readdir：没有进程启动，也没有 fs.watch 在 Windows 上的断言崩溃。
-const SCAN_MS = 500;
-const LOST_CHECKS = 3;
+const SETTLED: ["idle", "done", "blocked"] = ["idle", "done", "blocked"];
 
-export function startWatch(state: RunState): void {
-  const runs = runsDir();
-  mkdirSync(runs, { recursive: true });
-  pruneRuns(
-    runs,
-    state.runRetentionMs,
-    state.now(),
-    state.runs.map((run) => basename(run.runBase)),
-  );
-  state.scanTimer = setInterval(() => void scan(state).catch((error) => state.onProblem(errorText(error))), SCAN_MS);
-  state.scanTimer.unref?.();
-  state.livenessTimer = setInterval(
-    () => void checkLiveness(state).catch((error) => state.onProblem(errorText(error))),
-    state.livenessPollMs,
-  );
-  state.livenessTimer.unref?.();
+function interrupted(record: RunRecord): boolean {
+  return record.status === "interrupting";
+}
+const EMPTY_RESULT_RETRY_MS = 300;
+
+/** 一个 run 同时只跑一个 watcher：长等 agent 状态，落地结论。 */
+export function watch(state: RunState, record: RunRecord): void {
+  const task = loop(state, record);
+  state.watchers.add(task);
+  const done = () => state.watchers.delete(task);
+  task.then(done, done);
 }
 
-export function stopWatch(state: RunState): void {
-  if (state.scanTimer !== undefined) {
-    clearInterval(state.scanTimer);
-    state.scanTimer = undefined;
-  }
-  if (state.livenessTimer !== undefined) {
-    clearInterval(state.livenessTimer);
-    state.livenessTimer = undefined;
-  }
-}
-
-export function watchRun(_state: RunState, run: RunRecord): void {
-  mkdirSync(turnsDir(run.runBase), { recursive: true });
-}
-
-async function scan(state: RunState): Promise<void> {
-  if (state.scanning) {
-    state.scanAgain = true;
-    return;
-  }
-  state.scanning = true;
-  try {
-    for (const run of [...state.runs]) {
-      if (run.phase === "closed") {
-        continue;
-      }
-      for (const file of listTurns(run.runBase)) {
-        const turn = readTurn(file);
-        if (turn === null) {
-          continue;
-        }
-        await settleTurn(state, run, file, turn);
-      }
-    }
-  } finally {
-    state.scanning = false;
-    if (state.scanAgain) {
-      state.scanAgain = false;
-      await scan(state);
-    }
-  }
-}
-
-async function checkLiveness(state: RunState): Promise<void> {
-  // listAgents 慢于轮询间隔时不能叠加：叠加会把 absentChecks 多记一遍，三次就误判 lost。
-  if (state.checkingLiveness) {
-    return;
-  }
-  const running = state.runs.filter((run) => run.phase === "running");
-  if (running.length === 0) {
-    return;
-  }
-  state.checkingLiveness = true;
-  try {
-    let agents: Awaited<ReturnType<RunState["host"]["listAgents"]>>;
-    try {
-      agents = await state.host.listAgents();
-    } catch {
+async function loop(state: RunState, record: RunRecord): Promise<void> {
+  let emptySince: number | undefined;
+  while (isActive(record.status) && !state.stopped) {
+    const generation = record.generation;
+    const target = record.paneId;
+    if (target === undefined) {
       return;
     }
-    for (const run of running) {
-      if (run.phase !== "running") {
+    if (record.status === "interrupting") {
+      try {
+        await state.client.waitAgent(target, SETTLED);
+      } catch (error) {
+        if (record.generation === generation && isActive(record.status)) {
+          await failRun(state, record, errorText(error));
+        }
         continue;
       }
-      if (findAgent(agents, run)) {
-        run.absentChecks = 0;
+      if (record.generation !== generation || !interrupted(record)) {
         continue;
       }
-      if (run.pane === undefined || !(await state.host.hasPane(run.pane.paneId))) {
-        await settleLost(state, run);
-        continue;
-      }
-      run.absentChecks += 1;
-      if (run.absentChecks >= LOST_CHECKS) {
-        await settleLost(state, run);
-      }
+      await submitPending(state, record);
+      continue;
     }
-  } finally {
-    state.checkingLiveness = false;
+
+    let status: string;
+    try {
+      status = await state.client.waitAgent(target, SETTLED);
+    } catch (error) {
+      if (record.generation !== generation || !isActive(record.status)) {
+        continue;
+      }
+      await failRun(state, record, `pane or agent went away: ${errorText(error)}`);
+      return;
+    }
+    if (record.generation !== generation || !isActive(record.status)) {
+      continue;
+    }
+    if (interrupted(record)) {
+      // esc 生效后 idle 落在普通分支：直接转身投递排队消息。
+      await submitPending(state, record);
+      continue;
+    }
+    if (status === "blocked") {
+      blockedRun(state, record);
+      return;
+    }
+
+    const result = await readChildResult(record.runDir);
+    if (result === undefined || result.seq <= record.seq) {
+      // prompt 刚发出时 agent 可能还是 idle：这属于旧状态，不算「没写结果」。给它一段窗口。
+      const now = state.now();
+      emptySince ??= now;
+      if (now - emptySince > state.emptyResultGraceMs) {
+        await failRun(state, record, "the child settled without writing result.json");
+        return;
+      }
+      await state.delay(EMPTY_RESULT_RETRY_MS);
+      continue;
+    }
+    emptySince = undefined;
+    record.seq = result.seq;
+    await settleRun(state, record, result.state === "needs_input" ? "needs_input" : "done", result);
+    return;
   }
 }

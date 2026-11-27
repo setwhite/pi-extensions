@@ -1,24 +1,22 @@
 import type { Config } from "../config/index.ts";
-import type { Profile } from "../profile/index.ts";
-import { profileLabel } from "../run/index.ts";
 
 const DEFAULT_DESCRIPTION =
-  "Use run when a task is self-contained and long-running. Use send to pass information to a subagent.";
-const DEFAULT_SNIPPET = "";
+  "Run work in a background subagent pane. spawn starts one; steer talks to it; inspect reports state; stop ends it.";
+const DEFAULT_SNIPPET = "spawn|steer|inspect|stop a background subagent";
+
 const DEFAULT_GUIDELINES = [
-  "run only starts; it does not wait. The result arrives later as a message.",
-  "send only delivers; no state tracking.",
-  "Available profiles:\n{{profiles}}",
+  "spawn returns immediately; the result arrives later as a message.",
+  "Split only at hard ceilings: tool batching goes to codemode, tight reasoning stays here.",
+  "Give each child one domain context. Never nest: children cannot spawn children.",
+  "Use worktree: true when a child may write to the same repository.",
+  "steer on a running child interrupts its current turn; the reply is applied next.",
+  "inspect answers progress questions; no state is injected into context.",
 ];
 
-export function toolText(config: Config, profiles: Profile[]) {
-  const visible = profiles.filter((profile) => !profile.disableModelInvocation);
-  const profileLines = visible.length === 0 ? "none" : visible.map(profileLabel).join("\n");
+export function toolText(config: Config) {
   return {
-    description: config.prompts.description ?? DEFAULT_DESCRIPTION,
-    promptSnippet: config.prompts.snippet ?? DEFAULT_SNIPPET,
-    promptGuidelines: (config.prompts.guidelines ?? DEFAULT_GUIDELINES).map(
-      (line) => `${config.toolName}: ${line.replaceAll("{{profiles}}", profileLines)}`,
-    ),
+    description: DEFAULT_DESCRIPTION,
+    promptSnippet: DEFAULT_SNIPPET,
+    promptGuidelines: DEFAULT_GUIDELINES.map((line) => `${config.toolName}: ${line}`),
   };
 }

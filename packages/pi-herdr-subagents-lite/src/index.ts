@@ -1,17 +1,22 @@
 import type { ExtensionFactory } from "@earendil-works/pi-coding-agent";
-import { loadConfig } from "./config/index.ts";
+import { agentDir, loadConfig, runsDir } from "./config/index.ts";
 import { createExtension } from "./extension/index.ts";
-import { createHerdrHost } from "./herdr/index.ts";
-import { agentDir, globalProfilesDir, loadProfiles, seedExampleProfile } from "./profile/index.ts";
-import { readSessionTail } from "./session-file/index.ts";
+import { createHerdrClient, socketEndpoint } from "./herdr/index.ts";
 
-seedExampleProfile(globalProfilesDir());
+function socketPath(): string {
+  const value = process.env.HERDR_SOCKET_PATH;
+  if (value === undefined || value === "") {
+    throw new Error("HERDR_SOCKET_PATH is not set; run pi inside a herdr pane");
+  }
+  return value;
+}
 
 const extension: ExtensionFactory = createExtension({
-  createHost: (config) => createHerdrHost(config.herdrBin),
-  readSessionTail,
   loadConfig: () => loadConfig(agentDir()),
-  loadProfiles,
+  createClient: () => createHerdrClient(socketEndpoint(socketPath())),
+  runsDir: () => runsDir(agentDir()),
+  depth: Number.parseInt(process.env.PI_SUBAGENT_DEPTH ?? "0", 10) || 0,
+  runDir: process.env.PI_SUBAGENT_RUN_DIR,
 });
 
 export default extension;

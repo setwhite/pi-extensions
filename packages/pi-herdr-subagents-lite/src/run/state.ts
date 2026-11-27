@@ -1,68 +1,80 @@
-import type { HerdrHost } from "../herdr/index.ts";
-import type { ProfileCatalog } from "../profile/index.ts";
-import type { SessionTailReader } from "../session-file/index.ts";
-import type { Aggregator } from "./aggregate.ts";
-import type { ResultHandler, RunResult } from "./result.ts";
+import type { HerdrClient } from "../herdr/index.ts";
+import type { Envelope } from "./result.ts";
+import { occupiesSlot, type RunStatus } from "./rules.ts";
 
-// starting = 已占槽，pane 或 agent 还没就绪。存活对账不看它。
-export type RunPhase = "starting" | "running" | "idle" | "dead" | "closed";
-
-export interface RunServiceDeps {
-  host: HerdrHost;
-  sessionsDir: string;
-  readSessionTail: SessionTailReader;
-  loadProfiles: () => ProfileCatalog;
-  trusted: boolean;
-  toolName: string;
-  maxConcurrent: number;
-  maxResultChars: number;
-  aggregateWindowMs: number;
-  livenessPollMs: number;
-  runRetentionMs: number;
-  closeOnFailure: boolean;
-  onProblem: (message: string) => void;
-  now?: () => number;
-  delay?: (ms: number) => Promise<void>;
+export interface ChildQuestion {
+  question: string;
+  context?: string;
+  options?: string[];
 }
 
-export interface RunPane {
-  tabId: string;
-  paneId: string;
+export interface RunWorktree {
+  workspaceId: string;
+  path: string;
 }
 
 export interface RunRecord {
-  name: string;
-  profileName: string;
-  pane: RunPane | undefined;
-  paneLabel: string;
+  id: string;
+  status: RunStatus;
+  paneId: string | undefined;
   sessionFile: string;
-  // brief、identity、inbox、turn 事件、结果 artifact 共用的前缀。
-  runBase: string;
+  runDir: string;
   cwd: string;
-  autoExit: boolean;
-  lastTurn: number;
-  artifactSeq: number;
-  phase: RunPhase;
-  absentChecks: number;
-  paneClosed: boolean;
-  deliveryFailures: number;
+  /** 重开 pane 时复用同一套 pi 启动参数。 */
+  args: string[];
+  worktree: RunWorktree | undefined;
+  /** 已消费的 result.json 序号，防读到上一回合的数据。 */
+  seq: number;
+  pendingSteer: string | undefined;
+  graceTimer: ReturnType<typeof setTimeout> | undefined;
+  /** 每次重开 pane 或重新提问都加一，旧的长等结果据此作废。 */
+  generation: number;
 }
 
-export interface RunState extends RunServiceDeps {
-  runs: RunRecord[];
-  pending: Set<Promise<unknown>>;
-  stopped: boolean;
-  resultHandler: ResultHandler | undefined;
-  results: Aggregator<RunResult> | undefined;
-  scanTimer?: ReturnType<typeof setInterval>;
-  livenessTimer?: ReturnType<typeof setInterval>;
-  scanning: boolean;
-  scanAgain: boolean;
-  checkingLiveness: boolean;
+export type EnvelopeHandler = (envelopes: Envelope[]) => void;
+
+export interface RunDeps {
+  client: HerdrClient;
+  runsDir: string;
+  maxConcurrent: number;
+  summaryMaxChars: number;
+  aggregateWindowMs: number;
+  emptyResultGraceMs: number;
+  interruptGraceMs: number;
+  onProblem: (message: string) => void;
   now: () => number;
   delay: (ms: number) => Promise<void>;
-  nextName(profile: string): string;
-  active(): string[];
-  available(): string[];
-  release(run: RunRecord): void;
+}
+
+export interface RunState extends RunDeps {
+  runs: Map<string, RunRecord>;
+  watchers: Set<Promise<void>>;
+  stopped: boolean;
+  onBatch: EnvelopeHandler | undefined;
+  pending: Envelope[];
+  batchTimer: ReturnType<typeof setTimeout> | undefined;
+}
+
+export function slottedCount(runs: Iterable<RunRecord>): number {
+  let count = 0;
+  for (const record of runs) {
+    if (occupiesSlot(record.status)) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+export function targetOf(record: RunRecord): string {
+  if (record.paneId === undefined) {
+    throw new Error(`${record.id}: no pane`);
+  }
+  return record.paneId;
+}
+
+export function clearGrace(record: RunRecord): void {
+  if (record.graceTimer !== undefined) {
+    clearTimeout(record.graceTimer);
+    record.graceTimer = undefined;
+  }
 }

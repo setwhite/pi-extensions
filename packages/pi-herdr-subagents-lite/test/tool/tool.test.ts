@@ -1,139 +1,88 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { readFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { expect, it, vi } from "vitest";
-import { writeConfig } from "../support/env.ts";
-import { fakeHost } from "../support/host.ts";
-import { briefOf, inboxOf } from "../support/paths.ts";
-import { fakePi } from "../support/pi.ts";
-import { sessionsRoot, writeProfile } from "../support/profiles.ts";
-import { startRun } from "../support/run.ts";
-import { loadTool, registerExtension } from "../support/session.ts";
-import "../support/hooks.ts";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { RunService } from "../../src/run/index.ts";
+import { ToolError } from "../../src/run/index.ts";
+import { createSubagentTool } from "../../src/tool/index.ts";
+import { testConfig } from "../support/config.ts";
 
-it("accepts run and send", () => {
-  const tool = loadTool(fakeHost().host);
-
-  expect(tool.name).toBe("subagent");
-  expect(tool.label).toBe("Subagent");
-
-  const schema = tool.parameters as unknown as {
-    type: string;
-    oneOf: Array<{
-      type: string;
-      properties: Record<string, Record<string, unknown>>;
-      required: string[];
-      additionalProperties: boolean;
-    }>;
+function stubService(overrides: Partial<RunService> = {}) {
+  const base: RunService = {
+    spawn: async () => ({ id: "alpha", status: "running", paneId: "w1:p1", sessionFile: "/s" }),
+    steer: async (id) => ({ id, status: "running" }),
+    stop: async (id) => ({ id, status: "cancelled" }),
+    inspect: () => [],
+    onBatch: () => undefined,
+    shutdown: () => undefined,
+    closeChildren: async () => ({ failed: [] }),
   };
-  expect(schema.type).toBe("object");
-  expect(schema.oneOf).toHaveLength(2);
+  const service = { ...base, ...overrides };
+  return () => service;
+}
 
-  const [run, send] = schema.oneOf;
-  expect(run?.type).toBe("object");
-  expect(run?.properties.action).toMatchObject({ const: "run" });
-  expect(run?.properties.task).toMatchObject({ type: "string", minLength: 1 });
-  expect(run?.required).toEqual(["action", "profile", "task"]);
-  expect(run?.additionalProperties).toBe(false);
+const tool = (service: () => RunService) =>
+  createSubagentTool({ config: testConfig(), service }) as unknown as {
+    execute(id: string, params: unknown): Promise<{ content: Array<{ text: string }>; isError: boolean }>;
+  };
 
-  expect(send?.type).toBe("object");
-  expect(send?.properties.action).toMatchObject({ const: "send" });
-  expect(send?.properties.name).toMatchObject({ type: "string", pattern: "^[a-z][a-z0-9_-]{0,31}$" });
-  expect(send?.properties.message).toMatchObject({ type: "string", minLength: 1 });
-  expect(send?.required).toEqual(["action", "name", "message"]);
-  expect(send?.additionalProperties).toBe(false);
-});
-
-it("reports config errors without registering", () => {
-  writeConfig({ nope: 1 });
-  const { pi, tools } = fakePi();
-
-  expect(() => registerExtension(pi, fakeHost().host)).toThrow(/nope/);
-  expect(tools).toHaveLength(0);
-});
-
-it("resolves the agent dir for config", () => {
-  const home = mkdtempSync(join(tmpdir(), "pi-herdr-home-"));
-  const configDir = join(home, "agent", "pi-herdr-subagents-lite");
-  mkdirSync(configDir, { recursive: true });
-  writeFileSync(join(configDir, "config.json"), JSON.stringify({ toolName: "tilde_tool" }));
-  vi.stubEnv("HOME", home);
-  vi.stubEnv("USERPROFILE", home);
-  vi.stubEnv("PI_CODING_AGENT_DIR", "~/agent");
-  try {
-    expect(loadTool(fakeHost().host).name).toBe("tilde_tool");
-  } finally {
-    vi.unstubAllEnvs();
-    rmSync(home, { recursive: true, force: true });
-  }
-});
-
-it("rejects outside herdr", async () => {
-  const { calls, host } = fakeHost();
-  const tool = loadTool(host);
-
-  const result = await tool.execute(
-    "call-1",
-    { action: "run", profile: "worker", task: "inspect the repo" },
-    undefined,
-    undefined,
-    {} as never,
-  );
-
-  expect(result.isError).toBe(true);
-  expect(result.content).toEqual([
-    {
-      type: "text",
-      text: "not_in_herdr: run pi inside a herdr pane; there is no fallback.",
-    },
-  ]);
-  expect(calls).toEqual([]);
-});
-
-it("keeps the default prompt short", () => {
-  const tool = loadTool(fakeHost().host);
-
-  expect(tool.description).toBe(
-    "Use run when a task is self-contained and long-running. Use send to pass information to a subagent.",
-  );
-  expect(tool.promptSnippet).toBe("");
-  expect(tool.promptGuidelines).toEqual([
-    "subagent: run only starts; it does not wait. The result arrives later as a message.",
-    "subagent: send only delivers; no state tracking.",
-    expect.stringMatching(/^subagent: Available profiles:\n/),
-  ]);
-});
-
-it("launches a worker", async () => {
+beforeEach(() => {
   process.env.HERDR_ENV = "1";
-  const fake = fakeHost();
-  const { agent, started } = await startRun(fake);
-
-  expect(started).toMatchObject({ state: "running", name: "worker-1", paneId: "w1:p1" });
-  expect(fake.tabs).toEqual([{ cwd: process.cwd(), label: "worker-1" }]);
-  expect(agent).toMatchObject({ name: "worker-1", paneId: started.paneId, sessionFile: started.sessionFile });
-  const brief = await readFile(briefOf(started.sessionFile), "utf8");
-  expect(brief).toBe("# Task\ninspect the repo\n");
 });
 
-it("writes the child session under the agent dir", async () => {
-  process.env.HERDR_ENV = "1";
-  writeProfile("explore.md", "---\ndescription: Explore the repo\n---\n\nExplore body.\n");
-  const { agent, started } = await startRun(fakeHost(), { profile: "explore" });
-
-  expect(started.sessionFile).toBe(agent.sessionFile);
-  expect(started.sessionFile.startsWith(join(sessionsRoot(), "explore-1-"))).toBe(true);
-  expect(started.sessionFile.endsWith(".jsonl")).toBe(true);
-  expect(existsSync(sessionsRoot())).toBe(true);
+afterEach(() => {
+  delete process.env.HERDR_ENV;
+  vi.restoreAllMocks();
 });
 
-it("creates the child inbox before start", async () => {
-  process.env.HERDR_ENV = "1";
-  const fake = fakeHost();
+describe("subagent tool", () => {
+  it("returns the spawn envelope as JSON", async () => {
+    const result = await tool(stubService()).execute("call", { action: "spawn", id: "alpha", objective: "go" });
 
-  const { started } = await startRun(fake);
+    expect(result.isError).toBe(false);
+    expect(JSON.parse(result.content[0]?.text ?? "")).toEqual({
+      id: "alpha",
+      status: "running",
+      paneId: "w1:p1",
+      sessionFile: "/s",
+    });
+  });
 
-  expect(existsSync(inboxOf(started.sessionFile))).toBe(true);
-  expect(fake.inboxAtStart).toEqual([0]);
+  it("forwards steer and stop arguments", async () => {
+    const steer = vi.fn(async (id: string) => ({ id, status: "running" as const }));
+    const stopped = vi.fn(async (id: string) => ({ id, status: "cancelled" as const }));
+    const service = stubService({ steer, stop: stopped });
+
+    await tool(service).execute("call", { action: "steer", id: "alpha", message: "left" });
+    await tool(service).execute("call", { action: "stop", id: "alpha" });
+
+    expect(steer).toHaveBeenCalledWith("alpha", "left");
+    expect(stopped).toHaveBeenCalledWith("alpha");
+  });
+
+  it("passes the inspect id through", async () => {
+    const inspect = vi.fn(() => []);
+    await tool(stubService({ inspect })).execute("call", { action: "inspect", id: "alpha" });
+
+    expect(inspect).toHaveBeenCalledWith("alpha");
+  });
+
+  it("turns a tool error into a failure result", async () => {
+    const service = stubService({
+      spawn: async () => {
+        throw new ToolError("duplicate_id", 'a run named "alpha" already exists in this session');
+      },
+    });
+
+    const result = await tool(service).execute("call", { action: "spawn", id: "alpha", objective: "go" });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]?.text).toBe('duplicate_id: a run named "alpha" already exists in this session');
+  });
+
+  it("refuses to work outside herdr", async () => {
+    delete process.env.HERDR_ENV;
+
+    const result = await tool(stubService()).execute("call", { action: "inspect" });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]?.text).toContain("not_in_herdr");
+  });
 });

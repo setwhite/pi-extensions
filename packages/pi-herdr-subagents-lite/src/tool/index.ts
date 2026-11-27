@@ -1,51 +1,62 @@
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { Config } from "../config/index.ts";
-import type { Profile } from "../profile/index.ts";
-import { type RunService, type RunStarted, type SendResult, ToolError } from "../run/index.ts";
-import { notInHerdr, toolFailed } from "./errors.ts";
+import { type RunService, ToolError } from "../run/index.ts";
 import { parameters, type SubagentParameters } from "./schema.ts";
 import { toolText } from "./text.ts";
 
 export type SubagentTool = ToolDefinition<typeof parameters>;
+export type { RequestInputParameters, RequestInputTool } from "./input.ts";
+export { createRequestInputTool, inputParameters, REQUEST_INPUT_TOOL } from "./input.ts";
 
-interface ToolDeps {
-  config: Config;
-  profiles: Profile[];
-  service: () => RunService;
-}
-
-// content 进模型上下文，只放模型能用的字段。details 只给 UI 和 session 条目。
-function envelope(result: RunStarted | SendResult) {
+function ok(payload: unknown) {
   return {
-    content: [{ type: "text" as const, text: JSON.stringify({ state: result.state, name: result.name }) }],
-    details: result,
+    content: [{ type: "text" as const, text: JSON.stringify(payload) }],
+    details: payload,
     isError: false,
   };
 }
 
-export function createTool({ config, profiles, service }: ToolDeps) {
+function failed(code: string, message: string) {
+  return {
+    content: [{ type: "text" as const, text: `${code}: ${message}` }],
+    details: { code },
+    isError: true,
+  };
+}
+
+export interface SubagentToolDeps {
+  config: Config;
+  service: () => RunService;
+}
+
+export function createSubagentTool({ config, service }: SubagentToolDeps) {
   return {
     name: config.toolName,
     label: "Subagent",
-    ...toolText(config, profiles),
+    ...toolText(config),
     parameters,
-    async execute(_toolCallId: string, params: SubagentParameters, signal?: AbortSignal) {
+    async execute(_toolCallId: string, params: SubagentParameters) {
       if (process.env.HERDR_ENV !== "1") {
-        return notInHerdr();
+        return failed("not_in_herdr", "run pi inside a herdr pane; there is no fallback");
       }
       try {
-        if (params.action === "run") {
-          return envelope(await service().run(params.profile, params.task, params.cwd, signal));
+        const runs = service();
+        switch (params.action) {
+          case "spawn":
+            return ok(await runs.spawn(params));
+          case "steer":
+            return ok(await runs.steer(params.id, params.message));
+          case "stop":
+            return ok(await runs.stop(params.id));
+          case "inspect":
+            return ok(runs.inspect(params.id));
         }
-        return envelope(await service().send(params.name, params.message, signal));
       } catch (error) {
         if (error instanceof ToolError) {
-          return toolFailed(error);
+          return failed(error.code, error.message);
         }
         throw error;
       }
     },
   };
 }
-
-export { type ResultMessage, sendResults } from "./message.ts";

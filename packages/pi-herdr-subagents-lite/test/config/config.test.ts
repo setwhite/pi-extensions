@@ -1,110 +1,68 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import { expect, it } from "vitest";
-import { loadConfig } from "../../src/config/index.ts";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+import { dataDir, loadConfig, runsDir } from "../../src/config/index.ts";
 
-const specDefaults = {
-  enabled: true,
-  toolName: "subagent",
-  herdrBin: "herdr",
-  maxConcurrent: 16,
-  maxResultChars: 16384,
-  aggregateWindowMs: 500,
-  closeChildrenOn: ["quit", "reload"],
-  closeOnFailure: false,
-  inboxPollMs: 250,
-  livenessPollMs: 15000,
-  runRetentionMs: 2592000000,
-  prompts: {},
-};
-
-function withAgentDir<T>(file: string | undefined, read: (agentDir: string) => T): T {
-  const agentDir = mkdtempSync(join(tmpdir(), "pi-herdr-config-"));
-  if (file !== undefined) {
-    const target = join(agentDir, "pi-herdr-subagents-lite", "config.json");
-    mkdirSync(dirname(target), { recursive: true });
-    writeFileSync(target, file);
+function agentDirWith(value: unknown): string {
+  const dir = mkdtempSync(join(tmpdir(), "pi-herdr-config-"));
+  if (value !== undefined) {
+    mkdirSync(dataDir(dir), { recursive: true });
+    writeFileSync(join(dataDir(dir), "config.json"), JSON.stringify(value));
   }
-  try {
-    return read(agentDir);
-  } finally {
-    rmSync(agentDir, { recursive: true, force: true });
-  }
+  return dir;
 }
 
-function readConfig(value?: unknown) {
-  return withAgentDir(value === undefined ? undefined : JSON.stringify(value), (agentDir) => loadConfig(agentDir));
-}
+describe("loadConfig", () => {
+  it("falls back to the documented defaults", () => {
+    expect(loadConfig(agentDirWith(undefined))).toEqual({
+      enabled: true,
+      toolName: "subagent",
+      maxConcurrent: 8,
+      summaryMaxChars: 2000,
+      aggregateWindowMs: 500,
+      interruptGraceMs: 3000,
+      closeChildrenOn: ["quit", "reload"],
+      runRetentionMs: 2592000000,
+    });
+  });
 
-it("uses the spec defaults when the config file is missing", () => {
-  expect(readConfig()).toEqual(specDefaults);
+  it("keeps valid overrides", () => {
+    const dir = agentDirWith({ maxConcurrent: 3, toolName: "helper", closeChildrenOn: ["quit"] });
+    const config = loadConfig(dir);
+
+    expect(config.maxConcurrent).toBe(3);
+    expect(config.toolName).toBe("helper");
+    expect(config.closeChildrenOn).toEqual(["quit"]);
+  });
+
+  it("names an unknown key", () => {
+    expect(() => loadConfig(agentDirWith({ maxResultChars: 100 }))).toThrow(/maxResultChars: unknown key/);
+  });
+
+  it("rejects a toolName that breaks the pattern", () => {
+    expect(() => loadConfig(agentDirWith({ toolName: "Sub Agent" }))).toThrow(/toolName/);
+  });
+
+  it("rejects an out of range integer", () => {
+    expect(() => loadConfig(agentDirWith({ maxConcurrent: 0 }))).toThrow(/maxConcurrent/);
+  });
+
+  it("rejects an unknown shutdown reason", () => {
+    expect(() => loadConfig(agentDirWith({ closeChildrenOn: ["quit", "explode"] }))).toThrow(/explode/);
+  });
+
+  it("rejects invalid JSON", () => {
+    const dir = agentDirWith(undefined);
+    mkdirSync(dataDir(dir), { recursive: true });
+    writeFileSync(join(dataDir(dir), "config.json"), "{");
+
+    expect(() => loadConfig(dir)).toThrow(/not valid JSON/);
+  });
 });
 
-it("keeps the defaults for keys the file omits", () => {
-  expect(readConfig({ maxConcurrent: 2 })).toEqual({ ...specDefaults, maxConcurrent: 2 });
-});
-
-it("takes an absolute herdr path", () => {
-  expect(readConfig({ herdrBin: "/opt/herdr/bin/herdr" })).toMatchObject({ herdrBin: "/opt/herdr/bin/herdr" });
-});
-
-it.each([
-  [{ maxConcurrent: 0 }, { maxConcurrent: 1 }],
-  [{ maxConcurrent: 1000 }, { maxConcurrent: 1000 }],
-  [{ maxResultChars: 1 }, { maxResultChars: 1024 }],
-  [{ maxResultChars: 9999999 }, { maxResultChars: 1048576 }],
-  [{ aggregateWindowMs: 99999 }, { aggregateWindowMs: 10000 }],
-  [{ aggregateWindowMs: -1 }, { aggregateWindowMs: 0 }],
-  [{ inboxPollMs: 1 }, { inboxPollMs: 50 }],
-  [{ inboxPollMs: 99999 }, { inboxPollMs: 5000 }],
-  [{ livenessPollMs: 1 }, { livenessPollMs: 1000 }],
-  [{ livenessPollMs: 9999999 }, { livenessPollMs: 300000 }],
-  [{ runRetentionMs: -1 }, { runRetentionMs: 0 }],
-  [{ runRetentionMs: 1e15 }, { runRetentionMs: 31536000000 }],
-])("clamps %o", (patch, expected) => {
-  expect(readConfig(patch)).toMatchObject(expected);
-});
-
-it.each([
-  [{ nope: 1 }, /nope/],
-  [{ enabled: "yes" }, /enabled/],
-  [{ maxConcurrent: "3" }, /maxConcurrent/],
-  [{ maxConcurrent: 2.5 }, /maxConcurrent/],
-  [{ maxResultChars: "16384" }, /maxResultChars/],
-  [{ closeChildrenOn: ["sometimes"] }, /closeChildrenOn.*sometimes/],
-  [{ toolName: "Helper" }, /toolName/],
-  [{ toolName: "1x" }, /toolName/],
-  [{ herdrBin: "" }, /herdrBin/],
-  [{ herdrBin: "   " }, /herdrBin/],
-  [{ questionLines: 40 }, /questionLines/],
-  [{ prompts: { nope: "x" } }, /prompts\.nope/],
-  [{ prompts: { guidelines: "Use subagent" } }, /prompts\.guidelines/],
-  [{ bridge: { enabled: false } }, /bridge: unknown key/],
-])("rejects invalid config %o", (value, message) => {
-  expect(() => readConfig(value)).toThrow(message);
-});
-
-it("rejects a config file that is not valid JSON", () => {
-  expect(() => withAgentDir("{", (agentDir) => loadConfig(agentDir))).toThrow(/not valid JSON/);
-});
-
-it("rejects a config file that is not a JSON object", () => {
-  expect(() => withAgentDir("[]", (agentDir) => loadConfig(agentDir))).toThrow(/expected a JSON object/);
-});
-
-it("reads from the given agent dir, not the env", () => {
-  const fromEnv = mkdtempSync(join(tmpdir(), "pi-herdr-config-"));
-  const passed = mkdtempSync(join(tmpdir(), "pi-herdr-config-"));
-  const file = join(fromEnv, "pi-herdr-subagents-lite", "config.json");
-  mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(file, JSON.stringify({ maxConcurrent: 3 }));
-  process.env.PI_CODING_AGENT_DIR = fromEnv;
-  try {
-    expect(loadConfig(passed).maxConcurrent).toBe(16);
-  } finally {
-    delete process.env.PI_CODING_AGENT_DIR;
-    rmSync(fromEnv, { recursive: true, force: true });
-    rmSync(passed, { recursive: true, force: true });
-  }
+describe("paths", () => {
+  it("keeps runs under the package directory", () => {
+    expect(runsDir("/agent")).toBe(join("/agent", "pi-herdr-subagents-lite", "runs"));
+  });
 });
