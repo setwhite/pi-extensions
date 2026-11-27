@@ -39,6 +39,7 @@ export function registerMain(pi: ExtensionRegistrar, deps: MainDeps): void {
       client,
       runsDir,
       maxConcurrent: config.maxConcurrent,
+      excludeTools: config.excludeTools,
       summaryMaxChars: config.summaryMaxChars,
       aggregateWindowMs: config.aggregateWindowMs,
       interruptGraceMs: config.interruptGraceMs,

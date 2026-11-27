@@ -70,6 +70,7 @@ export async function startE2e(): Promise<E2e> {
       client: recorded,
       runsDir,
       maxConcurrent: 4,
+      excludeTools: ["ask"],
       summaryMaxChars: 2000,
       aggregateWindowMs: 0,
       interruptGraceMs: 5000,

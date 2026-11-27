@@ -37,6 +37,7 @@ export interface RunDeps {
   client: HerdrClient;
   runsDir: string;
   maxConcurrent: number;
+  excludeTools: string[];
   summaryMaxChars: number;
   aggregateWindowMs: number;
   emptyResultGraceMs: number;

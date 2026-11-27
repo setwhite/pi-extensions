@@ -20,7 +20,9 @@ export async function cleanupRuns(): Promise<void> {
   await Promise.all(pending);
 }
 
-export function setupRun(options: { maxConcurrent?: number; interruptGraceMs?: number } = {}): RunEnv {
+export function setupRun(
+  options: { maxConcurrent?: number; interruptGraceMs?: number; excludeTools?: string[] } = {},
+): RunEnv {
   const runsDir = mkdtempSync(join(tmpdir(), "pi-herdr-run-"));
   dirs.push(runsDir);
   const fake = fakeClient();
@@ -30,6 +32,7 @@ export function setupRun(options: { maxConcurrent?: number; interruptGraceMs?: n
     client: fake.client,
     runsDir,
     maxConcurrent: options.maxConcurrent ?? 8,
+    excludeTools: options.excludeTools ?? ["ask"],
     summaryMaxChars: 40,
     aggregateWindowMs: 0,
     interruptGraceMs: options.interruptGraceMs ?? 50,

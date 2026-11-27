@@ -13,6 +13,7 @@
 - herdr 改走本地 Socket 的 NDJSON 接口，不再起 `herdr` CLI 子进程，也没有任何轮询。
 - 完成通知改成每条 run 一个 `agent.wait` 长请求，不用 `events.subscribe`（DEC-0071）。完成判定只认 `result.json` 的 `seq` 递增。
 - 新增 `worktree: true`：给可并发的写任务单独 checkout，失败自动回滚 worktree。
+- 新增配置 `excludeTools`（默认 `["ask"]`）：子代理启动时按它拼 `--exclude-tools`，空数组不传该参数，元素支持 `mcp__*` 这类模式。
 - 子代理不注册 `ask`：提问用 `request_input` 写进 `result.json`，不在子 pane 弹对话框。待答问题另存 `questions.json`，提问后的续写回合不会把它盖成完成（DEC-0072）。
 - 新增真机 e2e：`pnpm test:e2e` 自起隔离 herdr session，覆盖 pane 中途被关、提问闭环、运行中转向三条链路，不进 `pnpm check`。
 - 修：真机上 `spawn` 必然 30 秒超时 `spawn_failed: agent_not_ready`。herdr 0.9.5 只在 `agent.get` 里推进托管 agent 的启动状态（`agent.list` 与 `agent.prompt` 都不推进），现在先轮询到 `interactive_ready` 再 prompt（DEC-0073）。e2e 的临时 agent dir 也装上 herdr 的 pi 集成，跑的和真机同一条上报路径。

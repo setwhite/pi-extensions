@@ -21,9 +21,10 @@ export interface ChildArgsInput {
   skills?: string[];
   model?: string;
   thinking?: string;
+  excludeTools: string[];
 }
 
-/** 子代理的 pi 启动参数。ask 永远剔除，防止子 pane 里弹表单打断人类。 */
+/** 子代理的 pi 启动参数。默认剔除 ask，防止子 pane 里弹表单打断人类。 */
 export function childArgs(input: ChildArgsInput): string[] {
   const args = ["--session", input.sessionFile];
   if (input.model !== undefined) {
@@ -35,7 +36,9 @@ export function childArgs(input: ChildArgsInput): string[] {
   if (input.tools !== undefined) {
     args.push("--tools", input.tools.join(","));
   }
-  args.push("--exclude-tools", "ask");
+  if (input.excludeTools.length > 0) {
+    args.push("--exclude-tools", input.excludeTools.join(","));
+  }
   for (const skill of input.skills ?? []) {
     args.push("--skill", skill);
   }

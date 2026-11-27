@@ -20,4 +20,4 @@ pi.registerTool(createRequestInputTool({ runDir, summaryMaxChars: config.summary
 ## 取舍
 
 - `content` 只放模型要用的 JSON；`details` 供 UI 与 session 条目。
-- 子代理不注册 `ask`：`spawn` 恒定传 `--exclude-tools ask`，从源头防止子 pane 弹表单打断人类。
+- 子代理默认不注册 `ask`：`spawn` 按配置 `excludeTools`（默认 `["ask"]`）拼 `--exclude-tools`，空数组时不传，从源头防止子 pane 弹表单打断人类。

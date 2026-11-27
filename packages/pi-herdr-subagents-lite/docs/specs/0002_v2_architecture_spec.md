@@ -152,7 +152,7 @@ export interface RequestInputParameters {
 - 配置契约（`<agent-dir>/pi-herdr-subagents-lite/config.json`）
   - `enabled`: 布尔值，默认 `true`。
   - `toolName`: 字符串，默认 `"subagent"`。
-  - `maxConcurrent`: 整数，默认 `8`。
+  - `excludeTools`: 字符串数组，默认 `["ask"]`。逗号拼成 `--exclude-tools`，空数组不传该参数；元素须为非空字符串，可写 `mcp__*` 这类模式。
   - `summaryMaxChars`: 整数，默认 `2000`。
   - `aggregateWindowMs`: 整数，默认 `500`。
   - `interruptGraceMs`: 整数，默认 `3000`。
@@ -162,7 +162,7 @@ export interface RequestInputParameters {
   - 纯函数判定（`run` 内部纯模块）: 零 mock 表驱动测试，覆盖 `id` 校验、状态合法迁移、并发槽位与超长信封截断。
   - `run` 流程编排: 注入 fake `HerdrClient` 与临时目录，覆盖 `spawn`、`steer`（含 `interrupting` 竞争与超时兜底）、`stop` 幂等、`done` 自动关 pane、`worktree` 回滚与意外关 pane 兜底。
   - `herdr`: 注入假本地 Socket 流（fake JSON-RPC 帧收发与断线模拟），覆盖全部 RPC 命令、`events.subscribe` 派发与重连后 `session.snapshot` 对账。
-  - `extension`: 注入 fake `pi` 扩展 API，覆盖深度分流（主侧 `subagent` 与子侧 `request_input` + `turn_end` 同步写 `result.json`）、`--tools` 剔除 `ask` 与 `deliverAs: "followUp"` 投递。
+  - `extension`: 注入 fake `pi` 扩展 API，覆盖深度分流（主侧 `subagent` 与子侧 `request_input` + `turn_end` 同步写 `result.json`）、`--exclude-tools` 按默认值剔除 `ask` 与 `deliverAs: "followUp"` 投递。
   - 真机验收（`pnpm test:e2e`）: 在隔离 `herdr` session 中跑通 Socket 订阅、动态 `spawn`、`request_input` 汇总、`working` 态 `steer` 打断转向、`done` 自动关 pane 与 `worktree` 闭环。
 
 ## 8. 分阶段落地路径
@@ -194,7 +194,7 @@ export interface RequestInputParameters {
 | `agent.start` 返回即可 prompt | 不止要等，而且光 prompt 重试永远等不到：她的托管 agent 只在 `agent.get` 里推进启动状态，`agent.list` / `agent.prompt` 都不推进（真机上必然 30 秒超时）。改为按 100ms 轮询 `agent.get` 到 `interactive_ready`，再 prompt，见 [DEC-0073](../decisions/0073-agent-get-readiness-poll.md) |
 | `turn_end` 只在回合结束时写一次结果 | 提问后的续写回合也会写，会把 `needs_input` 盖成 `turn_end`；改由 `questions.json` 保状态，见 [DEC-0072](../decisions/0072-pending-questions-file.md) |
 
-另：子进程参数按 pi 文档落成 `--exclude-tools ask`（`--tools` 纯名单会整体替换工具集，不能与 `+`/`-` 混用）。
+另：子进程参数按 pi 文档落成 `--exclude-tools <excludeTools 逗号拼接>`（默认 `ask`；`--tools` 纯名单会整体替换工具集，不能与 `+`/`-` 混用）。
 
 启动就绪这条是控制流级的差异，单看前文会误判成「等零点几秒就好」：[研究记录 0009](../research/0009-agent-start-readiness.md) 记了源码位置、CLI 与 socket 的对照，以及不能稳定复现的原因。
 

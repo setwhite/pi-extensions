@@ -4,6 +4,7 @@ export function testConfig(overrides: Partial<Config> = {}): Config {
   return {
     enabled: true,
     toolName: "subagent",
+    excludeTools: ["ask"],
     maxConcurrent: 8,
     summaryMaxChars: 2000,
     aggregateWindowMs: 0,

@@ -20,6 +20,7 @@ export interface RunServiceDeps {
   client: RunState["client"];
   runsDir: string;
   maxConcurrent: number;
+  excludeTools: string[];
   summaryMaxChars: number;
   aggregateWindowMs: number;
   interruptGraceMs: number;

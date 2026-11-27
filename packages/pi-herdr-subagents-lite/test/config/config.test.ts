@@ -18,6 +18,7 @@ describe("loadConfig", () => {
     expect(loadConfig(agentDirWith(undefined))).toEqual({
       enabled: true,
       toolName: "subagent",
+      excludeTools: ["ask"],
       maxConcurrent: 8,
       summaryMaxChars: 2000,
       aggregateWindowMs: 500,
@@ -34,6 +35,25 @@ describe("loadConfig", () => {
     expect(config.maxConcurrent).toBe(3);
     expect(config.toolName).toBe("helper");
     expect(config.closeChildrenOn).toEqual(["quit"]);
+  });
+
+  it("accepts a custom excludeTools list", () => {
+    expect(loadConfig(agentDirWith({ excludeTools: ["ask", "todo"] })).excludeTools).toEqual(["ask", "todo"]);
+  });
+
+  it("accepts an empty excludeTools list", () => {
+    expect(loadConfig(agentDirWith({ excludeTools: [] })).excludeTools).toEqual([]);
+  });
+
+  it("rejects an excludeTools entry that is not a non-empty string", () => {
+    expect(() => loadConfig(agentDirWith({ excludeTools: ["ask", ""] }))).toThrow(
+      /excludeTools: expected a non-empty string/,
+    );
+    expect(() => loadConfig(agentDirWith({ excludeTools: [1] }))).toThrow(/excludeTools/);
+  });
+
+  it("rejects excludeTools that is not an array", () => {
+    expect(() => loadConfig(agentDirWith({ excludeTools: "ask" }))).toThrow(/excludeTools: expected array/);
   });
 
   it("names an unknown key", () => {

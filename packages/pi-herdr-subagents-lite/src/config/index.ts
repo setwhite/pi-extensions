@@ -8,6 +8,7 @@ export type ShutdownReason = (typeof SHUTDOWN_REASONS)[number];
 export const CONFIG_KEYS = [
   "enabled",
   "toolName",
+  "excludeTools",
   "maxConcurrent",
   "summaryMaxChars",
   "aggregateWindowMs",
@@ -19,6 +20,7 @@ export const CONFIG_KEYS = [
 export interface Config {
   enabled: boolean;
   toolName: string;
+  excludeTools: string[];
   maxConcurrent: number;
   summaryMaxChars: number;
   aggregateWindowMs: number;
@@ -104,6 +106,26 @@ class Reader {
     return value;
   }
 
+  excludeTools(): string[] {
+    const value = this.raw.excludeTools;
+    if (value === undefined) {
+      return ["ask"];
+    }
+    if (!Array.isArray(value)) {
+      this.problems.push("excludeTools: expected array");
+      return ["ask"];
+    }
+    const picked: string[] = [];
+    for (const item of value) {
+      if (typeof item === "string" && item.trim() !== "") {
+        picked.push(item);
+      } else {
+        this.problems.push(`excludeTools: expected a non-empty string, got ${JSON.stringify(item)}`);
+      }
+    }
+    return picked;
+  }
+
   reasons(): ShutdownReason[] {
     const value = this.raw.closeChildrenOn;
     if (value === undefined) {
@@ -131,6 +153,7 @@ function parse(raw: Raw, file: string): Config {
   const config: Config = {
     enabled: reader.boolean("enabled", true),
     toolName: reader.toolName(),
+    excludeTools: reader.excludeTools(),
     maxConcurrent: reader.integer("maxConcurrent", 8, 1, 64),
     summaryMaxChars: reader.integer("summaryMaxChars", 2000, 200, 100_000),
     aggregateWindowMs: reader.integer("aggregateWindowMs", 500, 0, 10_000),

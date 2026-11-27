@@ -80,6 +80,7 @@ export async function spawn(state: RunState, input: SpawnInput): Promise<Spawned
   const sessionFile = sessionFileOf(runDir);
   const args = childArgs({
     sessionFile,
+    excludeTools: state.excludeTools,
     ...(input.tools === undefined ? {} : { tools: input.tools }),
     ...(input.skills === undefined ? {} : { skills: input.skills }),
     ...(input.model === undefined ? {} : { model: input.model }),
