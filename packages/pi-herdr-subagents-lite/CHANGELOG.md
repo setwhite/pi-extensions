@@ -2,6 +2,10 @@
 
 本文件记录用户可见变更；未发版的小节标「未发布」。更细的过程见 git log。破坏性变更标 **BREAKING**。0.5.2 及更早的变更见旧仓 `setwhite/pi-herdr-subagents-lite` 的 tag `v0.3.0`–`v0.5.2`。
 
+## 0.12.1 — 2026-11-28
+
+- 无运行时变更：0.12.0 的 npm 产物取自拆分前的提交，CHANGELOG 还标着「未发布」。本版按最终提交重发，差别只在内部文件拆分。
+
 ## 0.12.0 — 2026-11-28
 
 按 [v2 契约](docs/specs/0002_v2_architecture_spec.md) 重写，模块只剩 `config` / `herdr` / `run` / `tool` / `extension`。
