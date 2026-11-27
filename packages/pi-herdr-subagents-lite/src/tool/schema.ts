@@ -31,14 +31,10 @@ export interface StopParameters {
 
 export type SubagentParameters = SpawnParameters | SteerParameters | InspectParameters | StopParameters;
 
-const ACTION = { type: "string", description: "Operation to run." } as const;
-const ID = {
-  type: "string",
-  pattern: "^[a-z][a-z0-9_-]{0,31}$",
-  description: "Run id, also the child tab label. Unique within this session.",
-} as const;
+const ID = { type: "string", pattern: "^[a-z][a-z0-9_-]{0,31}$" } as const;
 const strings = { type: "array", items: { type: "string", minLength: 1 } } as const;
 
+/** 只写模型猜不到或容易猜反的字段；id/objective/context/cwd/model/thinking 看名字就够。 */
 export const parameters = Type.Unsafe<SubagentParameters>({
   type: "object",
   oneOf: [
@@ -46,46 +42,22 @@ export const parameters = Type.Unsafe<SubagentParameters>({
       type: "object",
       additionalProperties: false,
       properties: {
-        action: { ...ACTION, const: "spawn" },
+        action: { type: "string", const: "spawn" },
         id: ID,
-        objective: {
-          type: "string",
-          minLength: 1,
-          description: "The task the child must complete, written as an instruction to it.",
-        },
-        context: {
-          type: "string",
-          description:
-            "Reference material for the objective: paths, prior findings, constraints. Omit when the objective stands alone.",
-        },
-        cwd: {
-          type: "string",
-          minLength: 1,
-          description: "Child working directory. Defaults to this session's cwd.",
-        },
-        worktree: {
-          type: "boolean",
-          description:
-            "Run the child in its own git worktree. Set it when the child may write files in this repository; leave it out for read-only work.",
-        },
+        objective: { type: "string", minLength: 1 },
+        context: { type: "string" },
+        cwd: { type: "string", minLength: 1 },
+        worktree: { type: "boolean", description: "Set true when child may write to this repo." },
         tools: {
           ...strings,
-          description: "Tools the child may call. Omit to inherit this session's tool set; passing a list replaces it.",
+          description: "Replaces default tool set.",
         },
         skills: {
           ...strings,
-          description: "Extra skill paths to load into the child. Omit to use the normal skill discovery.",
+          description: "Extra skill paths.",
         },
-        model: {
-          type: "string",
-          minLength: 1,
-          description: "Model id for the child. Omit to use the configured default model.",
-        },
-        thinking: {
-          type: "string",
-          minLength: 1,
-          description: "Thinking level for the child. Omit to use the configured default level.",
-        },
+        model: { type: "string", minLength: 1 },
+        thinking: { type: "string", minLength: 1 },
       },
       required: ["action", "id", "objective"],
     },
@@ -93,12 +65,12 @@ export const parameters = Type.Unsafe<SubagentParameters>({
       type: "object",
       additionalProperties: false,
       properties: {
-        action: { ...ACTION, const: "steer" },
+        action: { type: "string", const: "steer" },
         id: ID,
         message: {
           type: "string",
           minLength: 1,
-          description: "Message for the child. A working child is interrupted first, then gets the message.",
+          description: "Interrupts a running child first.",
         },
       },
       required: ["action", "id", "message"],
@@ -107,8 +79,8 @@ export const parameters = Type.Unsafe<SubagentParameters>({
       type: "object",
       additionalProperties: false,
       properties: {
-        action: { ...ACTION, const: "inspect" },
-        id: { ...ID, description: "Run id to inspect. Omit to list every run." },
+        action: { type: "string", const: "inspect" },
+        id: ID,
       },
       required: ["action"],
     },
@@ -116,8 +88,8 @@ export const parameters = Type.Unsafe<SubagentParameters>({
       type: "object",
       additionalProperties: false,
       properties: {
-        action: { ...ACTION, const: "stop" },
-        id: { ...ID, description: "Run id to stop." },
+        action: { type: "string", const: "stop" },
+        id: ID,
       },
       required: ["action", "id"],
     },

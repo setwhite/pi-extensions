@@ -43,10 +43,7 @@ export function createRequestInputTool({ runDir, summaryMaxChars }: RequestInput
     name: REQUEST_INPUT_TOOL,
     label: "Request Input",
     description: "Ask the orchestrator a question, then end your turn and wait for the answer.",
-    promptGuidelines: [
-      "request_input: use it instead of asking in prose; the orchestrator relays human answers.",
-      "request_input: after calling it, stop working and end the turn.",
-    ],
+    promptGuidelines: ["request_input: use this instead of asking in prose; the orchestrator relays human answers."],
     parameters: inputParameters,
     async execute(_toolCallId: string, params: RequestInputParameters) {
       const seq = await writeChildResult(runDir, {
