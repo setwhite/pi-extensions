@@ -40,6 +40,8 @@ const LEFT_COLUMN_RATIO = 0.42;
 const MAX_LEFT_COLUMN = 54;
 const MIN_LEFT_COLUMN = 12;
 const MIN_RIGHT_COLUMN = 12;
+/** 右栏行宽上限：preview 再长也不拉到一行百来字，剩下的列留白。 */
+const MAX_RIGHT_COLUMN = 72;
 /** 竖线左 2 右 1：左栏的省略号不贴着竖线。 */
 const SEPARATOR_LEFT = "  ";
 const SEPARATOR_RIGHT = " ";
@@ -450,10 +452,16 @@ function composeContent(
 			pinned,
 		);
 		const left = [...head, ...kept];
+		// 右栏按 preview 自己的行宽收：短 preview 不拉满，长 preview 封顶 72 列。
+		const room = Math.max(0, width - leftWidth - SEPARATOR.length);
 		const all = markdownLines(
 			markdown,
-			Math.max(0, width - leftWidth - SEPARATOR.length),
+			Math.min(MAX_RIGHT_COLUMN, room),
 			style,
+		);
+		const rightWidth = Math.min(
+			room,
+			Math.max(MIN_RIGHT_COLUMN, widest(all, style)),
 		);
 		const right = all.slice(0, Math.max(0, budget));
 		const bar = style.muted("│");
@@ -463,7 +471,10 @@ function composeContent(
 			const cell = style.truncate(left[index] ?? "", leftWidth);
 			const padding = " ".repeat(Math.max(0, leftWidth - style.width(cell)));
 			merged.push(
-				`${cell}${padding}${SEPARATOR_LEFT}${bar}${SEPARATOR_RIGHT}${right[index] ?? ""}`.trimEnd(),
+				`${cell}${padding}${SEPARATOR_LEFT}${bar}${SEPARATOR_RIGHT}${style.truncate(
+					right[index] ?? "",
+					rightWidth,
+				)}`.trimEnd(),
 			);
 		}
 		return {

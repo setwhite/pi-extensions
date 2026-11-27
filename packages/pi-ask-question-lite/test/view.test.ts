@@ -393,6 +393,56 @@ describe("renderPanel", () => {
 		for (const line of raw) expect(visibleWidth(line)).toBeLessThanOrEqual(120);
 	});
 
+	it("并排右栏按 preview 自己的行宽收，短 preview 不拉满", () => {
+		const session = createSession([
+			{
+				question: "Pick",
+				multiple: false,
+				options: [{ label: "A", preview: "p" }, { label: "B" }],
+			},
+		]);
+		const lines = plain(
+			renderPanel(
+				session,
+				{ ...layout, width: 120, minSideBySideWidth: 100 },
+				style,
+			),
+		);
+		// 左栏照旧 14 列，右栏取到下限 12：整行到 "p" 就收，不再补到 120 列。
+		expect(lines[1]).toBe(`Pick${" ".repeat(12)}│ p`);
+		expect(visibleWidth(lines[1] ?? "")).toBe(19);
+	});
+
+	it("并排右栏封顶 72 列，长 preview 不再跟着终端变宽", () => {
+		const render = (width: number) =>
+			plain(
+				renderPanel(
+					createSession([
+						{
+							question: "Pick",
+							multiple: false,
+							options: [
+								{ label: "A", preview: "word ".repeat(40) },
+								{ label: "B" },
+							],
+						},
+					]),
+					{ ...layout, width, minSideBySideWidth: 100 },
+					style,
+				),
+			);
+		const rightWidths = (lines: string[]) =>
+			lines
+				.filter((line) => line.includes("│"))
+				.map((line) => visibleWidth(line.slice(line.indexOf("│") + 2)));
+		for (const width of [120, 200]) {
+			const lines = render(width);
+			expect(lines[1]?.indexOf("│")).toBe(16);
+			expect(Math.max(...rightWidths(lines))).toBeLessThanOrEqual(72);
+			expect(Math.max(...rightWidths(lines))).toBeGreaterThan(60);
+		}
+	});
+
 	it("并排时左栏宽度不超过 min(floor(width × 0.42), 54)", () => {
 		const session = createSession([
 			{
