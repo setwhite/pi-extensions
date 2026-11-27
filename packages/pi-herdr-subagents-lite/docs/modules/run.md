@@ -20,7 +20,7 @@
 ## 用法
 
 ~~~ts
-const service = createRunService({ client, runsDir, maxConcurrent: 8, summaryMaxChars: 2000, aggregateWindowMs: 500, interruptGraceMs: 3000, onProblem });
+const service = createRunService({ client, runsDir, maxConcurrent: 16, summaryMaxChars: 2000, aggregateWindowMs: 500, interruptGraceMs: 3000, onProblem });
 service.onBatch(deliver);
 await service.spawn({ id: "alpha", objective: "review the diff" });
 ~~~

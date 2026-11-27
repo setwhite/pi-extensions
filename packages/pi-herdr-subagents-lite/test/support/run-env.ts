@@ -31,7 +31,7 @@ export function setupRun(
   const service = createRunService({
     client: fake.client,
     runsDir,
-    maxConcurrent: options.maxConcurrent ?? 8,
+    maxConcurrent: options.maxConcurrent ?? 16,
     excludeTools: options.excludeTools ?? ["ask"],
     summaryMaxChars: 40,
     aggregateWindowMs: 0,

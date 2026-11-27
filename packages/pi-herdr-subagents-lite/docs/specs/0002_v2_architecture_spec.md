@@ -153,6 +153,7 @@ export interface RequestInputParameters {
   - `enabled`: 布尔值，默认 `true`。
   - `toolName`: 字符串，默认 `"subagent"`。
   - `excludeTools`: 字符串数组，默认 `["ask"]`。逗号拼成 `--exclude-tools`，空数组不传该参数；元素须为非空字符串，可写 `mcp__*` 这类模式。
+  - `maxConcurrent`: 整数，默认 `16`。
   - `summaryMaxChars`: 整数，默认 `2000`。
   - `aggregateWindowMs`: 整数，默认 `500`。
   - `interruptGraceMs`: 整数，默认 `3000`。

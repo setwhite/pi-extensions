@@ -42,8 +42,8 @@ One global file: `<agent-dir>/pi-herdr-subagents-lite/config.json`. `<agent-dir>
   "toolName": "subagent",
   // Default ["ask"]. Comma-joined into --exclude-tools; [] sends no flag. Patterns like "mcp__*" work.
   "excludeTools": ["ask"],
-  // Default 8, range 1..64. At the limit spawn and steer return max_concurrent.
-  "maxConcurrent": 8,
+  // Default 16, range 1..64. At the limit spawn and steer return max_concurrent.
+  "maxConcurrent": 16,
   // Default 2000, range 200..100000 characters. A longer answer spills to output.md.
   "summaryMaxChars": 2000,
   // Default 500, range 0..10000 ms. 0 = deliver each result at once.

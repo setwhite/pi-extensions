@@ -42,8 +42,8 @@ pi -e /path/to/pi-herdr-subagents-lite/src/index.ts # 只对本次进程生效
   "toolName": "subagent",
   // 默认 ["ask"]，逗号拼进 --exclude-tools，[] 表示不传该参数。可写 "mcp__*" 这类模式。
   "excludeTools": ["ask"],
-  // 默认 8，范围 1..64。到上限时 spawn 与 steer 返回 max_concurrent。
-  "maxConcurrent": 8,
+  // 默认 16，范围 1..64。到上限时 spawn 与 steer 返回 max_concurrent。
+  "maxConcurrent": 16,
   // 默认 2000，范围 200..100000 字符。超出落 output.md。
   "summaryMaxChars": 2000,
   // 默认 500，范围 0..10000 毫秒。0 = 每条结果立即投递。

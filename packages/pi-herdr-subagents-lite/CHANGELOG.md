@@ -9,7 +9,6 @@
 - **BREAKING**：工具动作改为 `spawn` / `steer` / `inspect` / `stop`，参数是 `id` 而非 `name` / `profile`。老写法 `run` / `send` 不再存在。
 - **BREAKING**：删掉 profile 模块。不再有 `profiles/*.md`、全局与项目两层查找、`auto-exit`、`system-prompt`、示例落盘。子代理的身份改由 `spawn` 参数与 `PI_SUBAGENT_*` 决定。
 - **BREAKING**：删掉 `herdrBin`、`maxResultChars`、`closeOnFailure`、`inboxPollMs`、`livenessPollMs`、`prompts` 六个配置键，出现即加载失败。新增 `summaryMaxChars`（默认 2000）、`interruptGraceMs`（默认 3000）。
-- **BREAKING**：`maxConcurrent` 默认值从 16 改为 8，上限 64。
 - herdr 改走本地 Socket 的 NDJSON 接口，不再起 `herdr` CLI 子进程，也没有任何轮询。
 - 完成通知改成每条 run 一个 `agent.wait` 长请求，不用 `events.subscribe`（DEC-0071）。完成判定只认 `result.json` 的 `seq` 递增。
 - 新增 `worktree: true`：给可并发的写任务单独 checkout，失败自动回滚 worktree。

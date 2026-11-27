@@ -154,7 +154,7 @@ function parse(raw: Raw, file: string): Config {
     enabled: reader.boolean("enabled", true),
     toolName: reader.toolName(),
     excludeTools: reader.excludeTools(),
-    maxConcurrent: reader.integer("maxConcurrent", 8, 1, 64),
+    maxConcurrent: reader.integer("maxConcurrent", 16, 1, 64),
     summaryMaxChars: reader.integer("summaryMaxChars", 2000, 200, 100_000),
     aggregateWindowMs: reader.integer("aggregateWindowMs", 500, 0, 10_000),
     interruptGraceMs: reader.integer("interruptGraceMs", 3000, 100, 60_000),

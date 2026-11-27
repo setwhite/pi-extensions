@@ -19,7 +19,7 @@ describe("loadConfig", () => {
       enabled: true,
       toolName: "subagent",
       excludeTools: ["ask"],
-      maxConcurrent: 8,
+      maxConcurrent: 16,
       summaryMaxChars: 2000,
       aggregateWindowMs: 500,
       interruptGraceMs: 3000,
