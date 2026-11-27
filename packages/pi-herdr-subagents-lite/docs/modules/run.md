@@ -13,6 +13,7 @@
 | `interrupt.ts` | 运行中 `steer`：esc 打断、等 idle、超时关 pane 重开 |
 | `settle.ts` | 结算与失败信封，blocked 上报 |
 | `steer.ts` / `stop.ts` | 对外动作，含幂等与槽位检查 |
+| `errors.ts` | 把 `HerdrError` 渲染成带错误码的模型可读文本 |
 | `pane.ts` | 重开 pane、关 pane |
 | `result.ts` / `child-result.ts` | 结果文件契约：读、原子写、seq 单调、超限落盘、`questions.json` 保提问状态 |
 | `paths.ts` / `args.ts` / `batch.ts` / `prune.ts` | 目录布局、子进程参数与环境、结算合并窗口、过期清理 |
@@ -20,7 +21,7 @@
 ## 用法
 
 ~~~ts
-const service = createRunService({ client, runsDir, maxConcurrent: 16, summaryMaxChars: 2000, aggregateWindowMs: 500, interruptGraceMs: 3000, onProblem });
+const service = createRunService({ client, runsDir, maxConcurrent: 16, excludeTools: ["ask"], summaryMaxChars: 2000, aggregateWindowMs: 500, interruptGraceMs: 3000, onProblem });
 service.onBatch(deliver);
 await service.spawn({ id: "alpha", objective: "review the diff" });
 ~~~

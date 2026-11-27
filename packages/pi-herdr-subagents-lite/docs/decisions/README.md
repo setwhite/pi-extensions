@@ -2,7 +2,7 @@
 
 当前设计（v2）：子代理是 herdr tab 里的常驻 pi 子进程，深度上限 1。模型面是 `subagent`（`spawn` / `steer` / `inspect` / `stop`），子侧只有 `request_input`。完成靠 `result.json`，投递靠原生 `followUp`。当前代码见 [ARCHITECTURE](../ARCHITECTURE.md)，契约见 [v2 契约](../specs/0002_v2_architecture_spec.md)。
 
-v1 时代的决策（profile、inbox、turn 事件、轮询存活检测）保留为历史记录，其中被 v2 移除的部分见 [契约 §8](../specs/0002_v2_architecture_spec.md) 与 DEC-0071。
+v1 时代的决策（profile、inbox、turn 事件、轮询存活检测）保留为历史记录，其中被 v2 移除的部分见[契约 §3](../specs/0002_v2_architecture_spec.md)；DEC-0061 已由契约 §5 取代。
 
 一条决策一份文件。文件名前缀就是编号（`0036` → [0036-result-pipeline.md](0036-result-pipeline.md)），正文引用写 `DEC-0036`。对外契约见 [v2 契约](../specs/0002_v2_architecture_spec.md)，已取消的提案见 [CANCELLED.md](CANCELLED.md)。
 
@@ -92,4 +92,4 @@ v1 时代的决策（profile、inbox、turn 事件、轮询存活检测）保留
 - [0057](0057-example-profile.md) 自带 worker 示例 profile
 - [0058](0058-profile-name-key.md) profile 名 = frontmatter name
 - [0059](0059-skill-lookup.md) skills 白名单按名字查 pi 的发现集
-- [0061](0061-no-session-path.md) 模型面不带 session 路径与 pane id
+- [0061](0061-no-session-path.md) 模型面不带 session 路径与 pane id。已由 v2 契约 §5 取代

@@ -11,7 +11,7 @@ export const edges = {
   ".": ["config", "extension", "herdr"],
   config: ["config"],
   herdr: ["herdr"],
-  run: ["config", "herdr", "run"],
+  run: ["herdr", "run"],
   tool: ["config", "run", "tool"],
   extension: ["config", "extension", "herdr", "run", "tool"],
 };

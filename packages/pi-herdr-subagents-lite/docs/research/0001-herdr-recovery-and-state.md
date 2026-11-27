@@ -1,6 +1,6 @@
 # 0001 herdr 恢复与状态实测
 
-本文是研究记录。当前契约见 [v1 契约](../specs/0001-v1-contract.md)。决策见[决策](../decisions/README.md)。
+本文是研究记录，记录 v1 时期的实测。当前契约见 [v2 契约](../specs/0002_v2_architecture_spec.md)。决策见[决策](../decisions/README.md)。
 
 日期 2026-10-23。环境：herdr 0.9.5（Windows，protocol 22），pi 1.4.0。测试在隔离的 named session 里跑（`herdr --session u16test server` / `u16b`），未触碰 default session。测试后 `herdr session delete`。
 

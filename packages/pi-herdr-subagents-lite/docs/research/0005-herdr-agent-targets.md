@@ -1,6 +1,6 @@
 # 0005 herdr agent 目标解析与事件订阅实测
 
-本文是研究记录。当前契约见 [v1 契约](../specs/0001-v1-contract.md)。完成检测决策见 [DEC-0052](../decisions/0052-completion-snapshot.md)。
+本文是研究记录，记录 v1 时期的实测。当前契约见 [v2 契约](../specs/0002_v2_architecture_spec.md)。完成检测决策见 [DEC-0052](../decisions/0052-completion-snapshot.md)。
 
 日期 2026-10-31。环境：herdr 0.9.5，Windows + git-bash，protocol 22，pi integration v9。父会话在默认会话 `wP` 里跑。7 个 live 子代理由本扩展启动。
 

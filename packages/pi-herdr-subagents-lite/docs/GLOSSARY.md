@@ -10,6 +10,7 @@
 | **id** | `^[a-z][a-z0-9_-]{0,31}$`，同时是 herdr agent name、tab label 与 run 目录名 | 不是 profile 名 |
 | **子代理** | 深度 >= 1 的 pi 进程，禁止再派生 | 不是同进程的 conversation |
 | **深度** | `PI_SUBAGENT_DEPTH`。0 是主代理，>= 1 是子代理，进程级身份 | 不是 TTY 猜测，也不是父进程名 |
+| **启动就绪** | herdr 托管 agent 的 `interactive_ready`；只有 `agent.get` 会推进，spawn 后按 100ms 轮询到它就绪再 prompt | 不是 `agent_status`，也不是 pane 出现 |
 | **run 目录** | `<agent-dir>/pi-herdr-subagents-lite/runs/<id>/`，放 `session.jsonl`、`result.json`，必要时 `output.md` | 不是父 session 文件所在目录 |
 | **result.json** | 子侧唯一的完成信号：`{seq, state, text?, questions?, output?}`，`seq` 单调递增 | 不是终端输出，也不是 session 文件 |
 | **questions.json** | 待答问题的标记文件，`request_input` 写、父侧回答前删；只要它在，`turn_end` 也写 `needs_input` | 不是第二个结果文件，父侧不读它 |

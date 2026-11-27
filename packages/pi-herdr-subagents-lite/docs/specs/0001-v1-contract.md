@@ -1,6 +1,8 @@
 # 0001 v1 契约
 
-本文件写 v1 的对外配置、工具与结果。代码按本文实现。决策理由见[决策](../decisions/README.md)。工具文案见 `src/tool/text.ts`。
+> **已废弃**：v1 已被 [v2 契约](0002_v2_architecture_spec.md) 取代。本文只留历史，代码不再按本文实现。
+
+本文件写 v1 的对外配置、工具与结果。决策理由见[决策](../decisions/README.md)。工具文案见 `src/tool/text.ts`。
 
 一句话：一个工具，两个 action（`run` / `send`）。结果异步。子代理跑在 herdr pane。只做 fresh。
 

@@ -14,7 +14,7 @@ Run each subagent as a separate pi process in its own herdr tab. One tool, four 
 - A child's question is recorded in `result.json`, never shown as a dialog in its pane. The parent either answers with `steer` or batches several children's questions into one `ask` call for you.
 - `worktree: true` gives a child its own checkout, so parallel writers never fight over the repository.
 - Zero UI rendering and zero per-turn context injection: the main session's prefix cache stays intact.
-- It talks to herdr over the local Socket, not through CLI subprocesses, and it never polls.
+- It talks to herdr over the local Socket, not through CLI subprocesses. The only polling is startup readiness: `agent.get` every 100ms until `interactive_ready`, capped at 30s (DEC-0073).
 
 ## Install
 
@@ -26,7 +26,7 @@ pi -e /path/to/pi-herdr-subagents-lite/src/index.ts # this process only
 
 Do not pass `-l`: it writes project settings only, so a child started elsewhere never loads the package.
 
-Requires Node `>= 22.19`. Tested with herdr `0.9.5` and pi `1.4.0`. The parent must run inside a herdr pane, otherwise the tool returns `not_in_herdr`.
+Requires Node `>= 22.19`. Tested with herdr `0.9.5` and pi `1.6.1`. The parent must run inside a herdr pane, otherwise the tool returns `not_in_herdr`.
 
 Upgrade with `pi update --extensions`, remove with `pi remove <source>`.
 
@@ -67,7 +67,7 @@ Start `pi` in a herdr pane, then let the model call the tool:
 {"action":"spawn","id":"alpha","objective":"Read README.md and answer with its first heading."}
 ```
 
-The call returns at once with `{"id":"alpha","status":"running"}`. Later a `[subagent alpha] done` message arrives. Do not wait for it in the same turn.
+The call returns at once with `{"id":"alpha","status":"running","paneId":"w3:p2","sessionFile":"<agent-dir>/pi-herdr-subagents-lite/runs/alpha/session.jsonl"}`. Later a `[subagent alpha] done` message arrives. Do not wait for it in the same turn.
 
 ```json
 {"action":"steer","id":"alpha","message":"Also check the Windows branch."}
@@ -90,7 +90,7 @@ The call returns at once with `{"id":"alpha","status":"running"}`. Later a `[sub
 | `worktree` | `true` = create a worktree and run there. |
 | `tools` `skills` `model` `thinking` | Passed straight to the child's `pi` argv. |
 
-Error codes: `invalid_id`, `duplicate_id`, `max_concurrent`, `not_ready`, `cancelled`, `spawn_failed`, `steer_failed`, `not_in_herdr`.
+Error codes: `invalid_id`, `duplicate_id`, `unknown_id`, `max_concurrent`, `not_ready`, `cancelled`, `spawn_failed`, `steer_failed`, `not_in_herdr`.
 
 ### Where files land
 
@@ -109,10 +109,10 @@ Error codes: `invalid_id`, `duplicate_id`, `max_concurrent`, `not_ready`, `cance
 
 ```bash
 pnpm check     # lint + import graph + tsc + unit tests
-pnpm test:e2e  # 真机：隔离 herdr session + 临时 agent dir，需要 herdr、pi 与 auth.json
+pnpm test:e2e  # real machine: isolated herdr session + temp agent dir; needs herdr, pi and auth.json
 ```
 
-`test:e2e` 不进 `pnpm check`。缺 `herdr`、`pi` 或 `~/.pi/agent/auth.json` 时整组跳过；`PI_E2E_KEEP=1` 保留临时目录，`PI_E2E_MODEL` 换子代理模型。
+`test:e2e` stays out of `pnpm check`. The whole suite is skipped when `herdr`, `pi` or `~/.pi/agent/auth.json` is missing; `PI_E2E_KEEP=1` keeps the temp directory and `PI_E2E_MODEL` overrides the child model.
 
 ## Docs
 

@@ -1,6 +1,6 @@
 # 0004 herdr workspace create 实测
 
-本文是研究记录。当前契约见 [v1 契约](../specs/0001-v1-contract.md)。决策见 [DEC-0022](../decisions/0022-tab-placement.md)。
+本文是研究记录，记录 v1 时期的实测。当前契约见 [v2 契约](../specs/0002_v2_architecture_spec.md)。决策见 [DEC-0022](../decisions/0022-tab-placement.md)。
 
 日期 2026-10-29。环境：herdr 0.9.5，Windows + git-bash，protocol 22。在隔离 named session `probe-t32` 里跑。跑完 `server stop` 与 `session delete`。
 

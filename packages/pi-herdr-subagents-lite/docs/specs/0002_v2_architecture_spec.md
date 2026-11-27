@@ -1,6 +1,6 @@
 # 0002 · pi-herdr-subagents-lite v2 架构契约（封板稿）
 
-本契约定义 `pi-herdr-subagents-lite` v2 的最终设计。v2 保留包名并全面复用 `herdr` 本地 Socket API 承担进程托管、事件推送、worktree 隔离、侧边栏展示与人工接管；扩展本体收口为无 UI 渲染、无自定义队列、无轮询的薄范式层，提供浅树约束、领域动态派生与单一前台提问收口。
+本契约定义 `pi-herdr-subagents-lite` v2 的最终设计。v2 保留包名并全面复用 `herdr` 本地 Socket API 承担进程托管、事件推送、worktree 隔离、侧边栏展示与人工接管；扩展本体收口为无 UI 渲染、无自定义队列的薄范式层（唯一的轮询是启动就绪：100ms 查一次 `agent.get`，预算 30 秒，见 §3 与 DEC-0073），提供浅树约束、领域动态派生与单一前台提问收口。
 
 ## 1. 核心原则
 
@@ -23,7 +23,7 @@
   - `PI_SUBAGENT_DEPTH >= 1`: 不注册 `subagent`（物理禁嵌套），改注册极简提问工具 `request_input`，并在 `turn_end` 同步写出结果文件。
 - 屏蔽子代理弹窗且零改动 `ask`
   - `pi-ask-question-lite` 不做任何修改。
-  - `spawn` 通过 `pi` 的 `--tools` 启动参数默认剔除 `ask` 工具，从源头防止子代理在子 pane 内弹窗打断人类。
+  - `spawn` 通过 `pi` 的 `--exclude-tools` 启动参数按配置 `excludeTools`（默认 `["ask"]`）剔除 `ask` 工具，从源头防止子代理在子 pane 内弹窗打断人类。`--tools` 会整体替换工具集，不能用来剔除。
 - 人工接管兼容
   - `failed` 与 `needs_input` 状态默认保留 `herdr` pane，人类可随时切过去直接接管。
   - 手动新开 `pi` 加载同一 `--session` 文件时，新进程不带 `PI_SUBAGENT_DEPTH`，自动恢复完整交互与 `ask` 能力。
@@ -34,9 +34,11 @@
 
 - 统一 `herdr` 本地 Socket API 传输层（重构 `src/herdr/`）
   - 通过环境变量 `HERDR_SOCKET_PATH` 连接本地 Socket（Unix 为 Unix Domain Socket，Windows 为 Named Pipe，Node.js `net.createConnection` 原生统一支持，逐行 JSON-RPC）。
-  - 命令调用与事件订阅复用同一条传输抽象，消除所有 `execFile("herdr")` 子进程启动开销与定时轮询。
-  - 命令能力: `tab.create`、`workspace.create`、`worktree.create`、`worktree.remove`、`agent.start`、`agent.prompt`、`agent.send_keys`、`pane.close`、`session.snapshot`。
-  - 事件能力: 调用 `events.subscribe` 实时监听子代理状态迁移（`working`、`idle`、`done`、`blocked`）与 pane 关闭事件；断线重连时先重新订阅，再调用 `session.snapshot` 对账修复本地视图。
+  - 所有调用复用同一条传输抽象：herdr 每回完一条请求就关连接，客户端一请求一连接、按需重连，消除所有 `execFile("herdr")` 子进程启动开销。
+  - 命令能力（11 个）: `tab.create`、`worktree.create`、`pane.split`、`worktree.remove`、`agent.start`、`agent.get`、`agent.prompt`、`agent.send_keys`、`agent.wait`、`pane.close`、`pane.list`。
+  - 完成通知: 每个 run 一个 `agent.wait` 长请求等 `idle` / `done` / `blocked`，不用 `events.subscribe`，也不做订阅重连对账（DEC-0071）。
+  - 启动就绪: `agent.start` 之后按 100ms 轮询 `agent.get` 到 `interactive_ready`，总预算 30 秒，再 prompt（DEC-0073）。这是扩展唯一的轮询。
+  - `workspace.create` 只在 e2e 夹具里裸调（命名 session 里没有 workspace 时 `tab.create` 会失败），不属于客户端接口。
 - Functional Core, Imperative Shell（重写 `src/run/`）
   - 判定逻辑做成零 IO 纯函数: 集中处理 `id` 格式与唯一性校验、状态合法转换、并发槽位检查与结果信封截断装配。
   - 流程编排保持直白可读: 单一内存状态表 `Map<string, RunRecord>` 由 `run` 模块独占修改，`spawn`、`steer`、`stop` 用直接的 `async/await` 调用注入的 `HerdrClient` seam，不引入多余的 Effect 解释器抽象。新人可在 30 秒内看清数据从哪来、谁能改它。
@@ -57,7 +59,6 @@ extension -> tool
 extension -> run
 tool -> run
 run -> herdr
-run -> config
 ```
 
 ## 4. 模型面工具契约
@@ -139,13 +140,13 @@ export interface RequestInputParameters {
 
 ## 6. 失败模式与边界契约（Failure Modes）
 
-- Socket 断线与重连对账: 本地 Socket 断开时自动退避重连；重连成功后先重新执行 `events.subscribe`，再拉取 `session.snapshot` 同步所有活跃 pane 真实状态，避免事件漏接导致状态卡死。
+- Socket 断线: 客户端一请求一连接，herdr 回完即关；下一次请求自动重连。失败按原错误上报，不做事件重放或快照对账。
 - `interrupting` 打断超时兜底: 运行中 `steer` 发送 `esc` 后若超过 `interruptGraceMs`（默认 3000ms）仍未进入 `idle`，兜底执行 `pane.close` 并以原 `--session` 重开新 pane 提交新 prompt，确保转向绝不永久卡死。
 - 意外 `agent_blocked` 处理: 若子 pane 因外部原因进入 `herdr` `blocked` 状态，`agent.prompt` 返回 `agent_blocked` 时禁止盲发键盘输入，立即向上汇报异常等待人工介入。
 - `worktree` 失败回滚: `worktree.create` 成功但随后的 `agent.start` 失败时，立即调用 `worktree.remove` 清理孤儿 worktree；任务中途 `stop` 或 `failed` 时保留 worktree 供排查或人工接管。
 - 并发与幂等竞争: 按 `id` 串行化状态迁移；对已关闭或已取消的任务重复 `stop` 幂等返回成功；在 `interrupting` 期间收到多次 `steer`，仅保留最新一条消息在进入 `idle` 后投递。
 - 会话收尾清理: 父进程触发 `session_shutdown` 且原因命中 `closeChildrenOn` 时，批量调用 `pane.close` 清理所有仍在运行的子 pane。
-- 异常退出兜底: 子 pane 意外关闭且 `result.json` 无新 `seq` 时，父侧由 Socket 关闭事件直接收口为 `failed` 并释放槽位，不依赖超时定时器。
+- 异常退出兜底: 子 pane 意外关闭时在途 `agent.wait` 回 `agent_not_running` / `agent_not_found`，父侧收口为 `failed` 并释放槽位，不依赖超时定时器。
 
 ## 7. 配置与测试 Seam
 
@@ -162,27 +163,27 @@ export interface RequestInputParameters {
 - 测试 Seam
   - 纯函数判定（`run` 内部纯模块）: 零 mock 表驱动测试，覆盖 `id` 校验、状态合法迁移、并发槽位与超长信封截断。
   - `run` 流程编排: 注入 fake `HerdrClient` 与临时目录，覆盖 `spawn`、`steer`（含 `interrupting` 竞争与超时兜底）、`stop` 幂等、`done` 自动关 pane、`worktree` 回滚与意外关 pane 兜底。
-  - `herdr`: 注入假本地 Socket 流（fake JSON-RPC 帧收发与断线模拟），覆盖全部 RPC 命令、`events.subscribe` 派发与重连后 `session.snapshot` 对账。
-  - `extension`: 注入 fake `pi` 扩展 API，覆盖深度分流（主侧 `subagent` 与子侧 `request_input` + `turn_end` 同步写 `result.json`）、`--exclude-tools` 按默认值剔除 `ask` 与 `deliverAs: "followUp"` 投递。
-  - 真机验收（`pnpm test:e2e`）: 在隔离 `herdr` session 中跑通 Socket 订阅、动态 `spawn`、`request_input` 汇总、`working` 态 `steer` 打断转向、`done` 自动关 pane 与 `worktree` 闭环。
+  - `herdr`: 注入假本地 Socket 流（fake JSON-RPC 帧收发与断线模拟），覆盖全部 11 个命令的帧映射、结果与错误码、超时、一请求一连接与断线重连。
+  - `extension`: 注入 fake `pi` 扩展 API，覆盖深度分流（主侧 `subagent` 与子侧 `request_input` + `turn_end` 同步写 `result.json`）、按配置拼 `--exclude-tools` 与 `deliverAs: "followUp"` 投递。
+  - 真机验收（`pnpm test:e2e`）: 在隔离 `herdr` session 中跑通 pane 中途被关、`request_input` 提问闭环与运行中 `steer` 打断转向；临时 agent dir 装 herdr 的 pi 集成，并断言客户端调用顺序 `startAgent` → `getAgent` → `prompt`。
 
 ## 8. 分阶段落地路径
 
 每阶段均可独立通过 `pnpm check`。
 
 - Phase 1 · `herdr` Socket Schema 对齐
-  - 运行 `herdr api schema --json` 落盘到 `docs/research/`，核对 `tab.create` / `worktree.create` 的 `env` 字段、`events.subscribe` 帧格式与 `agent.send_keys(esc)` 的实际载荷。
+  - 运行 `herdr api schema --json` 落盘到 `docs/research/`，核对 `tab.create` / `pane.split` 的 `env` 字段与 `agent.send_keys(esc)` 的实际载荷。
 - Phase 2 · Socket 客户端与 `run` 核心
-  - 重写 `src/herdr/`（基于 `HERDR_SOCKET_PATH` 的统一 Socket 客户端 + 断线对账）与 `src/run/`（纯函数判定 + 直白 `async/await` 编排），跑通全部离线单测与 Failure Modes 回归。
+  - 重写 `src/herdr/`（基于 `HERDR_SOCKET_PATH` 的统一 Socket 客户端，一请求一连接）与 `src/run/`（纯函数判定 + 直白 `async/await` 编排），跑通全部离线单测与 Failure Modes 回归。
 - Phase 3 · 深度分流工具与扩展装配
   - 实现 `src/tool/`（主侧四动作 + 子侧 `request_input`）与 `src/extension/`（子侧 `turn_end` 同步写 `result.json` 与主侧 `deliverAs: "followUp"` 合并投递）。
 - Phase 4 · 彻底减法清理与真机回归
   - 删除 `src/inbox/`、`src/session-file/`、`src/profile/`、`src/turn/` 及旧轮询配置，更新 `import-graph.mjs` 并跑通 `pnpm test:e2e`。
-## 9. 落地修订（实现期事实核对）
+## 9. 实现期实测事实
 
-本节记录实现时对照 herdr 0.9.5 与 pi 实测后对前文条款的修正。冲突时以本节为准，实测细节见 [研究记录 0007](../research/0007-herdr-socket-api.md)。
+本节记录设计初稿与 herdr 0.9.5 / pi 实测的差异；正文已按实测改写，这里只留对照。细节见 [研究记录 0007](../research/0007-herdr-socket-api.md)。
 
-| 原文假设 | 实测 |
+| 设计初稿假设 | 实测（正文已同步） |
 |---|---|
 | `HERDR_SOCKET_PATH` 直接 `net.createConnection` | Windows 上它是命名管道名，必须补命名空间前缀；Unix 直接用路径 |
 | `agent.start` 有 `env` 字段 | 没有。`env` 只在 `tab.create` / `pane.split` / `workspace.create` 上，且 herdr 自注变量优先于调用方 |
@@ -195,20 +196,18 @@ export interface RequestInputParameters {
 | `agent.start` 返回即可 prompt | 不止要等，而且光 prompt 重试永远等不到：她的托管 agent 只在 `agent.get` 里推进启动状态，`agent.list` / `agent.prompt` 都不推进（真机上必然 30 秒超时）。改为按 100ms 轮询 `agent.get` 到 `interactive_ready`，再 prompt，见 [DEC-0073](../decisions/0073-agent-get-readiness-poll.md) |
 | `turn_end` 只在回合结束时写一次结果 | 提问后的续写回合也会写，会把 `needs_input` 盖成 `turn_end`；改由 `questions.json` 保状态，见 [DEC-0072](../decisions/0072-pending-questions-file.md) |
 
-另：子进程参数按 pi 文档落成 `--exclude-tools <excludeTools 逗号拼接>`（默认 `ask`；`--tools` 纯名单会整体替换工具集，不能与 `+`/`-` 混用）。
-
-启动就绪这条是控制流级的差异，单看前文会误判成「等零点几秒就好」：[研究记录 0009](../research/0009-agent-start-readiness.md) 记了源码位置、CLI 与 socket 的对照，以及不能稳定复现的原因。
+启动就绪是控制流级的差异，不是「等零点几秒就好」：[研究记录 0009](../research/0009-agent-start-readiness.md) 记了源码位置、CLI 与 socket 的对照，以及不能稳定复现的原因。
 
 ## 9.1 真机 e2e
 
-`pnpm -C packages/pi-herdr-subagents-lite test:e2e` 覆盖单测够不到的三条链路，每个用例各起一条隔离的命名 herdr session 与临时 `PI_CODING_AGENT_DIR`，缺 `herdr`、`pi` 或 `auth.json` 时整组跳过。不进 `pnpm check`。
+`pnpm -C packages/pi-herdr-subagents-lite test:e2e` 覆盖单测够不到的三条链路（启动就绪作为提问闭环用例里的调用顺序断言，不单独起会话），每个用例各起一条隔离的命名 herdr session 与临时 `PI_CODING_AGENT_DIR`，缺 `herdr`、`pi` 或 `auth.json` 时整组跳过。不进 `pnpm check`。
 
 | 用例 | 断言 |
 |---|---|
 | pane 中途被关 | `working` 时 `pane.close`，run 结算为 `failed`，summary 保留 `agent_not_running` 或 `agent_not_found` |
 | 提问闭环 | 子侧 `request_input` 落盘后 envelope 为 `needs_input` 且带问题；`result.json` 与 `session.jsonl` 路径证明 env 透传；`pane.process_info` 的 argv 证明 `--exclude-tools ask` |
 | 运行中转向 | `working` 时 `steer` 回 `interrupting`，esc 打断后新 prompt 投递并结算为 `done`，无问题上报 |
-| 启动就绪链路 | 临时 agent dir 里装迷你版 herdr pi 集成（`session_start` 报 idle、`agent_start` 报 working、`agent_settled` 报 idle）；记录 client 调用顺序，断言 `startAgent` → `getAgent` → `prompt` |
+| 启动就绪（在提问闭环内） | 临时 agent dir 里装迷你版 herdr pi 集成（`session_start` 报 idle、`agent_start` 报 working、`agent_settled` 报 idle）；记录 client 调用顺序，断言 `startAgent` → `getAgent` → `prompt` |
 
 集成 fixtures 让 e2e 跑在和生产相同的 hook 上报路径上，但**不能**稳定复现启动卡死（e2e 的子 pi 1–2 秒就到 idle，抢在第一次 reconcile 前激活）。卡死的回归保护靠调用顺序断言 + 单测，见[研究记录 0009](../research/0009-agent-start-readiness.md)。
 

@@ -18,9 +18,9 @@
 | 模块 | 职责 | 文件 |
 |---|---|---|
 | `index.ts` | composition root：从环境变量取身份、构造真实依赖、导出扩展 | — |
-| [`config`](modules/config.md) | 配置读取与严格校验，agent 目录与 runs 目录布局 | `index.ts` |
-| [`herdr`](modules/herdr.md) | herdr 本地 Socket 客户端：NDJSON 传输 + 九个命令的窄接口 | `index.ts` `socket.ts` `endpoint.ts` |
-| [`run`](modules/run.md) | run 生命周期：纯函数判定、内存状态表、spawn / steer / stop / 结算 | `index.ts` 加 13 个职责文件 |
+| [`config`](modules/config.md) | 配置读取与严格校验，agent 目录与 runs 目录布局 | `index.ts` `types.ts` `paths.ts` `reader.ts` |
+| [`herdr`](modules/herdr.md) | herdr 本地 Socket 客户端：NDJSON 传输 + 11 个命令的窄接口 | `index.ts` `types.ts` `parse.ts` `socket.ts` `endpoint.ts` |
+| [`run`](modules/run.md) | run 生命周期：纯函数判定、内存状态表、spawn / steer / stop / 结算 | `index.ts` 加 16 个职责文件 |
 | [`tool`](modules/tool.md) | 模型面：主子两套参数 schema、文案、错误渲染 | `index.ts` `schema.ts` `input.ts` `text.ts` |
 | [`extension`](modules/extension.md) | 深度分流装配、子侧落盘、结算投递、收尾清理 | `index.ts` `main.ts` `child.ts` `deliver.ts` `types.ts` |
 
@@ -39,7 +39,6 @@ extension ..> config  (type-only)
 tool -> run
 tool ..> config       (type-only)
 run -> herdr
-run -> config
 ~~~
 
 - 只能沿箭头依赖，禁止反向 import。`config`、`herdr` 是叶子。
@@ -67,7 +66,7 @@ mock 只有两处：注入的 `HerdrClient`、fake pi 扩展 API。不 mock 模�
 
 | 文件 | 只写 | 不写 |
 |---|---|---|
-| `README.md` | 功能、要求、安装、用法、配置、文档索引、开发、许可 | 模块签名、选型理由 |
+| `README.md` | 功能、要求、安装、用法、配置、测试、文档索引、许可 | 模块签名、选型理由 |
 | `docs/ARCHITECTURE.md` | 模块边界、依赖方向、命名与拆分规则、测试 seam、文档规则、模块索引 | 字段表、决策理由、进度、模块用法 |
 | `docs/decisions/*.md` | 决策编号、理由、取消项、边界，一条一份 | 字段表、配置、命令行 |
 | `docs/specs/*.md` | 对外配置、工具、状态机、失败模式 | 决策理由、内部签名 |
@@ -79,6 +78,6 @@ mock 只有两处：注入的 `HerdrClient`、fake pi 扩展 API。不 mock 模�
 
 ## 6. 约束
 
-- 扩展本体零 UI 渲染、零自定义队列、零轮询；状态展示交给 herdr 侧边栏。
+- 扩展本体零 UI 渲染、零自定义队列；状态展示交给 herdr 侧边栏。唯一的轮询是启动就绪（100ms `agent.get`，30 秒预算，DEC-0073）。
 - 不往主会话每轮注入上下文快照（保护前缀 KV Cache）。
 - 交付前 QA 跑 `pnpm check`，组成见 `package.json`。

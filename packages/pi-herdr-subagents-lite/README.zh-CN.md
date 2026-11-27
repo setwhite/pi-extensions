@@ -14,7 +14,7 @@
 - 子代理的提问写进 `result.json`，不在自己 pane 里弹对话框。主代理要么用 `steer` 回答，要么把几个子代理的问题合并成一次 `ask` 问你。
 - `worktree: true` 给子代理独立 checkout，并行写代码不会互相踩。
 - 零 UI 渲染、零每轮上下文注入：主会话前缀 KV Cache 保持完整。
-- 走 herdr 本地 Socket，不起 CLI 子进程，也不轮询。
+- 走 herdr 本地 Socket，不起 CLI 子进程。唯一的轮询是启动就绪：100ms 查一次 `agent.get` 到 `interactive_ready`，预算 30 秒（DEC-0073）。
 
 ## 安装
 
@@ -26,7 +26,7 @@ pi -e /path/to/pi-herdr-subagents-lite/src/index.ts # 只对本次进程生效
 
 不要加 `-l`：它只写项目设置，在别处启动的子进程就不会加载本包。
 
-需要 Node `>= 22.19`。已在 herdr `0.9.5` 与 pi `1.4.0` 上验证。父代理必须在 herdr pane 里运行，否则工具返回 `not_in_herdr`。
+需要 Node `>= 22.19`。已在 herdr `0.9.5` 与 pi `1.6.1` 上验证。父代理必须在 herdr pane 里运行，否则工具返回 `not_in_herdr`。
 
 升级用 `pi update --extensions`，卸载用 `pi remove <source>`。
 
@@ -67,7 +67,7 @@ pi -e /path/to/pi-herdr-subagents-lite/src/index.ts # 只对本次进程生效
 {"action":"spawn","id":"alpha","objective":"读 README.md，回答它的一级标题。"}
 ```
 
-调用立即返回 `{"id":"alpha","status":"running"}`。稍后会收到 `[subagent alpha] done` 消息，不要在同一个回合里等它。
+调用立即返回 `{"id":"alpha","status":"running","paneId":"w3:p2","sessionFile":"<agent-dir>/pi-herdr-subagents-lite/runs/alpha/session.jsonl"}`。稍后会收到 `[subagent alpha] done` 消息，不要在同一个回合里等它。
 
 ```json
 {"action":"steer","id":"alpha","message":"再看一下 Windows 分支。"}
@@ -90,7 +90,7 @@ pi -e /path/to/pi-herdr-subagents-lite/src/index.ts # 只对本次进程生效
 | `worktree` | `true` = 建 worktree 并在其中运行。 |
 | `tools` `skills` `model` `thinking` | 直接透传给子进程的 `pi` 参数。 |
 
-错误码：`invalid_id`、`duplicate_id`、`max_concurrent`、`not_ready`、`cancelled`、`spawn_failed`、`steer_failed`、`not_in_herdr`。
+错误码：`invalid_id`、`duplicate_id`、`unknown_id`、`max_concurrent`、`not_ready`、`cancelled`、`spawn_failed`、`steer_failed`、`not_in_herdr`。
 
 ### 文件位置
 
