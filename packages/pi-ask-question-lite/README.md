@@ -11,7 +11,7 @@ One tool: `ask(questions)`. The model asks 1–4 questions with 2–6 options ea
 - Single select: `Enter` or a digit picks the focused option and moves to the next unanswered question.
 - Multi select: `Enter` or a digit toggles the focused option. Walk down to `→ Confirm` and press `Enter` to finish the question.
 - Every question has a `+ Custom…` row for free text. `Shift+Enter` adds a newline, `Enter` confirms.
-- Everything below the top divider starts at column 0, flush with Pi's own footer, with no blank lines between sections; the focused row is marked with `›`, and the hint line only lists keys the current mode can use (`ui.showHints: false` hides it).
+- Everything below the top divider starts at column 0, flush with Pi's own footer. Blank lines appear only where height is spare: one after a question that wraps to two or more lines, one above the hint line; both go away under height pressure. The focused row is marked with `›`, and the hint line only lists keys the current mode can use (`ui.showHints: false` hides it).
 - `e` opens a note on the focused option: single select carries one `note`, multi select keeps one `notes` entry per option, and unchecking that option drops it.
 - `Ctrl+Enter` submits what is answered and marks the rest as skipped.
 - `Esc` aborts. The turn ends immediately and the model gets no answers.

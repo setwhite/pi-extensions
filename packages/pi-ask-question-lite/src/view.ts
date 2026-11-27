@@ -33,13 +33,17 @@ const CUSTOM_MARK = "+ ";
 const CONFIRM_LABEL = "→ Confirm";
 const NOTE_MARK = "↳ ";
 const EDITOR_BAR = "▎ ";
-const MAX_DETAIL_LINES = 2;
+/** detail 折到 4 行就收 …；再挤由 trimRows 按既有裁剪顺序统一收口。 */
+const MAX_DETAIL_LINES = 4;
 /** 左栏封顶按比例收窄，中间不再留一条黑沟；上限保证长选项不被压得太碎。 */
 const LEFT_COLUMN_RATIO = 0.42;
 const MAX_LEFT_COLUMN = 54;
 const MIN_LEFT_COLUMN = 12;
 const MIN_RIGHT_COLUMN = 12;
-const SEPARATOR = " │ ";
+/** 竖线左 2 右 1：左栏的省略号不贴着竖线。 */
+const SEPARATOR_LEFT = "  ";
+const SEPARATOR_RIGHT = " ";
+const SEPARATOR = `${SEPARATOR_LEFT}│${SEPARATOR_RIGHT}`;
 /** 两栏都留够可读宽度才并排，否则退回堆叠。 */
 const MIN_SIDE_BY_SIDE_WIDTH =
 	MIN_LEFT_COLUMN + SEPARATOR.length + MIN_RIGHT_COLUMN;
@@ -65,15 +69,19 @@ export function renderPanel(
 		: [];
 	// 题干永远完整折行，但至少给下面的 body 留一行。
 	const questionRoom = Math.max(1, height - 1 - tabs.length - tail.length - 1);
+	const questionLines = wrapBlock(
+		question.question,
+		columnCap,
+		questionRoom,
+		style,
+	);
 	const head = [
 		...tabs,
-		...wrapBlock(question.question, columnCap, questionRoom, style).map(
-			(line) => style.bold(style.truncate(line, columnCap)),
-		),
+		...questionLines.map((line) => style.bold(style.truncate(line, columnCap))),
 	];
 	const budget = Math.max(1, height - 1 - head.length - tail.length);
 	const body = bodyRows(session, layout, style, columnCap);
-	const content = composeContent(
+	const { lines: content, trimmed } = composeContent(
 		head,
 		body,
 		preview,
@@ -82,7 +90,19 @@ export function renderPanel(
 		session,
 		style,
 	);
-	return [style.muted(DIVIDER.repeat(width)), ...content, ...tail];
+	// 余量够时隔开可操作项与暗灰提示、多行题干与首选项；高度紧张时这两行先让给内容。
+	let spare = trimmed ? 0 : height - 1 - content.length - tail.length;
+	const hintGap = tail.length > 0 && spare > 0 ? [""] : [];
+	spare -= hintGap.length;
+	const questionGap = questionLines.length > 1 && spare > 0 ? [""] : [];
+	return [
+		style.muted(DIVIDER.repeat(Math.max(0, width))),
+		...content.slice(0, head.length),
+		...questionGap,
+		...content.slice(head.length),
+		...hintGap,
+		...tail,
+	];
 }
 
 function renderTabs(
@@ -219,7 +239,7 @@ function bodyRows(
 	if (session.phase.kind === "custom") {
 		body.push({
 			text: style.accent(
-				style.truncate(`${CURSOR}${CUSTOM_MARK}Custom`, width),
+				gutterRow(true, `${CUSTOM_MARK}Custom`, multi, width, style),
 			),
 			kind: "custom",
 			group: customGroup,
@@ -242,7 +262,7 @@ function bodyRows(
 			draft === ""
 				? `${CUSTOM_MARK}Custom…`
 				: `${CUSTOM_MARK}Custom: ${oneLine(draft)}`;
-		const text = style.truncate(`${focused ? CURSOR : "  "}${label}`, width);
+		const text = gutterRow(focused, label, multi, width, style);
 		body.push({
 			text: focused ? style.accent(text) : style.muted(text),
 			kind: "custom",
@@ -252,10 +272,7 @@ function bodyRows(
 
 	if (multi && session.phase.kind === "list") {
 		const focused = session.focus.kind === "confirm";
-		const text = style.truncate(
-			`${focused ? CURSOR : "  "}${CONFIRM_LABEL}`,
-			width,
-		);
+		const text = gutterRow(focused, CONFIRM_LABEL, multi, width, style);
 		body.push({
 			text: focused ? style.accent(text) : style.muted(text),
 			kind: "confirm",
@@ -269,6 +286,21 @@ function bodyRows(
 /** 选项 label 所在列：cursor 2 列 +（多选方框 2 列）+ 序号 3 列。 */
 function labelColumn(multi: boolean): number {
 	return multi ? `${CURSOR}■ 1. `.length : `${CURSOR}1. `.length;
+}
+
+/** Custom / Confirm 行：光标留在第 0 列，正文对齐选项 label 列。 */
+function gutterRow(
+	focused: boolean,
+	text: string,
+	multi: boolean,
+	width: number,
+	style: PanelStyle,
+): string {
+	const pad = " ".repeat(Math.max(0, labelColumn(multi) - CURSOR.length));
+	return style.truncate(
+		`${focused ? CURSOR : " ".repeat(CURSOR.length)}${pad}${text}`,
+		width,
+	);
 }
 
 function isActive(session: Session, index: number): boolean {
@@ -361,15 +393,17 @@ function leftColumnWidth(width: number, contentWidth: number): number {
 function leftContentWidth(
 	head: readonly string[],
 	body: readonly Row[],
+	multi: boolean,
 	style: PanelStyle,
 ): number {
+	const gutter = " ".repeat(labelColumn(multi));
 	return widest(
 		[
 			...head,
 			...body.filter((row) => row.kind !== "editor").map((row) => row.text),
 			// 列表态之外这两行写法更短，按固定字面量兜底。
-			`${CURSOR}${CUSTOM_MARK}Custom…`,
-			`${CURSOR}${CONFIRM_LABEL}`,
+			`${gutter}${CUSTOM_MARK}Custom…`,
+			`${gutter}${CONFIRM_LABEL}`,
 		],
 		style,
 	);
@@ -382,9 +416,12 @@ function widest(lines: readonly string[], style: PanelStyle): number {
 	return width;
 }
 
+type Composed = { lines: string[]; trimmed: boolean };
+
 /**
  * 并排时右栏从 Tab / 题干那一行就顶对齐，右栏省下的行不把面板撑高。
  * 堆叠时 preview 接在选项下方，两者抢同一列才需要统一的裁剪顺序。
+ * `trimmed` 表示这一屏已经为高度让过位：调用方据此省掉呼吸空行。
  */
 function composeContent(
 	head: string[],
@@ -394,46 +431,61 @@ function composeContent(
 	budget: number,
 	session: Session,
 	style: PanelStyle,
-): string[] {
+): Composed {
 	const width = layout.width;
 	const focus = focusRow(session);
 	const pinned = pinnedGroups(session);
+	const multi = session.questions[session.active].multiple;
 
 	if (markdown !== undefined && isSideBySide(layout)) {
 		// 两栏各自裁：左栏先丢 detail 再收选项窗口，右栏只留前 budget 行。
 		const leftWidth = leftColumnWidth(
 			width,
-			leftContentWidth(head, body, style),
+			leftContentWidth(head, body, multi, style),
 		);
-		const left = [
-			...head,
-			...trimRows(body, Math.max(0, budget - head.length), focus, pinned),
-		];
-		const right = markdownLines(
+		const kept = trimRows(
+			body,
+			Math.max(0, budget - head.length),
+			focus,
+			pinned,
+		);
+		const left = [...head, ...kept];
+		const all = markdownLines(
 			markdown,
 			Math.max(0, width - leftWidth - SEPARATOR.length),
 			style,
-		).slice(0, Math.max(0, budget));
+		);
+		const right = all.slice(0, Math.max(0, budget));
 		const bar = style.muted("│");
 		const merged: string[] = [];
 		const depth = Math.max(left.length, right.length);
 		for (let index = 0; index < depth; index += 1) {
 			const cell = style.truncate(left[index] ?? "", leftWidth);
 			const padding = " ".repeat(Math.max(0, leftWidth - style.width(cell)));
-			merged.push(`${cell}${padding} ${bar} ${right[index] ?? ""}`.trimEnd());
+			merged.push(
+				`${cell}${padding}${SEPARATOR_LEFT}${bar}${SEPARATOR_RIGHT}${right[index] ?? ""}`.trimEnd(),
+			);
 		}
-		return merged;
+		return {
+			lines: merged,
+			trimmed: kept.length < body.length || right.length < all.length,
+		};
 	}
 
 	// 堆叠：先裁 preview 行，再裁 detail 行，最后收选项窗口。
 	const preview =
 		markdown === undefined ? [] : markdownLines(markdown, width, style);
+	const texts = body.map((row) => row.text);
 	const room = budget - body.length;
 	if (room >= preview.length)
-		return [...head, ...body.map((row) => row.text), ...preview];
+		return { lines: [...head, ...texts, ...preview], trimmed: false };
 	if (room >= 2)
-		return [...head, ...body.map((row) => row.text), ...preview.slice(0, room)];
-	return [...head, ...trimRows(body, budget, focus, pinned)];
+		return {
+			lines: [...head, ...texts, ...preview.slice(0, room)],
+			trimmed: true,
+		};
+	const kept = trimRows(body, budget, focus, pinned);
+	return { lines: [...head, ...kept], trimmed: kept.length < body.length };
 }
 
 /** 焦点行号：选项序号 / Custom / Confirm。 */

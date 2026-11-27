@@ -81,6 +81,26 @@ describe("renderPanel", () => {
 		expect(text.some((line) => line.includes("Q1"))).toBe(false);
 	});
 
+	it("顶部分割线严格按 render(width) 铺满，窄屏与并排都不缺右侧", () => {
+		const session = createSession([
+			{
+				question: "Pick",
+				multiple: false,
+				options: [{ label: "A", preview: "p" }, { label: "B" }],
+			},
+		]);
+		for (const width of [1, 2, 5, 8, 40, 80, 100, 120]) {
+			for (const minSideBySideWidth of [0, 100]) {
+				const [top] = renderPanel(
+					session,
+					{ ...layout, width, height: 20, minSideBySideWidth },
+					style,
+				);
+				expect(top).toBe("─".repeat(width));
+			}
+		}
+	});
+
 	it("题干永远完整折行显示，title 只做 Tab 标签", () => {
 		const session = createSession([
 			{
@@ -158,24 +178,57 @@ describe("renderPanel", () => {
 			question("Pick many", ["A", "B"], { multiple: true }),
 		]);
 		const idle = renderPanel(session, { ...layout, width: 60 }, colored);
-		expect(idle.join("\n")).toContain("\x1b[2m  → Confirm\x1b[22m");
+		expect(idle.join("\n")).toContain("\x1b[2m       → Confirm\x1b[22m");
 
 		const focused = apply(session, ...downs(3));
 		expect(focused.focus).toEqual({ kind: "confirm" });
 		const lines = renderPanel(focused, { ...layout, width: 60 }, colored);
-		expect(lines.join("\n")).toContain("\x1b[35m› → Confirm");
+		expect(lines.join("\n")).toContain("\x1b[35m›      → Confirm");
 	});
 
 	it("Custom 未聚焦 dim，聚焦高亮", () => {
 		const session = createSession([question("Q", ["A", "B"])]);
 		const idle = plain(renderPanel(session, { ...layout, width: 60 }, style));
-		expect(idle).toContain("  + Custom…");
+		expect(idle).toContain("     + Custom…");
 
 		const focused = apply(session, ...downs(2));
 		expect(focused.focus).toEqual({ kind: "custom" });
 		expect(
 			renderPanel(focused, { ...layout, width: 60 }, colored).join("\n"),
-		).toContain("\x1b[35m› + Custom…");
+		).toContain("\x1b[35m›    + Custom…");
+	});
+
+	it("Custom 与 Confirm 的正文对齐选项 label 列，光标留在第 0 列", () => {
+		const single = plain(
+			renderPanel(
+				createSession([question("Q", ["A", "B"])]),
+				{ ...layout, width: 60 },
+				style,
+			),
+		);
+		const label = single
+			.find((line) => line.startsWith("› 1. A"))
+			?.indexOf("A");
+		expect(label).toBe(5);
+		expect(single.find((line) => line.includes("+ Custom…"))).toBe(
+			`${" ".repeat(5)}+ Custom…`,
+		);
+
+		const multi = plain(
+			renderPanel(
+				createSession([question("Q", ["A", "B"], { multiple: true })]),
+				{ ...layout, width: 60 },
+				style,
+			),
+		);
+		const box = multi.find((line) => line.includes("1. A"))?.indexOf("A");
+		expect(box).toBe(7);
+		expect(multi.find((line) => line.includes("+ Custom…"))).toBe(
+			`${" ".repeat(7)}+ Custom…`,
+		);
+		expect(multi.find((line) => line.includes("→ Confirm"))).toBe(
+			`${" ".repeat(7)}→ Confirm`,
+		);
 	});
 
 	it("detail 与已落地的 note 缩进到 label 列", () => {
@@ -309,7 +362,7 @@ describe("renderPanel", () => {
 				style,
 			),
 		);
-		expect(lines).toContain("› + Custom");
+		expect(lines).toContain("›    + Custom");
 		expect(lines).toContain("▎ 第一行");
 		expect(lines).toContain("▎ 第二行");
 		expect(lines.filter((line) => line.includes("─")).length).toBe(1);
@@ -332,9 +385,9 @@ describe("renderPanel", () => {
 			colored,
 		);
 		const lines = plain(raw);
-		// 左栏收到 12 列下限：8 格补齐 + 1 格留白，右栏在题干那行就开始画。
-		expect(lines[1]).toBe(`Pick${" ".repeat(9)}│ line one`);
-		expect(lines[2]).toBe(`› 1. A${" ".repeat(7)}│ line two`);
+		// 左栏按 Custom 行收到 14 列，再留 2 格呼吸，右栏在题干那行就开始画。
+		expect(lines[1]).toBe(`Pick${" ".repeat(12)}│ line one`);
+		expect(lines[2]).toBe(`› 1. A${" ".repeat(10)}│ line two`);
 		expect(raw[1]).toContain("\x1b[2m│\x1b[22m");
 		expect(lines.some((line) => line.includes("Preview"))).toBe(false);
 		for (const line of raw) expect(visibleWidth(line)).toBeLessThanOrEqual(120);
@@ -355,8 +408,8 @@ describe("renderPanel", () => {
 				style,
 			),
 		);
-		// 封顶 50 列：竖线落在第 51 列。
-		expect(lines[1]?.indexOf("│")).toBe(51);
+		// 封顶 50 列 + 左侧 2 格呼吸：竖线落在 0 基第 52 列。
+		expect(lines[1]?.indexOf("│")).toBe(52);
 	});
 
 	it("并排左栏按整题内容定宽，滚动选项窗口或换高亮都不挪竖线", () => {
@@ -376,7 +429,7 @@ describe("renderPanel", () => {
 		);
 		const top = barColumns(topLines);
 		expect(top.length).toBeGreaterThan(0);
-		expect(new Set(top)).toEqual(new Set([51]));
+		expect(new Set(top)).toEqual(new Set([52]));
 		expect(topLines.some((line) => line.includes("LLLL"))).toBe(true);
 
 		const scrolled = render(
@@ -413,12 +466,12 @@ describe("renderPanel", () => {
 			expect(visibleWidth(line)).toBeLessThanOrEqual(120);
 	});
 
-	it("detail 高度充裕时最多折 2 行，多出的用 … 收尾", () => {
+	it("detail 高度充裕时最多折 4 行，多出的用 … 收尾", () => {
 		const session = createSession([
 			{
 				question: "Pick",
 				multiple: false,
-				options: [{ label: "A", detail: "detail ".repeat(20) }, { label: "B" }],
+				options: [{ label: "A", detail: "detail ".repeat(40) }, { label: "B" }],
 			},
 		]);
 		const lines = plain(
@@ -427,8 +480,8 @@ describe("renderPanel", () => {
 		const detailLines = lines.filter((line) =>
 			line.trimStart().startsWith("detail"),
 		);
-		expect(detailLines).toHaveLength(2);
-		expect(detailLines[1]?.endsWith("…")).toBe(true);
+		expect(detailLines).toHaveLength(4);
+		expect(detailLines[3]?.endsWith("…")).toBe(true);
 		for (const line of lines)
 			expect(visibleWidth(line)).toBeLessThanOrEqual(40);
 	});
@@ -541,8 +594,8 @@ describe("renderPanel", () => {
 			),
 		).toBe(true);
 		expect(lines.some((line) => line.includes("1. A"))).toBe(false);
-		expect(lines).toContain("  + Custom…");
-		expect(lines).toContain("  → Confirm");
+		expect(lines).toContain("       + Custom…");
+		expect(lines).toContain("       → Confirm");
 	});
 
 	it("note 编辑时输入行不会被裁掉", () => {
@@ -582,7 +635,60 @@ describe("renderPanel", () => {
 		);
 	});
 
-	it("showHints 为 false 时不画提示行，正文多留一行", () => {
+	it("多行题干与首选项之间留一行空行，单行题干不留", () => {
+		const wrapped = plain(
+			renderPanel(
+				createSession([question("First line\nsecond line", ["A", "B"])]),
+				{ ...layout, width: 60, height: 20 },
+				style,
+			),
+		);
+		expect(wrapped[1]).toBe("First line");
+		expect(wrapped[2]).toBe("second line");
+		expect(wrapped[3]).toBe("");
+		expect(wrapped[4]).toBe("› 1. A");
+
+		const oneLine = plain(
+			renderPanel(
+				createSession([question("Only one line", ["A", "B"])]),
+				{ ...layout, width: 60, height: 20 },
+				style,
+			),
+		);
+		expect(oneLine[1]).toBe("Only one line");
+		expect(oneLine[2]).toBe("› 1. A");
+	});
+
+	it("高度紧张触发裁剪时，题干与提示行上方的空行一起省掉", () => {
+		const labels = ["A", "B", "C", "D", "E", "F"];
+		const crowded = question("First line\nsecond line", labels, {
+			options: labels.map((label) => ({ label, detail: `detail of ${label}` })),
+		});
+		const lines = plain(
+			renderPanel(
+				createSession([crowded]),
+				{ ...layout, width: 60, height: 8 },
+				style,
+			),
+		);
+		expect(lines.slice(1, 3)).toEqual(["First line", "second line"]);
+		expect(lines.includes("")).toBe(false);
+		expect(lines.at(-1)).toContain("esc abort");
+	});
+
+	it("高度有余量时提示行上方隔一行空行", () => {
+		const lines = plain(
+			renderPanel(
+				createSession([question("Q", ["A", "B"])]),
+				{ ...layout, width: 60, height: 20 },
+				style,
+			),
+		);
+		expect(lines.at(-2)).toBe("");
+		expect(lines.at(-1)).toContain("esc abort");
+	});
+
+	it("showHints 为 false 时不画提示行，也省掉它上面的空行", () => {
 		const session = createSession([question("Q", ["A", "B", "C"])]);
 		const shown = renderPanel(session, { ...layout, width: 80 }, style);
 		const hidden = renderPanel(
@@ -592,8 +698,8 @@ describe("renderPanel", () => {
 		);
 		expect(shown.at(-1)).toContain("esc");
 		expect(hidden.some((line) => line.includes("esc"))).toBe(false);
-		expect(hidden.length).toBe(shown.length - 1);
-		expect(hidden.at(-1)).toBe("  + Custom…");
+		expect(hidden.length).toBe(shown.length - 2);
+		expect(hidden.at(-1)).toBe("     + Custom…");
 	});
 
 	it("collapse 配成 off 时提示不提折叠", () => {

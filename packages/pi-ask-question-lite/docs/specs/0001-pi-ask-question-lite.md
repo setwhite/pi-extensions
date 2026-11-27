@@ -118,15 +118,15 @@ type Outcome =
 - 超预算的裁剪顺序按布局分两种（并排的理由见 [`0004`](../decisions/0004-side-by-side-trim.md)）：
   - 上下堆叠：preview 行 → detail 行 → 选项窗口（滚动，先留焦点项，再按距离补相邻项；Custom 与 Confirm 行优先保留，预算连它们都放不下时先保焦点项）。
   - 左右并排：两栏各自按同一高度预算裁。左栏 detail 行 → 选项窗口，右栏独立裁 preview 行。右栏让出的行不能变成左栏高度，两栏不互相补偿。
-- 面板顶部一条 dim 通栏分割线。Tab、题干、选项、底部提示一律贴第 0 列，不留左缩进，好和下方的 Pi 原生 footer 左对齐；分段之间不留空行，垂直空间全给内容。
+- 面板顶部一条 dim 通栏分割线，严格按 `render(width)` 传入的完整 `width` 铺满（`"─".repeat(width)`），右侧不短缺。Tab、题干、选项、底部提示一律贴第 0 列，不留左缩进，好和下方的 Pi 原生 footer 左对齐。分段之间默认不留空行，只在高度有余量（未触发裁剪）时留两处呼吸空行：题干折成 2 行及以上时在它和首选项之间留 1 行，`ui.showHints` 为真时在可操作项和提示行之间留 1 行。行数不够时这两行先让给内容，提示行那行优先于题干那行。
 - 单题不画 Tab 栏。多题时顶部一行 Tab 栏，每题一段，标签用 `title`，缺省 `Q1`…`Qn`，已答段前标 ✓；当前题用 accent 加粗并加方括号（如 `[2 细节]`），其余 dim。`title` 只做 Tab 标签，不替代题干。
-- 题干永远完整渲染，按宽自动折行（可多行）。选项一行一个：单选用 `› 1. label` 标焦点、`✓ 1. label` 标已选，不画 `○`/`●`；多选用 `› ■ 1. label` 与 `□ 2. label`。`detail` 缩进到 label 列，高度充裕时最多折 2 行，超出用 `…`。label、detail、note 里的换行只取 `/\r?\n/` 切出的首行：`render()` 的每个元素必须是正好一行。
-- Custom 行固定在该题选项下方：未聚焦时 dim 显示 `+ Custom…`（有草稿显示 `+ Custom: …`），聚焦换 accent。多选在 Custom 下方再加一行 `→ Confirm`（平时 dim，聚焦 accent）。
+- 题干永远完整渲染，按宽自动折行（可多行）。选项一行一个：单选用 `› 1. label` 标焦点、`✓ 1. label` 标已选，不画 `○`/`●`；多选用 `› ■ 1. label` 与 `□ 2. label`。`detail` 缩进到 label 列，高度充裕时最多折 4 行，超出用 `…`；再挤下去由裁剪顺序统一收口。label、detail、note 里的换行只取 `/\r?\n/` 切出的首行：`render()` 的每个元素必须是正好一行。
+- Custom 行固定在该题选项下方：未聚焦时 dim 显示 `+ Custom…`（有草稿显示 `+ Custom: …`），聚焦换 accent。多选在 Custom 下方再加一行 `→ Confirm`（平时 dim，聚焦 accent）。这两行正文对齐选项 label 列（单选第 5 列、多选第 7 列），与上方选项正文左对齐；光标 `›` 仍留在第 0 列，不跟着正文挪。
 - 已落地的补充说明在选项下方 dim 显示 `↳ …`，多选每个选项各挂各的。按 `e` 后该选项保持高亮，单行输入框紧贴该选项（或它的 `detail`）正下方，缩进到 label 列并加 `↳ ` 前缀，不另占一行提示；正在编辑的那条不再重复画旧值。
-- 自由输入编辑：保留高亮的 `› + Custom` 行，编辑区紧贴其下，用左侧 dim 的 `▎ ` 竖条标示输入行，不画上下边框。
+- 自由输入编辑：保留高亮的 `›` 加 `+ Custom` 行（正文同样对齐 label 列），编辑区紧贴其下，用左侧 dim 的 `▎ ` 竖条标示输入行，不画上下边框。
 - 底部一行 dim 键提示，只列当前形态真能用的键：单选用 `enter pick · e note`，多选用 `enter toggle · e note`；多题补 `tab next` 与 `keys.submitEarly submit`，多选单题补 `keys.submitEarly submit`；`keys.collapse` 有效时再补 `<key> collapse`，最后收在 `esc abort`（键 + 动作，与其余提示一致）。编辑态是 `enter save · esc back`（custom 补 `shift+enter newline`）。`ui.showHints` 为假时整行不画，正文多一行。
 - `keys.collapse` 有效时，列表态按它折叠：只剩一行 dim 的 `Ask collapsed (已答/总题数) · <key> expand`，不再画分割线与正文；再按同键展开，焦点、答案与草稿原样。折叠时别的输入不生效，Esc 仍中止。
-- preview：当前高亮选项带 `preview` 时显示，不画 `Preview` 标头，正文直接起，省下的那一行留给内容。终端宽 ≥ `ui.preview.minSideBySideWidth`（默认 100）时在右侧并排，竖线 `│` 用 dim，左右各留 1 格；否则在该题下方堆叠。并排时右栏从 Tab / 题干那一行就顶对齐，不等选项区，右栏多出的行不把面板往下撑高。左栏宽先封顶 `min(floor(width × 0.42), 54)`（并给右栏留 ≥ 12 列），封顶内按当前题**全部**左侧内容（Tab、题干、全部选项与 detail、Custom / Confirm）一次算定，选项窗口滚动或换高亮都不改宽度；左栏每行按该宽度截断再补齐，其余给右栏。截断与补齐必须保留左侧的 ANSI 样式（选中高亮、detail 的 dim 不能被剥成纯白）。两栏都不低于 12 列，不够就退回堆叠。
+- preview：当前高亮选项带 `preview` 时显示，不画 `Preview` 标头，正文直接起，省下的那一行留给内容。终端宽 ≥ `ui.preview.minSideBySideWidth`（默认 100）时在右侧并排，竖线 `│` 用 dim，左 2 格右 1 格（左栏的省略号不贴线）；否则在该题下方堆叠。并排时右栏从 Tab / 题干那一行就顶对齐，不等选项区，右栏多出的行不把面板往下撑高。左栏宽先封顶 `min(floor(width × 0.42), 54)`（并给右栏留 ≥ 12 列），封顶内按当前题**全部**左侧内容（Tab、题干、全部选项与 detail、Custom / Confirm）一次算定，选项窗口滚动或换高亮都不改宽度；左栏每行按该宽度截断再补齐，其余给右栏。截断与补齐必须保留左侧的 ANSI 样式（选中高亮、detail 的 dim 不能被剥成纯白）。两栏都不低于 12 列，不够就退回堆叠。
 - `ui.bell` 为真时，对话框挂载响一次（`\x07`）；提交、中止与退出都不再响。
 - 聊天记录里，调用行是 `Ask <title1 · title2>`（`title` 缺省取 `question` 首行）。结果默认每题一条 `✓ <title>: <answer>`，选项的补充说明紧跟该选项名后写成 `<label> (note: …)`；没答的题用 dim 标 `<title>: skipped`，中止是 dim 的 `✗ aborted`。宿主按 Ctrl+O 展开时（`renderResult` 读 `options.expanded`）每题改成一块：`✓ <title>`、完整题干、每条选中项一行 `- <label> (note: …)`、`custom: …`；跳过项写成 `<title>: skipped` 加完整题干。原始 JSON 参数与模型摘要不直接铺在聊天里。
 - 挂载用 `ctx.ui.custom()` 的非 overlay 形态，占编辑器槽位（理由见 [`0002`](../decisions/0002-inline-editor-slot.md)）。
@@ -178,7 +178,7 @@ type Outcome =
 | AC1 | 配置用例：`resolveConfigPath` 拼 `<agent dir>/pi-ask-question-lite/config.json`；缺文件得默认值；坏 JSON、未知键、类型不符都抛错且带字段路径；`maxHeightRatio` 越界夹取；`keys.collapse` 支持 `off`，格式不严、占导航键、与 `annotate` / `submitEarly` 重复都抛错；`ui.showHints` 校验；`tool-name` 每处都替换；改 `tools.ask.name` 后注册名跟着变 |
 | AC2 | 校验用例：1 题 / 4 题、2 选项 / 6 选项的边界通过；0 题、5 题、1 选项、7 选项、空白 `question`、空白 `label`、未知键全部抛错；`multiple` 缺省 `false`；`Other` 与 `Next` 通过 |
 | AC3 | 状态用例：迁移表逐条覆盖；多选 Enter 只勾选、Confirm 行收题、空 Confirm 记 `skipped`；多选 `e` 写 note 自动勾选该选项、焦点不推进、取消勾选清掉那条 note、草稿按选项分开；自动推进跳过已答；最后一题答完回跳漏题；全答自动 `submit`；`submitEarly` 带 `skipped`；折叠只翻标志、焦点 / 答案 / 草稿不动，折叠时其它动作不生效而 Esc 仍中止；`note` / `custom` 的 Esc 只退编辑、草稿还在；列表态 Esc 得 `answers: []`、`aborted: true`；`done` 只触发一次 |
-| AC4 | 渲染用例：宽度 80 / 100 / 120 × 高度 6 / 20 / 40。并排与堆叠切换、`…` 截断、预算裁剪顺序（堆叠 preview → detail → 选项窗口；并排左栏 detail → 选项窗口、右栏独立裁 preview）、单题无 Tab 栏、内容贴第 0 列、无空行、题干完整折行、当前 Tab 高亮、`›` / `✓` / `■` / `□` 前缀、Confirm 行、note 就地编辑（多选每个选项各挂各的、编辑中不重复旧值）、custom 编辑无边框、左栏封顶 `min(floor(width × 0.42), 54)` 后按整题内容定宽（滚动选项窗口与换高亮时竖线列号不变）、右栏从 Tab / 题干行顶对齐、detail 折 2 行、键提示随形态与题型换（`esc abort` / 编辑态 `esc back`）且随 `collapse` 开关增减、`showHints` 关掉整行、折叠态只有一行进度、并排截断保留 ANSI |
+| AC4 | 渲染用例：宽度 80 / 100 / 120 × 高度 6 / 20 / 40。并排与堆叠切换、`…` 截断、预算裁剪顺序（堆叠 preview → detail → 选项窗口；并排左栏 detail → 选项窗口、右栏独立裁 preview）、单题无 Tab 栏、内容贴第 0 列、分割线按 width 铺满、分段间默认无空行而有余量时题干后与提示行前各 1 行呼吸空行（裁剪时省去）、题干完整折行、当前 Tab 高亮、`›` / `✓` / `■` / `□` 前缀、Confirm 行、Custom / Confirm 正文对齐 label 列、note 就地编辑（多选每个选项各挂各的、编辑中不重复旧值）、custom 编辑无边框、左栏封顶 `min(floor(width × 0.42), 54)` 后按整题内容定宽（滚动选项窗口与换高亮时竖线列号不变）、右栏从 Tab / 题干行顶对齐、detail 折 4 行、键提示随形态与题型换（`esc abort` / 编辑态 `esc back`）且随 `collapse` 开关增减、`showHints` 关掉整行、折叠态只有一行进度、并排截断保留 ANSI |
 | AC5 | 接线用例：注册参数含 `exposure: "model-only"`；`mode !== "tui"` 时抛错且零事件；提交、中止、抛错三条路径 `herdr:blocked` 成对；工具结果的 `details` 形状与英文摘要；`renderCall` 只显示 `Ask` 与题目标签、`renderResult` 默认出每题 `✓` 与 dim `skipped` / `✗ aborted`，`options.expanded` 为真时换成完整题干、选项 note 与 custom 的展开块；铃只在挂载响一次；`terminate: true` 与 `ctx.abort()` 各一次 |
 | AC6 | 包闸：`test/package.test.ts` 的 files / `pi.extensions` 断言与 `test/docs.test.ts` 的两份 README 配置块 = `DEFAULTS` 都通过 |
 | AC7 | 全仓 `pnpm check` 绿：lint、check:imports、typecheck、test |
