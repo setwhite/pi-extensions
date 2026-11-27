@@ -61,7 +61,7 @@ run -> config
 | fake pi 扩展 API | `test/support/fake-pi.ts` 记录注册与投递，手动触发事件 | 深度分流、`turn_end` 落盘、`request_input`、`deliverAs: followUp` 投递、收尾关 pane |
 | `loadConfig` / `writeChildResult` / `pruneRuns` | 临时目录 + 真实 fs | 默认值、严格校验、seq 单调、原子替换、超限落盘、过期清理 |
 
-mock 只有两处：注入的 `HerdrClient`、fake pi 扩展 API。不 mock 模块内部，不 mock Node fs。真实 herdr 行为变化时，先补[研究记录](research/)再改代码。
+mock 只有两处：注入的 `HerdrClient`、fake pi 扩展 API。不 mock 模块内部，不 mock Node fs。真实 herdr 行为变化时，先补[研究记录](research/README.md)再改代码。
 
 ## 5. 文档职责
 
@@ -73,7 +73,7 @@ mock 只有两处：注入的 `HerdrClient`、fake pi 扩展 API。不 mock 模�
 | `docs/specs/*.md` | 对外配置、工具、状态机、失败模式 | 决策理由、内部签名 |
 | `docs/GLOSSARY.md` | 本扩展特有术语的唯一命名来源 | 实现细节 |
 | `docs/modules/*.md` | 单个模块的用法与取舍 | 依赖方向、契约字段表 |
-| `docs/research/*.md` | 外部实测与参考记录 | 当前契约 |
+| `docs/research/*.md` | 外部实测与参考记录，索引在 [research/README.md](research/README.md) | 当前契约 |
 
 归属冲突时以本表裁决。跨文档只允许指针，不允许复述。
 
