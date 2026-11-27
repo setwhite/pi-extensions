@@ -51,11 +51,12 @@ describe("tool text", () => {
     expect(text.promptSnippet).toBe("");
   });
 
-  it("drops the rule that code already enforces", () => {
+  it("keeps only the cross-field rules", () => {
+    expect(text.promptGuidelines).toHaveLength(3);
     expect(text.promptGuidelines.join("\n")).not.toMatch(/cannot spawn children/i);
   });
 
   it("tells the parent how to answer needs_input", () => {
-    expect(text.promptGuidelines.join("\n")).toMatch(/needs_input: steer the answer back/);
+    expect(text.promptGuidelines.join("\n")).toMatch(/on needs_input, steer the answer directly/i);
   });
 });
