@@ -50,7 +50,7 @@ export const parameters = Type.Unsafe<SubagentParameters>({
         worktree: { type: "boolean", description: "Set true when child may write to this repo." },
         tools: {
           ...strings,
-          description: "Replaces default tool set.",
+          description: "Replaces default tool set; keep codemode if present.",
         },
         skills: {
           ...strings,

@@ -33,7 +33,7 @@ describe("tool schema", () => {
 
   it("spells out the traps that cost a wrong spawn", () => {
     const all = Object.assign({}, ...variants.map((variant) => variant.properties)) as Record<string, Property>;
-    expect(all.tools?.description).toBe("Replaces default tool set.");
+    expect(all.tools?.description).toBe("Replaces default tool set; keep codemode if present.");
     expect(all.worktree?.description).toBe("Set true when child may write to this repo.");
     expect(all.skills?.description).toBe("Extra skill paths.");
     expect(all.message?.description).toBe("Interrupts a running child first.");
