@@ -1,94 +1,21 @@
+import { MUTATION_MS, nested, QUERY_MS, resultOf, text } from "./parse.ts";
 import type { RequestOptions, Transport } from "./socket.ts";
 import { createTransport, HerdrError } from "./socket.ts";
+import type { AgentStatus, HerdrClient } from "./types.ts";
 
 export { socketEndpoint } from "./endpoint.ts";
+export type {
+  AgentState,
+  AgentStatus,
+  CreatedWorktree,
+  CreateTabInput,
+  HerdrClient,
+  PaneState,
+  SplitPaneInput,
+  StartAgentInput,
+} from "./types.ts";
 export type { Transport };
 export { HerdrError };
-
-export type AgentStatus = "idle" | "working" | "blocked" | "done" | "unknown";
-
-export interface PaneState {
-  paneId: string;
-  agentStatus: AgentStatus;
-}
-
-/** herdr 的启动就绪状态：interactive_ready 只有在 agent.get 里才会被推进。 */
-export interface AgentState {
-  status: AgentStatus;
-  interactiveReady: boolean;
-}
-
-export interface CreateTabInput {
-  cwd: string;
-  label: string;
-  env: Record<string, string>;
-  workspaceId?: string;
-}
-
-export interface CreatedWorktree {
-  workspaceId: string;
-  tabId: string;
-  paneId: string;
-  path: string;
-}
-
-export interface SplitPaneInput {
-  paneId: string;
-  cwd: string;
-  env: Record<string, string>;
-}
-
-export interface StartAgentInput {
-  name: string;
-  paneId: string;
-  args: string[];
-}
-
-/** 扩展唯一的 herdr 依赖面。run 模块只认这个接口。 */
-export interface HerdrClient {
-  createTab(input: CreateTabInput): Promise<string>;
-  createWorktree(input: { cwd: string; label: string }): Promise<CreatedWorktree>;
-  splitPane(input: SplitPaneInput): Promise<string>;
-  removeWorktree(workspaceId: string): Promise<void>;
-  startAgent(input: StartAgentInput): Promise<void>;
-  getAgent(target: string): Promise<AgentState>;
-  prompt(target: string, text: string): Promise<void>;
-  sendKeys(target: string, keys: string[]): Promise<void>;
-  waitAgent(target: string, until: AgentStatus[], timeoutMs?: number): Promise<AgentStatus>;
-  closePane(paneId: string): Promise<void>;
-  listPanes(): Promise<PaneState[]>;
-  close(): void;
-}
-
-const QUERY_MS = 20_000;
-const MUTATION_MS = 120_000;
-
-function resultOf(value: unknown, type: string): Record<string, unknown> {
-  if (typeof value !== "object" || value === null) {
-    throw new HerdrError("herdr_protocol", `empty result, expected ${type}`);
-  }
-  const record = value as Record<string, unknown>;
-  if (record.type !== type) {
-    throw new HerdrError("herdr_protocol", `expected ${type}, got ${String(record.type)}`);
-  }
-  return record;
-}
-
-function nested(record: Record<string, unknown>, key: string): Record<string, unknown> {
-  const value = record[key];
-  if (typeof value !== "object" || value === null) {
-    throw new HerdrError("herdr_protocol", `${key}: expected object`);
-  }
-  return value as Record<string, unknown>;
-}
-
-function text(record: Record<string, unknown>, key: string): string {
-  const value = record[key];
-  if (typeof value !== "string" || value === "") {
-    throw new HerdrError("herdr_protocol", `${key}: expected non-empty string`);
-  }
-  return value;
-}
 
 export function createHerdrClient(endpoint: string): HerdrClient {
   const transport: Transport = createTransport(endpoint);

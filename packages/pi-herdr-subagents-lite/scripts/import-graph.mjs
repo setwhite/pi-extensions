@@ -30,8 +30,8 @@ export const singleImport = [
     specifier: /^node:fs\/promises$/,
     only: ["src/run/child-result.ts", "src/run/paths.ts", "src/run/prune.ts", "src/run/result.ts"],
   },
-  { specifier: /^node:path$/, only: ["src/config/index.ts", "src/run/"] },
-  { specifier: /^node:os$/, only: ["src/config/index.ts", "src/run/args.ts"] },
+  { specifier: /^node:path$/, only: ["src/config/", "src/run/"] },
+  { specifier: /^node:os$/, only: ["src/config/", "src/run/args.ts"] },
   {
     specifier: /\.\.\/(config|herdr|run|tool|extension)\/(?!index\.ts)[a-z-]+\.ts$/,
     only: [],

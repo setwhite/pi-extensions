@@ -76,9 +76,7 @@ export async function startE2e(): Promise<E2e> {
       interruptGraceMs: 5000,
       onProblem: (message) => problems.push(message),
     });
-    service.onBatch((batch) => {
-      batches.push(batch);
-    });
+    service.onBatch((batch) => batches.push(batch));
     const active = { client, service };
     return {
       root,

@@ -52,23 +52,17 @@ describe("spawn", () => {
     service.shutdown();
   });
 
-  it("joins several exclusions into one --exclude-tools list", async () => {
-    const { service, fake } = setupRun({ excludeTools: ["ask", "todo"] });
-
-    await service.spawn({ id: "alpha", objective: "x" });
-
-    const args = fake.agents[0]?.args ?? [];
+  it("derives --exclude-tools from config", async () => {
+    const joined = setupRun({ excludeTools: ["ask", "todo"] });
+    await joined.service.spawn({ id: "alpha", objective: "x" });
+    const args = joined.fake.agents[0]?.args ?? [];
     expect(args[args.indexOf("--exclude-tools") + 1]).toBe("ask,todo");
-    service.shutdown();
-  });
+    joined.service.shutdown();
 
-  it("omits --exclude-tools when nothing is excluded", async () => {
-    const { service, fake } = setupRun({ excludeTools: [] });
-
-    await service.spawn({ id: "alpha", objective: "x" });
-
-    expect(fake.agents[0]?.args ?? []).not.toContain("--exclude-tools");
-    service.shutdown();
+    const none = setupRun({ excludeTools: [] });
+    await none.service.spawn({ id: "alpha", objective: "x" });
+    expect(none.fake.agents[0]?.args ?? []).not.toContain("--exclude-tools");
+    none.service.shutdown();
   });
 
   it("polls agent.get until herdr reports the agent interactive, then prompts once", async () => {
