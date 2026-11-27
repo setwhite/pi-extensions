@@ -413,37 +413,33 @@ describe("renderPanel", () => {
 		expect(visibleWidth(lines[1] ?? "")).toBe(19);
 	});
 
-	it("并排右栏封顶 72 列，长 preview 不再跟着终端变宽", () => {
-		const render = (width: number) =>
+	it("并排两栏按内容分宽：左栏窄时余列全给 preview，左栏宽时两栏各半", () => {
+		const render = (width: number, label: string) =>
 			plain(
 				renderPanel(
 					createSession([
 						{
 							question: "Pick",
 							multiple: false,
-							options: [
-								{ label: "A", preview: "word ".repeat(40) },
-								{ label: "B" },
-							],
+							options: [{ label, preview: "word ".repeat(40) }, { label: "B" }],
 						},
 					]),
 					{ ...layout, width, minSideBySideWidth: 100 },
 					style,
 				),
 			);
-		const rightWidths = (lines: string[]) =>
-			lines
-				.filter((line) => line.includes("│"))
-				.map((line) => visibleWidth(line.slice(line.indexOf("│") + 2)));
-		for (const width of [120, 200]) {
-			const lines = render(width);
-			expect(lines[1]?.indexOf("│")).toBe(16);
-			expect(Math.max(...rightWidths(lines))).toBeLessThanOrEqual(72);
-			expect(Math.max(...rightWidths(lines))).toBeGreaterThan(60);
-		}
+		// 左栏只要 14 列，剩下的 181 列全归 preview。
+		const narrow = render(200, "A");
+		expect(narrow[1]?.indexOf("│")).toBe(16);
+		// 左栏的 label 要 65 列，96 列装不下两栏：各分 48 列，竖线落在第 50 列。
+		const wide = render(100, "L".repeat(60));
+		expect(wide[1]?.indexOf("│")).toBe(50);
+		expect(
+			visibleWidth(wide[1]?.slice((wide[1]?.indexOf("│") ?? 0) + 2) ?? ""),
+		).toBeLessThanOrEqual(48);
 	});
 
-	it("并排时左栏宽度不超过 min(floor(width × 0.42), 54)", () => {
+	it("并排左栏按内容要宽，长 label 不再被封顶截断", () => {
 		const session = createSession([
 			{
 				question: "Pick",
@@ -458,8 +454,10 @@ describe("renderPanel", () => {
 				style,
 			),
 		);
-		// 封顶 50 列 + 左侧 2 格呼吸：竖线落在 0 基第 52 列。
-		expect(lines[1]?.indexOf("│")).toBe(52);
+		// 左栏 85 列（label 80 + 前缀 5），右侧 2 格呼吸：竖线落在 0 基第 87 列。
+		const optionRow = lines.find((line) => line.includes("LLLL")) ?? "";
+		expect(optionRow).toContain("L".repeat(80));
+		expect(optionRow.indexOf("│")).toBe(87);
 	});
 
 	it("并排左栏按整题内容定宽，滚动选项窗口或换高亮都不挪竖线", () => {
@@ -479,7 +477,7 @@ describe("renderPanel", () => {
 		);
 		const top = barColumns(topLines);
 		expect(top.length).toBeGreaterThan(0);
-		expect(new Set(top)).toEqual(new Set([52]));
+		expect(new Set(top)).toEqual(new Set([87]));
 		expect(topLines.some((line) => line.includes("LLLL"))).toBe(true);
 
 		const scrolled = render(

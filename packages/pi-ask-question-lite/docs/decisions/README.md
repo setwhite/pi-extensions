@@ -11,7 +11,8 @@
 - [0005](0005-multi-confirm-row.md) 多选 Enter 只勾选，收题走 `→ Confirm` 行
 - [0006](0006-drop-space-toggle.md) 多选只留 Enter 与数字键，去掉 Space
 - [0007](0007-preview-column-top-aligned.md) 预览不画标头、右栏与 Tab / 题干顶对齐、左栏按内容收紧（宽度部分由 0008 取代）
-- [0008](0008-fixed-left-column-width.md) 左栏宽度按整题内容定死，滚动与换高亮不抖
+- [0008](0008-fixed-left-column-width.md) 左栏宽度按整题内容定死，滚动与换高亮不抖（宽度公式由 0012 取代）
 - [0009](0009-herdr-blocked-needs-discovery.md) 真机验收不带 `-ne`：变红要靠扩展发现加载的 herdr 状态扩展
 - [0010](0010-package-name.md) 包名与目录改为 `pi-ask-question-lite`：npm 上 `pi-ask-lite` 已被占用
 - [0011](0011-config-dir-package-name.md) 配置目录改用包名：`<agent dir>/pi-ask-question-lite/config.json`
+- [0012](0012-content-driven-column-width.md) 两栏按内容分宽：删掉 42% / 54 / 72 的固定封顶，竖线随内容移动

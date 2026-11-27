@@ -35,13 +35,9 @@ const NOTE_MARK = "↳ ";
 const EDITOR_BAR = "▎ ";
 /** detail 折到 4 行就收 …；再挤由 trimRows 按既有裁剪顺序统一收口。 */
 const MAX_DETAIL_LINES = 4;
-/** 左栏封顶按比例收窄，中间不再留一条黑沟；上限保证长选项不被压得太碎。 */
-const LEFT_COLUMN_RATIO = 0.42;
-const MAX_LEFT_COLUMN = 54;
+/** 两栏各自的下限：再窄就只剩省略号，不如让对方先吃饱。 */
 const MIN_LEFT_COLUMN = 12;
 const MIN_RIGHT_COLUMN = 12;
-/** 右栏行宽上限：preview 再长也不拉到一行百来字，剩下的列留白。 */
-const MAX_RIGHT_COLUMN = 72;
 /** 竖线左 2 右 1：左栏的省略号不贴着竖线。 */
 const SEPARATOR_LEFT = "  ";
 const SEPARATOR_RIGHT = " ";
@@ -62,10 +58,18 @@ export function renderPanel(
 	const question = session.questions[session.active];
 	const preview = previewMarkdown(session);
 	const sideBySide = preview !== undefined && isSideBySide(layout);
-	const columnCap = sideBySide ? leftColumnCap(width) : width;
 
 	const tabs =
 		session.questions.length > 1 ? [renderTabs(session, width, style)] : [];
+	// 并排时两栏按内容分宽：左栏要多少给多少，preview 最多占一半。
+	const columns = sideBySide
+		? splitColumns(
+				width,
+				leftColumnNeed(session, layout, style, tabs),
+				previewNeed(preview ?? "", style),
+			)
+		: { left: width, right: 0 };
+	const leftWidth = columns.left;
 	const tail = layout.showHints
 		? [style.muted(style.truncate(hintFor(session, layout), width))]
 		: [];
@@ -73,16 +77,16 @@ export function renderPanel(
 	const questionRoom = Math.max(1, height - 1 - tabs.length - tail.length - 1);
 	const questionLines = wrapBlock(
 		question.question,
-		columnCap,
+		leftWidth,
 		questionRoom,
 		style,
 	);
 	const head = [
 		...tabs,
-		...questionLines.map((line) => style.bold(style.truncate(line, columnCap))),
+		...questionLines.map((line) => style.bold(style.truncate(line, leftWidth))),
 	];
 	const budget = Math.max(1, height - 1 - head.length - tail.length);
-	const body = bodyRows(session, layout, style, columnCap);
+	const body = bodyRows(session, layout, style, leftWidth);
 	const { lines: content, trimmed } = composeContent(
 		head,
 		body,
@@ -91,6 +95,7 @@ export function renderPanel(
 		budget,
 		session,
 		style,
+		columns,
 	);
 	// 余量够时隔开可操作项与暗灰提示、多行题干与首选项；高度紧张时这两行先让给内容。
 	let spare = trimmed ? 0 : height - 1 - content.length - tail.length;
@@ -368,47 +373,53 @@ function markdownLines(
 	return lines;
 }
 
-/** 左栏封顶：不超过 min(floor(width × 0.42), 54)，并给右栏留够最低宽度。 */
-function leftColumnCap(width: number): number {
-	return Math.max(
-		0,
-		Math.min(
-			Math.floor(width * LEFT_COLUMN_RATIO),
-			MAX_LEFT_COLUMN,
-			width - SEPARATOR.length - MIN_RIGHT_COLUMN,
-		),
+/**
+ * 两栏按内容分宽，竖线没有固定位置：preview 最多要一半，左栏拿剩下的列再按
+ * 自己的内容收窄；两边都装得下时各按各的内容，右侧多出来的列留白。
+ */
+function splitColumns(
+	width: number,
+	needLeft: number,
+	needRight: number,
+): { left: number; right: number } {
+	const room = Math.max(0, width - SEPARATOR.length);
+	const rightCap = Math.max(
+		MIN_RIGHT_COLUMN,
+		Math.min(needRight, Math.floor(room / 2)),
 	);
-}
-
-/** 封顶之下按左侧实际内容收紧，省下的列全给右栏。 */
-function leftColumnWidth(width: number, contentWidth: number): number {
-	return Math.min(
-		leftColumnCap(width),
-		Math.max(MIN_LEFT_COLUMN, contentWidth),
-	);
+	const left = Math.max(MIN_LEFT_COLUMN, Math.min(needLeft, room - rightCap));
+	const right = Math.max(MIN_RIGHT_COLUMN, Math.min(needRight, room - left));
+	return { left, right };
 }
 
 /**
- * 左栏宽度只按当前题的完整左侧内容量一次：滚动选项窗口、换高亮都不挪竖线。
- * 编辑中的输入行不算，否则每敲一个键宽度就跟着跳。
+ * 左栏要的宽度：题干、选项、detail、Custom/Confirm 先按满宽排一遍再量最宽行，
+ * 长 detail 就不会在左栏还宽着时被折行。编辑中的输入行不算，否则每敲一个键
+ * 竖线就跟着跳。
  */
-function leftContentWidth(
-	head: readonly string[],
-	body: readonly Row[],
-	multi: boolean,
+function leftColumnNeed(
+	session: Session,
+	layout: PanelLayout,
 	style: PanelStyle,
+	tabs: readonly string[],
 ): number {
-	const gutter = " ".repeat(labelColumn(multi));
+	const question = session.questions[session.active];
+	const body = bodyRows(session, layout, style, layout.width).filter(
+		(row) => row.kind !== "editor",
+	);
 	return widest(
 		[
-			...head,
-			...body.filter((row) => row.kind !== "editor").map((row) => row.text),
-			// 列表态之外这两行写法更短，按固定字面量兜底。
-			`${gutter}${CUSTOM_MARK}Custom…`,
-			`${gutter}${CONFIRM_LABEL}`,
+			...tabs,
+			...question.question.split(/\r?\n/),
+			...body.map((row) => row.text),
 		],
 		style,
 	);
+}
+
+/** preview 想要的宽度：按源码最长行估，markdown 的粗体与标题只差一两列。 */
+function previewNeed(markdown: string, style: PanelStyle): number {
+	return widest(markdown.split(/\r?\n/), style);
 }
 
 function widest(lines: readonly string[], style: PanelStyle): number {
@@ -433,18 +444,15 @@ function composeContent(
 	budget: number,
 	session: Session,
 	style: PanelStyle,
+	columns: { left: number; right: number },
 ): Composed {
 	const width = layout.width;
 	const focus = focusRow(session);
 	const pinned = pinnedGroups(session);
-	const multi = session.questions[session.active].multiple;
 
 	if (markdown !== undefined && isSideBySide(layout)) {
 		// 两栏各自裁：左栏先丢 detail 再收选项窗口，右栏只留前 budget 行。
-		const leftWidth = leftColumnWidth(
-			width,
-			leftContentWidth(head, body, multi, style),
-		);
+		const { left: leftWidth, right: rightWidth } = columns;
 		const kept = trimRows(
 			body,
 			Math.max(0, budget - head.length),
@@ -452,15 +460,10 @@ function composeContent(
 			pinned,
 		);
 		const left = [...head, ...kept];
-		// 右栏按 preview 自己的行宽收：短 preview 不拉满，长 preview 封顶 72 列。
-		const room = Math.max(0, width - leftWidth - SEPARATOR.length);
-		const all = markdownLines(
-			markdown,
-			Math.min(MAX_RIGHT_COLUMN, room),
-			style,
-		);
-		const rightWidth = Math.min(
-			room,
+		// 右栏按 preview 自己的行宽收：短 preview 不拉满，长 preview 折在分到的列里。
+		const all = markdownLines(markdown, rightWidth, style);
+		const fit = Math.min(
+			rightWidth,
 			Math.max(MIN_RIGHT_COLUMN, widest(all, style)),
 		);
 		const right = all.slice(0, Math.max(0, budget));
@@ -473,7 +476,7 @@ function composeContent(
 			merged.push(
 				`${cell}${padding}${SEPARATOR_LEFT}${bar}${SEPARATOR_RIGHT}${style.truncate(
 					right[index] ?? "",
-					rightWidth,
+					fit,
 				)}`.trimEnd(),
 			);
 		}

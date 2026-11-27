@@ -1,5 +1,7 @@
 # 0008 左栏宽度按整题内容定死
 
+> 宽度公式由 [0012](0012-content-driven-column-width.md) 取代：上限不再是 `min(floor(width × 0.42), 54)`，两栏按各自内容分。
+
 ## 决定
 
 - 并排时左栏宽 = `min(cap, max(12, 当前题全部左侧内容的最大宽度))`，`cap = min(floor(width × 0.42), 54, width - 3 - 12)`。
