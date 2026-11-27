@@ -15,6 +15,7 @@
 - 新增 `worktree: true`：给可并发的写任务单独 checkout，失败自动回滚 worktree。
 - 子代理不注册 `ask`：提问用 `request_input` 写进 `result.json`，不在子 pane 弹对话框。待答问题另存 `questions.json`，提问后的续写回合不会把它盖成完成（DEC-0072）。
 - 新增真机 e2e：`pnpm test:e2e` 自起隔离 herdr session，覆盖 pane 中途被关、提问闭环、运行中转向三条链路，不进 `pnpm check`。
+- 修：真机上 `spawn` 必然 30 秒超时 `spawn_failed: agent_not_ready`。herdr 0.9.5 只在 `agent.get` 里推进托管 agent 的启动状态（`agent.list` 与 `agent.prompt` 都不推进），现在先轮询到 `interactive_ready` 再 prompt（DEC-0073）。e2e 的临时 agent dir 也装上 herdr 的 pi 集成，跑的和真机同一条上报路径。
 
 ## 0.11.2 — 2026-11-25
 

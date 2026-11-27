@@ -31,7 +31,7 @@ await service.spawn({ id: "alpha", objective: "review the diff" });
 - 槽位由状态派生，`starting` / `running` / `interrupting` 占槽，没有单独的释放调用。
 - 完成只认 `result.json` 的 `seq` 递增，不认 herdr 的 `done`（它实际不会出现），也不读终端文本。
 - prompt 发出后 agent 可能还停在旧 `idle`：`agent.wait` 会立刻回 `agent_info`，此时没有新 `seq`。watcher 每 300ms 重读，连续 30 秒没有新 `seq` 才判 `failed`。
-- 刚 `agent.start` 的 pane 要等 herdr 认出具名 agent 才能 prompt（实测 0.1–3.5 秒）。`pane.ts` 的 `promptWhenReady` 只对 `agent_not_ready` 每 250ms 重试，上限 30 秒。
+- 刚 `agent.start` 的 pane 要等 herdr 把托管 agent 从启动中推进到可交互（实测约 3 秒）。这个推进只发生在 `agent.get` 里，所以 `pane.ts` 的 `promptWhenReady` 先按 100ms 轮询 `getAgent` 到 `interactiveReady`（总预算 30 秒，`agent_not_found` / `agent_not_ready` 都算还在起），再 prompt；prompt 的 `agent_not_ready` 重试保留作兜底。见 [DEC-0073](../decisions/0073-agent-get-readiness-poll.md)。
 - 把答案 steer 回 `needs_input` 的 run 之前先删 `questions.json`，否则子侧下一回合仍会写 `needs_input`（[DEC-0072](../decisions/0072-pending-questions-file.md)）。
 - 同一个 run 同时只有一个 watcher；重开 pane 或重新提问用 `generation` 让旧长等结果作废。
 - 不做跨会话状态持久化：父会话重载后从空表起步。

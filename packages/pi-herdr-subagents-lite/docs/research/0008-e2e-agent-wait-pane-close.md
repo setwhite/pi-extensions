@@ -35,7 +35,9 @@ run summary: pane or agent went away: agent_not_found: agent target w1:p2 not fo
 agent_not_ready: agent w1:p2 is not an active named agent
 ```
 
-实测窗口 0.1–3.5 秒，`agent.start` 的 `timeout_ms` 不管这段。`src/run/pane.ts` 的 `promptWhenReady` 每 250ms 重试、上限 30 秒，只有 `agent_not_ready` 才重试，其他错误立刻抛出。
+实测窗口 0.1–3.5 秒，`agent.start` 的 `timeout_ms` 不管这段。
+
+后来发现光重试 prompt 救不了：herdr 只在 `agent.get` 里推进托管 agent 的启动状态，真机上永远等不到。现在 `src/run/pane.ts` 的 `promptWhenReady` 先轮询 `agent.get` 到 `interactive_ready` 再 prompt，见[研究记录 0009](0009-agent-start-readiness.md) 与 [DEC-0073](../decisions/0073-agent-get-readiness-poll.md)。
 
 ## 4. `request_input` 会被下一回合的 `turn_end` 盖掉
 

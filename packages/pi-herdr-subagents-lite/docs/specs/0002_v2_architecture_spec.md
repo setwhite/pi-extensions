@@ -191,10 +191,12 @@ export interface RequestInputParameters {
 | 环境注入在 `agent.start` | 改为：普通任务 `tab.create`（带 `cwd` / `label` / `env` / `focus: false`）；worktree 任务 `worktree.create` 后 `pane.split` 带 `env`，再关掉原根 pane |
 | 一条连接复用到会话结束 | herdr 每回完一条请求就关连接，客户端一请求一连接 |
 | `agent.wait` 只在状态变化时返回 | 当前状态已经匹配时立刻回 `agent_info`，客户端两种响应都读 |
-| `agent.start` 返回即可 prompt | 还要等 herdr 把它认成具名 agent（实测 0.1–3.5 秒），期间 `agent.prompt` 回 `agent_not_ready`，按 250ms 重试 |
+| `agent.start` 返回即可 prompt | 不止要等，而且光 prompt 重试永远等不到：她的托管 agent 只在 `agent.get` 里推进启动状态，`agent.list` / `agent.prompt` 都不推进（真机上必然 30 秒超时）。改为按 100ms 轮询 `agent.get` 到 `interactive_ready`，再 prompt，见 [DEC-0073](../decisions/0073-agent-get-readiness-poll.md) |
 | `turn_end` 只在回合结束时写一次结果 | 提问后的续写回合也会写，会把 `needs_input` 盖成 `turn_end`；改由 `questions.json` 保状态，见 [DEC-0072](../decisions/0072-pending-questions-file.md) |
 
 另：子进程参数按 pi 文档落成 `--exclude-tools ask`（`--tools` 纯名单会整体替换工具集，不能与 `+`/`-` 混用）。
+
+启动就绪这条是控制流级的差异，单看前文会误判成「等零点几秒就好」：[研究记录 0009](../research/0009-agent-start-readiness.md) 记了源码位置、CLI 与 socket 的对照，以及不能稳定复现的原因。
 
 ## 9.1 真机 e2e
 
@@ -205,5 +207,8 @@ export interface RequestInputParameters {
 | pane 中途被关 | `working` 时 `pane.close`，run 结算为 `failed`，summary 保留 `agent_not_running` 或 `agent_not_found` |
 | 提问闭环 | 子侧 `request_input` 落盘后 envelope 为 `needs_input` 且带问题；`result.json` 与 `session.jsonl` 路径证明 env 透传；`pane.process_info` 的 argv 证明 `--exclude-tools ask` |
 | 运行中转向 | `working` 时 `steer` 回 `interrupting`，esc 打断后新 prompt 投递并结算为 `done`，无问题上报 |
+| 启动就绪链路 | 临时 agent dir 里装迷你版 herdr pi 集成（`session_start` 报 idle、`agent_start` 报 working、`agent_settled` 报 idle）；记录 client 调用顺序，断言 `startAgent` → `getAgent` → `prompt` |
+
+集成 fixtures 让 e2e 跑在和生产相同的 hook 上报路径上，但**不能**稳定复现启动卡死（e2e 的子 pi 1–2 秒就到 idle，抢在第一次 reconcile 前激活）。卡死的回归保护靠调用顺序断言 + 单测，见[研究记录 0009](../research/0009-agent-start-readiness.md)。
 
 实测结论与错误码见[研究记录 0008](../research/0008-e2e-agent-wait-pane-close.md)。

@@ -32,6 +32,7 @@ v1 时代的决策（profile、inbox、turn 事件、轮询存活检测）保留
 - [0068](0068-run-retention.md) run 附属文件按保留期清理
 - [0071](0071-completion-by-agent-wait.md) 完成通知用 `agent.wait`，不用 `events.subscribe`
 - [0072](0072-pending-questions-file.md) 待答问题落 `questions.json`，`turn_end` 不能盖掉 `needs_input`
+- [0073](0073-agent-get-readiness-poll.md) 起 agent 后轮询 `agent.get` 等就绪，不靠 prompt 重试
 - [0056](0056-auto-exit-channel.md) auto-exit 用 pane env 传。已由 0063 取代
 
 ## 任务与上下文
