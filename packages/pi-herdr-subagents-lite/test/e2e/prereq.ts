@@ -1,4 +1,4 @@
-// 真实 herdr + 真实 pi：缺一项就让整组 e2e 跳过。
+// 真机 e2e 的前置条件：缺 herdr、pi 或模型 auth 时整组跳过。
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
@@ -44,8 +44,14 @@ export function prereqs(): Prereq {
   if (HERDR_BIN === undefined) {
     return { ok: false, reason: "herdr not found on PATH (set HERDR_BIN)" };
   }
+  if (!runnable(HERDR_BIN)) {
+    return { ok: false, reason: `HERDR_BIN=${HERDR_BIN} is not an executable file` };
+  }
   if (PI_BIN === undefined) {
     return { ok: false, reason: "pi not found on PATH (set PI_BIN)" };
+  }
+  if (!runnable(PI_BIN)) {
+    return { ok: false, reason: `PI_BIN=${PI_BIN} is not an executable file` };
   }
   if (!existsSync(join(REAL_AGENT_DIR, "auth.json"))) {
     return { ok: false, reason: `no model auth (${join(REAL_AGENT_DIR, "auth.json")} missing)` };

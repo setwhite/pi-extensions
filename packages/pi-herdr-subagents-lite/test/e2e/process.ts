@@ -50,6 +50,7 @@ export function run(
   });
 }
 
+/** 隔离会话：把宿主 herdr 的环境变量全部清掉，免得连到用户自己的 session 上。 */
 export function cleanEnv(extra: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {};
   for (const [key, value] of Object.entries(process.env)) {
@@ -58,12 +59,4 @@ export function cleanEnv(extra: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
     }
   }
   return { ...env, ...extra };
-}
-
-export function killProcess(pid: number): void {
-  if (process.platform === "win32") {
-    execFile("taskkill", ["/F", "/PID", String(pid)], { windowsHide: true }, () => {});
-    return;
-  }
-  process.kill(pid, "SIGKILL");
 }
