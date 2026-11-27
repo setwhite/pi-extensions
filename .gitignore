@@ -10,6 +10,9 @@ coverage/
 *.log
 tmp/
 
+# pi 会话导出
+pi-session-*.html
+
 # 参考仓库的本地克隆（packages/pi-herdr-subagents-lite/_repos）
 _repos/
 
