@@ -27,7 +27,7 @@
 
 ## 判据：尾部换过没有
 
-文本或 session 文件字节数任一变化，就算换了一条消息。字节数取自 `readLastAssistant` 返回的 `size`，不额外 stat（见 [session-file](../modules/session-file.md)）。session 文件只追加，字节数单调增。
+文本或 session 文件字节数任一变化，就算换了一条消息。字节数取自 `readLastAssistant` 返回的 `size`，不额外 stat（v1 的 `session-file` 模块已删，见 [v2 契约 §9](../specs/0002_v2_architecture_spec.md)）。session 文件只追加，字节数单调增。
 
 代价：同一 turn 的尾部被投递后，子代理又追写了非 assistant 内容（例如 `send` 写进 session 的用户消息）然后被杀，会重复投一次同一段文本。选它是因为「多投一次」比「静默丢一条结果」便宜。
 

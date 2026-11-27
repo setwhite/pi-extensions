@@ -1,27 +1,25 @@
 # extension
 
-pi 适配层。不持有 run 状态。本文只写取舍。
+pi 装配层。按 `PI_SUBAGENT_DEPTH` 分流：深度 0 装主代理控制面，深度 >= 1 只装子代理侧。
 
-## session_start
+## 结构
 
-- 每个 session 重建 run 服务。旧服务先 shutdown，避免上一会话的 run 泄漏到新会话。
-- 按 `config.enabled` 注册工具。inbox 泵不受它控制。
-- profile 列表在注册时展开一次。运行中改 profile，`run` 与 `send` 重启时会重读。工具说明里的列表要重启 pi 才更新。
+| 文件 | 职责 |
+|---|---|
+| `index.ts` | `createExtension(deps)`：深度分流 |
+| `main.ts` | `session_start` 建服务与工具，`session_shutdown` 按 `closeChildrenOn` 清场 |
+| `child.ts` | 注册 `request_input`，每个 `turn_end` 同步写 `result.json`；`questions.json` 在时仍写 `needs_input` |
+| `deliver.ts` | 把合并后的结算渲染成一条 `followUp` 消息 |
+| `types.ts` | 用到的 pi 扩展面最小契约 |
 
-## 回合上报（子代理侧）
+## 行为
 
-- `agent_settled` 时上报。只有拥有 `<runBase>.inbox` 的进程才算子代理，父会话不上报。
-- 只取最后一条 user 消息之后的条目。`/tree`、压缩、重启都不能把旧答案算进这一轮。
-- `classifyTurn` 只判这一轮的性质，不决定子代理之后做什么。
-- 写失败只通知，不重试。父侧会按存活兜底报 `lost`。
+- 主侧 `session_start`：清理过期 run 目录、建 Socket 客户端与 run 服务、注册工具。`enabled: false` 时什么都不注册。
+- 结算投递走 `sendMessage(..., { triggerTurn: true, deliverAs: "followUp" })`：主回合空闲立即触发，进行中排到回合结束后。
+- 子侧 `turn_end` 落盘的理由见[研究记录 0007](../research/0007-herdr-socket-api.md)：herdr 在 `agent_settled` 才上报 idle，而 `turn_end` 严格更早，父侧收到 idle 时结果文件必然已写完。
+- 子侧没有 `PI_SUBAGENT_RUN_DIR` 时不注册任何东西，避免写到错误位置。
 
-## session_shutdown
+## 取舍
 
-- 先停 inbox，再取走 service。
-- reason 是 `quit`、且自己是子代理时，写一个 `quit` 回合事件。`reload` 不算退出，不写。
-- reason 命中 `closeChildrenOn` 时走 `closeChildren()`：关闭失败逐条通知。未命中只 `shutdown()`（DEC-0048）。
-
-## inbox 投递
-
-- 不转成工具结果。父模型看到的是一条用户消息，回复才有上下文。状态分支见契约 §5。
-- 连续 3 拍失败时停泵并通知。没有退避，继续跑只会刷通知。
+- 零 UI 渲染、零每轮上下文注入：状态看 herdr 侧边栏，进度靠主代理按需 `inspect`。
+- 收尾直接调 `closeChildren`，不复用服务内部表。

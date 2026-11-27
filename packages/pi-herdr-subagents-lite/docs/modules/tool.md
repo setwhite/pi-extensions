@@ -1,12 +1,23 @@
 # tool
 
-模型面：两个 action、一份 schema、一份文案。本文只写取舍。
+模型面。主子两侧各一套工具：主侧 `subagent`（`spawn` / `steer` / `inspect` / `stop`），子侧 `request_input`。
 
-- `HERDR_ENV !== "1"` 直接返回 `not_in_herdr`。没有降级路径，父进程不在 herdr pane 里时没有 pane 可开。
-- 已知失败转成模型能读的错误，未知失败继续抛。不伪装。
-- 结果走 `subagent_result` 自定义消息，`triggerTurn: true`。异步结果要能唤醒父模型，而工具结果只能在调用当轮返回（DEC-0030、DEC-0036）。
-- 一批结果合成一条消息。一个聚合窗口只唤醒父模型一次。
-- 超限截断、artifact 与警告由 [run](run.md) 生成。这里只拼信封（`Full result:`）。
-- 工具返回的 `content` 只放 `state` 与 `name`。`paneId` 与 `sessionFile` 留在 `details`：模型对它们没有动作，而 session 路径会让父代理去读子会话正文，破坏上下文隔离。
-- 默认 guideline 四条。父代理负责用户交互、跨任务汇总与决策，执行交给子代理。`run` 只启动、不等待，`send` 只投递。末行是 profile 列表：`{{profiles}}` 随会话变化，动态内容靠后，前面的文字才稳定。
-- `prompts` 覆盖文案。每条 guideline 自动加 `${toolName}: ` 前缀，`{{profiles}}` 在注册时展开。覆盖 `guidelines` 却删掉 `{{profiles}}` 时，模型看不到 profile 列表。`snippet: ""` 让工具从 Available tools 消失（契约 §3）。
+## 用法
+
+~~~ts
+import { createSubagentTool, createRequestInputTool } from "../tool/index.ts";
+
+pi.registerTool(createSubagentTool({ config, service: () => service }));
+pi.registerTool(createRequestInputTool({ runDir, summaryMaxChars: config.summaryMaxChars }));
+~~~
+
+- 参数 schema 用 `typebox` 表达，四个动作合成一个 `oneOf`。
+- `execute` 只做两件事：调 `run` 服务、把返回包成 `content` + `details`。
+- `ToolError` 渲染成 `"<code>: <message>"`，`isError: true`；其它异常直接抛出。
+- 不在 herdr 里（`HERDR_ENV !== "1"`）时返回 `not_in_herdr`，没有降级路径。
+- `request_input` 把问题写进 `result.json` 并提示结束回合，不弹任何 UI。
+
+## 取舍
+
+- `content` 只放模型要用的 JSON；`details` 供 UI 与 session 条目。
+- 子代理不注册 `ask`：`spawn` 恒定传 `--exclude-tools ask`，从源头防止子 pane 弹表单打断人类。

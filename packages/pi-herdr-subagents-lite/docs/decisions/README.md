@@ -1,8 +1,10 @@
 # 决策
 
-当前设计：子代理是 herdr pane 里的常驻 pi 子进程。模型面只有 `run` / `send`。结果异步回投。只做 fresh。当前代码见 [ARCHITECTURE](../ARCHITECTURE.md)。
+当前设计（v2）：子代理是 herdr tab 里的常驻 pi 子进程，深度上限 1。模型面是 `subagent`（`spawn` / `steer` / `inspect` / `stop`），子侧只有 `request_input`。完成靠 `result.json`，投递靠原生 `followUp`。当前代码见 [ARCHITECTURE](../ARCHITECTURE.md)，契约见 [v2 契约](../specs/0002_v2_architecture_spec.md)。
 
-一条决策一份文件。文件名前缀就是编号（`0036` → [0036-result-pipeline.md](0036-result-pipeline.md)），正文引用写 `DEC-0036`。对外契约见 [v1 契约](../specs/0001-v1-contract.md)，已取消的提案见 [CANCELLED.md](CANCELLED.md)。
+v1 时代的决策（profile、inbox、turn 事件、轮询存活检测）保留为历史记录，其中被 v2 移除的部分见 [契约 §8](../specs/0002_v2_architecture_spec.md) 与 DEC-0071。
+
+一条决策一份文件。文件名前缀就是编号（`0036` → [0036-result-pipeline.md](0036-result-pipeline.md)），正文引用写 `DEC-0036`。对外契约见 [v2 契约](../specs/0002_v2_architecture_spec.md)，已取消的提案见 [CANCELLED.md](CANCELLED.md)。
 
 ## 形态
 
@@ -28,6 +30,8 @@
 - [0032](0032-death-detection.md) died 判定。已由 0064 取代
 - [0053](0053-session-dir.md) 子 session 进父会话的桶，run 文件进扩展目录的 runs/
 - [0068](0068-run-retention.md) run 附属文件按保留期清理
+- [0071](0071-completion-by-agent-wait.md) 完成通知用 `agent.wait`，不用 `events.subscribe`
+- [0072](0072-pending-questions-file.md) 待答问题落 `questions.json`，`turn_end` 不能盖掉 `needs_input`
 - [0056](0056-auto-exit-channel.md) auto-exit 用 pane env 传。已由 0063 取代
 
 ## 任务与上下文

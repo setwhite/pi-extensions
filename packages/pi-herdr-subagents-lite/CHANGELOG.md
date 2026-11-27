@@ -2,6 +2,20 @@
 
 本文件记录已发布版本的用户可见变更。更细的过程见 git log。破坏性变更标 **BREAKING**。0.5.2 及更早的变更见旧仓 `setwhite/pi-herdr-subagents-lite` 的 tag `v0.3.0`–`v0.5.2`。
 
+## 0.12.0 — 2026-11-27
+
+按 [v2 契约](docs/specs/0002_v2_architecture_spec.md) 重写，模块只剩 `config` / `herdr` / `run` / `tool` / `extension`。
+
+- **BREAKING**：工具动作改为 `spawn` / `steer` / `inspect` / `stop`，参数是 `id` 而非 `name` / `profile`。老写法 `run` / `send` 不再存在。
+- **BREAKING**：删掉 profile 模块。不再有 `profiles/*.md`、全局与项目两层查找、`auto-exit`、`system-prompt`、示例落盘。子代理的身份改由 `spawn` 参数与 `PI_SUBAGENT_*` 决定。
+- **BREAKING**：删掉 `herdrBin`、`maxResultChars`、`closeOnFailure`、`inboxPollMs`、`livenessPollMs`、`prompts` 六个配置键，出现即加载失败。新增 `summaryMaxChars`（默认 2000）、`interruptGraceMs`（默认 3000）。
+- **BREAKING**：`maxConcurrent` 默认值从 16 改为 8，上限 64。
+- herdr 改走本地 Socket 的 NDJSON 接口，不再起 `herdr` CLI 子进程，也没有任何轮询。
+- 完成通知改成每条 run 一个 `agent.wait` 长请求，不用 `events.subscribe`（DEC-0071）。完成判定只认 `result.json` 的 `seq` 递增。
+- 新增 `worktree: true`：给可并发的写任务单独 checkout，失败自动回滚 worktree。
+- 子代理不注册 `ask`：提问用 `request_input` 写进 `result.json`，不在子 pane 弹对话框。待答问题另存 `questions.json`，提问后的续写回合不会把它盖成完成（DEC-0072）。
+- 新增真机 e2e：`pnpm test:e2e` 自起隔离 herdr session，覆盖 pane 中途被关、提问闭环、运行中转向三条链路，不进 `pnpm check`。
+
 ## 0.11.2 — 2026-11-25
 
 - 无运行时变更：README 封面图挪到标题下面，语言切换挪到封面之后。

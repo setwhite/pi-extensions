@@ -4,30 +4,25 @@
 
 | 术语 | 指什么 | 不是什么 |
 |---|---|---|
-| **herdr** | 终端 workspace / tab / pane / agent 宿主 | 不是 pi 扩展 |
-| **workspace** | herdr 的顶层容器，装 tab。run 的 cwd 与父 cwd 不同时新建，label 是子代理名 | 不是 tab，也不是 pane |
-| **run** | 一个子代理从启动到退出的记录。`run` 返回后，`name`、`sessionFile` 与 `<runBase>` 在生命周期内不变 | 不是 profile，也不是 herdr 的 agent 定义 |
-| **run 基名** | `<runBase>` = `<agent-dir>/pi-herdr-subagents-lite/runs/<name>-<runId>`，无扩展名。brief、identity、inbox、回合事件、结果 artifact 都挂在它上面 | 不是 session 文件，也不是目录 |
-| **回合** | 子代理从取到一条消息到 settle 的一段 | 不是一次 `run`，也不是 herdr 的 agent 状态 |
-| **回合结束** | 子代理写完回合事件。父侧据此结算 | 不是进程退出 |
-| **结算** | 父侧动作：投递结果、改状态、按需关 pane。只有 `settleTurn` 一条路径 | 不是结果消息本身 |
-| **投递** | 把消息放进 `<runBase>.inbox/`，或把结果投回父会话 | 不是工具的同步返回值 |
-| **常驻子进程** | `pi --session <file>`。可继续对话、反问、steer | 不是一次性 `-p --no-session` |
-| **任务简报** | `<runBase>.brief.md`，内容是 `# Task` 段加任务正文。`system-prompt: task` 时 profile body 在前（DEC-0009） | 不是 profile body，也不是 session 文件 |
-| **身份文件** | `<runBase>.identity.md`，存 profile body。`system-prompt: task` 时不写（DEC-0051） | 不是任务简报，也不是 session 文件 |
-| **槽位** | `maxConcurrent` 的一个名额。只有 `running` 占槽 | 不是 herdr 的 pane 数 |
-| **run 状态** | `starting` / `running` / `idle` / `dead` / `closed`（DEC-0065、DEC-0066）。`starting` 与 `running` 占槽 | 不是 herdr 的 `agent_status` |
-| **profile** | 角色模板。全局与项目各一层 `profiles/*.md`，frontmatter `name` 是唯一键（必填）。同名时项目覆盖，同层同名全无效（路径见契约 §2） | 不是 agent name |
-| **子代理名** | `<profile>-<n>`，herdr live agent name。`run` 返回它，`send` 用它寻址 | 不是 profile 名，也不是 pane 标题 |
-| **tab label** | tab 栏文字。v1 等于子代理名 | 不是 agent name 字段 |
-| **pane label** | pane 头文字。v1 是任务第一行，为空时用子代理名 | 不是 tab label |
-| **回合事件** | `<runBase>.turns/<n>.json`。子代理在每个 `agent_settled` 写，父代理消费后删除（DEC-0062） | 不是 session 文件，也不是退出回执 |
-| **blocked** | agent 正在等人处理输入。状态从 herdr 读，上报由开对话框的交互扩展自己做（DEC-0070） | 不靠屏幕检测，本包也不上报 |
-| **结果 artifact** | 超限结果的全文文件，`<runBase>.result-<seq>.md` | 不是子 session 文件，也不是每条结果都写 |
-| **子侧 inbox** | `<runBase>.inbox/`。父侧写（brief 与 send 消息），子进程读（DEC-0023、DEC-0026） | 不是 herdr 的消息队列，也不是结果通道 |
-| **subagent_result** | 回投父会话的异步结果消息 | 不是工具的同步返回值 |
-| **auto-exit** | profile 字段。true = 父代理在 `done` 回合后关 pane，子代理不再自杀（DEC-0063） | 不是全局配置 |
-| **存活对账** | 每 15 秒一次 `agent list`，只看 `running` 的 run。连续三次缺席判 `dead`（DEC-0064） | 不是结果来源，也不读 pane 文本 |
-| **pi-herdr-subagents** | 同名参考项目，有 fyang93 与 modem-dev 两个版本 | 不是 herdr 的一部分，也不是本项目的 fork 来源 |
-| **pi-durable** | 可嵌入的 durable harness，子代理是同进程的子 conversation | 没接进 pi CLI |
-| **v1** | profile（含 auto-exit）、send 投递、回合事件、反问留在子 pane、npm 发布 | 不含 fork，死亡不自动重启 |
+| **herdr** | 终端 workspace / tab / pane / agent 宿主，本包唯一的进程托管方 | 不是 pi 扩展 |
+| **Socket** | herdr 的本地 NDJSON 接口，入口是 `HERDR_SOCKET_PATH` | 不是 CLI，也不是 HTTP |
+| **run** | 一个子代理从 spawn 到结算的记录，`id` 在父会话内唯一 | 不是 herdr 的 agent 定义 |
+| **id** | `^[a-z][a-z0-9_-]{0,31}$`，同时是 herdr agent name、tab label 与 run 目录名 | 不是 profile 名 |
+| **子代理** | 深度 >= 1 的 pi 进程，禁止再派生 | 不是同进程的 conversation |
+| **深度** | `PI_SUBAGENT_DEPTH`。0 是主代理，>= 1 是子代理，进程级身份 | 不是 TTY 猜测，也不是父进程名 |
+| **run 目录** | `<agent-dir>/pi-herdr-subagents-lite/runs/<id>/`，放 `session.jsonl`、`result.json`，必要时 `output.md` | 不是父 session 文件所在目录 |
+| **result.json** | 子侧唯一的完成信号：`{seq, state, text?, questions?, output?}`，`seq` 单调递增 | 不是终端输出，也不是 session 文件 |
+| **questions.json** | 待答问题的标记文件，`request_input` 写、父侧回答前删；只要它在，`turn_end` 也写 `needs_input` | 不是第二个结果文件，父侧不读它 |
+| **结算** | 父侧读完 `result.json` 后改状态、按需关 pane、合并投递 | 不是子进程退出 |
+| **合并窗口** | `aggregateWindowMs` 内多个结算合成一条消息 | 不是自定义消息队列 |
+| **投递** | 用宿主原生 `followUp` 把结算推回主代理 | 不是工具的同步返回值 |
+| **槽位** | `maxConcurrent` 的一个名额，只有 `starting` / `running` / `interrupting` 占槽 | 不是 herdr 的 pane 数 |
+| **run 状态** | `starting` / `running` / `interrupting` / `needs_input` / `done` / `failed` / `cancelled` | 不是 herdr 的 `agent_status` |
+| **steer** | 给已有 run 追加消息。运行中先打断再投递 | 不是 spawn |
+| **打断** | 向运行中的子代理发 `esc`，等它回到 idle | 不是关 pane |
+| **打断兜底** | 超过 `interruptGraceMs` 还没 idle 时关 pane、按原 session 重开 | 不是重试 `esc` |
+| **blocked** | 子 pane 里有审批或提问界面。只上报，不盲发按键 | 不是 `needs_input` |
+| **needs_input** | 子代理通过 `request_input` 提了问题，pane 保留等人或主代理回答 | 不是 herdr 的 `blocked` |
+| **inspect** | 主代理按需取运行状态，是唯一的进度查询面 | 不是每轮上下文注入 |
+| **worktree** | `worktree.create` 出来的独立 checkout，作为并发可写任务的 cwd | 不是 branch，也不是 stash |
+| **v1** | profile、inbox 文件协议、turn 事件、轮询存活检测 | 已被 v2 取代 |

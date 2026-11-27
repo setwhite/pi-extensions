@@ -1,8 +1,21 @@
 # config
 
-本模块是 `<data-dir>/config.json` 的唯一读取点。键与语义见契约 §1。默认值与 clamp 边界见 `src/config/index.ts` 与 `test/config/config.test.ts`。本文不复述。
+读 `<agent-dir>/pi-herdr-subagents-lite/config.json`，给全包提供唯一一份已校验配置。
 
-- 只读一次，改完重启 pi：父进程与子进程读到同一份值（DEC-0037）。
-- 严格 JSON。未知键、类型错、枚举错让扩展加载失败，并指出字段。拼错键名是错误。静默忽略会让用户以为配置生效。
-- 越界数字静默 clamp 到边界。配置在边界上仍然可用，代价是写错数值不会报错。
-- `runRetentionMs` 是唯一允许「关掉功能」的数值键：`0` = 永不清理 run 附属文件。其余数值键的 0 是有效边界值，不是开关。
+## 用法
+
+~~~ts
+import { agentDir, loadConfig, runsDir } from "../config/index.ts";
+
+const config = loadConfig(agentDir());
+const dir = runsDir(agentDir());
+~~~
+
+- `agentDir()` 读 `PI_CODING_AGENT_DIR`，未设时回落到 `~/.pi/agent`。
+- 文件不存在即全默认值；JSON 坏了、字段类型不对、出现未知键都直接抛错，错误信息带字段名。
+- 字段与默认值见[契约 §7](../specs/0002_v2_architecture_spec.md)。
+
+## 取舍
+
+- 未知键报错而不是忽略：配置拼错时立刻暴露，比运行时行为悄悄变形好。
+- 不做多层合并。v1 的全局 + 项目两层查找已删，配置只有一处。

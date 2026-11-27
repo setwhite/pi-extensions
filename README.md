@@ -60,14 +60,14 @@ pnpm -C packages/<pkg> check                      # 单包四闸：lint / import
 ```sh
 pnpm -C packages/pi-todo-lite test                # 只跑单包测试
 pnpm -C packages/pi-web-search-lite test:e2e      # 真网络，需要 provider key
-pnpm -C packages/pi-herdr-subagents-lite test:e2e # 真 herdr + 真 pi 子进程
+pnpm -C packages/pi-herdr-subagents-lite test:e2e  # 自起隔离 herdr session，需要 herdr + pi + auth
 pnpm -C packages/pi-browser-use-lite test:e2e     # 已开着的浏览器 + 已装好的扩展
 ```
 
-E2E 不进 `pnpm check`，也不进 CI。web-search 的 e2e 需要 provider key 与外网。herdr 的 e2e 自己起隔离的 herdr session 与 agent 目录。缺 herdr、pi 或 `auth.json` 时，整组跳过并打印原因。browser-use 的 e2e 不启动浏览器：它连一个已开着、已手动 load unpacked 装好扩展的浏览器。
+E2E 不进 `pnpm check`，也不进 CI。web-search 的 e2e 需要 provider key 与外网。herdr 的 e2e 自己起隔离的命名 session 与临时 agent 目录，只跑三条真机链路（pane 中途被关、提问闭环、运行中转向），缺 herdr / pi / auth.json 时整组跳过。browser-use 的 e2e 不启动浏览器：它连一个已开着、已手动 load unpacked 装好扩展的浏览器。
 
 ```sh
-export PI_E2E_MODEL=<model> # herdr e2e 换模型
+export PI_E2E_MODEL=<model> # e2e 换模型
 export PI_E2E_KEEP=1        # 保留 e2e 临时目录
 ```
 
