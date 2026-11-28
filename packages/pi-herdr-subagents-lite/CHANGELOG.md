@@ -2,7 +2,7 @@
 
 本文件记录用户可见变更；未发版的小节标「未发布」。更细的过程见 git log。破坏性变更标 **BREAKING**。0.5.2 及更早的变更见旧仓 `setwhite/pi-herdr-subagents-lite` 的 tag `v0.3.0`–`v0.5.2`。
 
-## 未发布
+## 0.13.1 — 2026-11-28
 
 - 修：子代理刚写完结果或正在结算时 `steer` 会撞车。现在发 `esc` 前先查 `agent.get`，子代理已经 `idle` / `done` 就不发 `esc`；watcher 读完 `result.json` 后、结算前重查排队消息，有 `pendingSteer` 就先吃掉旧 `seq` 再投递，不会把旧回合结算成 `done` 并关掉 pane（DEC-0076）。
 - 修：打断超时兜底、原地投递失败后的重开都收口到同一个 watcher 循环，不再有后台 `setTimeout` 与 watcher 抢同一个 pane。`prompt` 原地失败先按原 `sessionFile` 重开续跑一次，重开重发都失败才判 `failed`，不再直接失败并留下 pane（DEC-0076）。
