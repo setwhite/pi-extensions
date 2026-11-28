@@ -29,7 +29,7 @@ The config file is `<agent dir>/pi-todo/config.json`. `<agent dir>` is `$PI_CODI
 
 The extension only reads this file and never writes it. Without the file, all values are defaults.
 
-An error names the absolute path and one `path: reason` line per fault. These cases throw: broken JSON, an unknown key, a wrong type, a wrong enum. An out-of-range number clamps to the bound.
+An error names the absolute path and one `path: reason` line per fault. These cases throw: broken JSON, an unknown key, a wrong type, a wrong enum, and an out-of-range `ui.overlay` number. Only `plan.maxTasks`, `plan.maxSubjectChars` and `ui.widget.maxLines` clamp to their bounds.
 
 **Minimal configuration**: zero config works. To make the table shorter, set `ui.widget.maxLines`. The default is 9 lines.
 
