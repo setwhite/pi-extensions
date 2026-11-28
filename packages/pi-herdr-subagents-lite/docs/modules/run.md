@@ -35,4 +35,6 @@ await service.spawn({ id: "alpha", objective: "review the diff" });
 - 刚 `agent.start` 的 pane 要等 herdr 把托管 agent 从启动中推进到可交互（实测约 3 秒）。这个推进只发生在 `agent.get` 里，所以 `pane.ts` 的 `promptWhenReady` 先按 100ms 轮询 `getAgent` 到 `interactiveReady`（总预算 30 秒，`agent_not_found` / `agent_not_ready` 都算还在起），再 prompt；prompt 的 `agent_not_ready` 重试保留作兜底。见 [DEC-0073](../decisions/0073-agent-get-readiness-poll.md)。
 - 把答案 steer 回 `needs_input` 的 run 之前先删 `questions.json`，否则子侧下一回合仍会写 `needs_input`（[DEC-0072](../decisions/0072-pending-questions-file.md)）。
 - 同一个 run 同时只有一个 watcher；重开 pane 或重新提问用 `generation` 让旧长等结果作废。
+- 模型面只给结果：`sessionFile` / `runDir` / `paneId` 不出现在任何模型可见的返回里，投影在 `tool/face.ts`（[DEC-0074](../decisions/0074-model-face-without-paths.md)）。服务层仍保留这些字段寻址。
+- 会话与产物分家：产物在 `runs/<id>/`（`result.json`、`questions.json`、`output.md`），子会话在 `sessions/<id>/session.jsonl`；父代理拿到的路径只落在前者（[DEC-0075](../decisions/0075-child-session-outside-run-dir.md)）。两棵树共用 `pruneAgedDirs` 与 `runRetentionMs`。
 - 不做跨会话状态持久化：父会话重载后从空表起步。

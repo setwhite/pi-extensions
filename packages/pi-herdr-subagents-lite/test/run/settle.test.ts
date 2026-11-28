@@ -20,7 +20,7 @@ describe("settle", () => {
       id: "alpha",
       status: "done",
       summary: "finished the job",
-      paths: { session: join(runsDir, "alpha", "session.jsonl") },
+      paths: {},
     });
     expect(fake.closedPanes).toEqual(["w1:p1"]);
     expect(service.inspect("alpha")[0]?.status).toBe("done");

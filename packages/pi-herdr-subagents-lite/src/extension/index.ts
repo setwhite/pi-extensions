@@ -10,6 +10,7 @@ export interface ExtensionDeps {
   loadConfig(): Config;
   createClient(): HerdrClient;
   runsDir(): string;
+  sessionsDir(): string;
   /** 进程级身份：0 是主代理，>=1 是子代理。 */
   depth: number;
   runDir: string | undefined;

@@ -1,16 +1,18 @@
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { Config } from "../config/index.ts";
 import { type RunService, ToolError } from "../run/index.ts";
+import { spawnFace, steerFace, viewFace } from "./face.ts";
 import { parameters, type SubagentParameters } from "./schema.ts";
-import { toolText } from "./text.ts";
+import { SPAWN_NOTE, toolText } from "./text.ts";
 
 export type SubagentTool = ToolDefinition<typeof parameters>;
 export type { RequestInputParameters, RequestInputTool } from "./input.ts";
 export { createRequestInputTool, inputParameters, REQUEST_INPUT_TOOL } from "./input.ts";
 
-function ok(payload: unknown) {
+function ok(payload: unknown, note?: string) {
+  const text = note === undefined ? JSON.stringify(payload) : `${JSON.stringify(payload)}\n${note}`;
   return {
-    content: [{ type: "text" as const, text: JSON.stringify(payload) }],
+    content: [{ type: "text" as const, text }],
     details: payload,
     isError: false,
   };
@@ -43,13 +45,13 @@ export function createSubagentTool({ config, service }: SubagentToolDeps) {
         const runs = service();
         switch (params.action) {
           case "spawn":
-            return ok(await runs.spawn(params));
+            return ok(spawnFace(await runs.spawn(params)), SPAWN_NOTE);
           case "steer":
-            return ok(await runs.steer(params.id, params.message));
+            return ok(steerFace(await runs.steer(params.id, params.message)));
           case "stop":
-            return ok(await runs.stop(params.id));
+            return ok(steerFace(await runs.stop(params.id)));
           case "inspect":
-            return ok(runs.inspect(params.id));
+            return ok(runs.inspect(params.id).map(viewFace));
         }
       } catch (error) {
         if (error instanceof ToolError) {

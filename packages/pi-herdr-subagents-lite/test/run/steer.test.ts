@@ -80,7 +80,7 @@ describe("steer", () => {
   });
 
   it("reopens a finished run on its own session", async () => {
-    const { service, fake, runsDir, batches } = setupRun();
+    const { service, fake, runsDir, sessionsDir, batches } = setupRun();
     await service.spawn({ id: "alpha", objective: "x" });
     await vi.waitFor(() => expect(fake.pendingWaits()).toBe(1));
     await writeResult(runsDir, "alpha", { seq: 1, state: "turn_end", text: "first" });
@@ -89,7 +89,7 @@ describe("steer", () => {
 
     await expect(service.steer("alpha", "one more thing")).resolves.toEqual({ id: "alpha", status: "running" });
     expect(fake.tabs).toHaveLength(2);
-    expect(fake.agents.at(-1)?.args).toContain(join(runsDir, "alpha", "session.jsonl"));
+    expect(fake.agents.at(-1)?.args).toContain(join(sessionsDir, "alpha", "session.jsonl"));
     expect(fake.prompts.at(-1)).toContain("one more thing");
     service.shutdown();
   });

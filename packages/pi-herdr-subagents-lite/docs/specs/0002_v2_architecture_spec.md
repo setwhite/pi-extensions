@@ -107,7 +107,7 @@ export interface RequestInputParameters {
 ```
 
 - Separate Before Serializing 约束
-  - 落盘隔离: 每个子代理独占目录 `<runsDir>/<id>/`（存放 `session.jsonl`、`result.json` 及超长时按需生成的 `output.md`），绝不多个子代理共写同一汇总文件。
+  - 落盘隔离: 每个子代理独占目录 `<runsDir>/<id>/`（存放 `result.json`、`questions.json` 及超长时按需生成的 `output.md`），子会话另放 `<sessionsDir>/<id>/session.jsonl`，绝不多个子代理共写同一汇总文件，也绝不让会话与产物同目录（[DEC-0075](../decisions/0075-child-session-outside-run-dir.md)）。
   - 代码写隔离: 只读调研或确定不重叠的任务可共享 `cwd`；并发可写同一仓库时首选传 `worktree: true`，直接调用 `herdr` 的 `worktree.create` 创建独立 checkout 作为子代理 `cwd`，并在完工信封中返回路径由主代理决定合并或清理。
 - 命名、Pane 策略与状态机
   - `id` 校验: 必须匹配 `^[a-z][a-z0-9_-]{0,31}$`，在当前父会话内唯一；重名直接返回 `duplicate_id`。
@@ -128,7 +128,7 @@ export interface RequestInputParameters {
   - 父侧读取 `result.json` 后装配精简信封推给主代理:
     - `id` 与 `status`: 来自运行记录与结果文件。
     - `summary`: 子代理最后一轮最终回复，超过 `summaryMaxChars` 时硬截断并附 `output.md` 路径。
-    - `paths`: `session.jsonl` 路径与 `worktree` 路径（若有）。
+    - `paths`: `worktree` 路径与截断时的 `output.md` 路径（若有）。子会话与 run 目录不进模型面（[DEC-0074](../decisions/0074-model-face-without-paths.md)）。
     - `questions`: 来自 `request_input` 工具调用参数，100% 结构化。
 - Unified Human Questioning
   - 子代理调用 `request_input` 时，工具将结构化问题同步写入 `result.json` 并返回确认文本提示结束本轮等待父代理答复，进入 `needs_input`。
@@ -205,7 +205,7 @@ export interface RequestInputParameters {
 | 用例 | 断言 |
 |---|---|
 | pane 中途被关 | `working` 时 `pane.close`，run 结算为 `failed`，summary 保留 `agent_not_running` 或 `agent_not_found` |
-| 提问闭环 | 子侧 `request_input` 落盘后 envelope 为 `needs_input` 且带问题；`result.json` 与 `session.jsonl` 路径证明 env 透传；`pane.process_info` 的 argv 证明 `--exclude-tools ask` |
+| 提问闭环 | 子侧 `request_input` 落盘后 envelope 为 `needs_input` 且带问题；`result.json` 按目录约定出现在 run 目录、`session.jsonl` 落在 `sessions/<id>/` 且不在 run 目录，证明 env 透传与分家；`pane.process_info` 的 argv 证明 `--exclude-tools ask` |
 | 运行中转向 | `working` 时 `steer` 回 `interrupting`，esc 打断后新 prompt 投递并结算为 `done`，无问题上报 |
 | 启动就绪（在提问闭环内） | 临时 agent dir 里装迷你版 herdr pi 集成（`session_start` 报 idle、`agent_start` 报 working、`agent_settled` 报 idle）；记录 client 调用顺序，断言 `startAgent` → `getAgent` → `prompt` |
 

@@ -15,6 +15,7 @@ function setup(overrides: Parameters<typeof testConfig>[0] = {}) {
     loadConfig: () => testConfig(overrides),
     createClient: () => fake.client,
     runsDir: () => runsDir,
+    sessionsDir: () => mkdtempSync(join(tmpdir(), "pi-herdr-main-sessions-")),
   });
   return { ...harness, fake, runsDir };
 }

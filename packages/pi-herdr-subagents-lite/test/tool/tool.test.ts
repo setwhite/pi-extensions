@@ -6,7 +6,13 @@ import { testConfig } from "../support/config.ts";
 
 function stubService(overrides: Partial<RunService> = {}) {
   const base: RunService = {
-    spawn: async () => ({ id: "alpha", status: "running", paneId: "w1:p1", sessionFile: "/s" }),
+    spawn: async () => ({
+      id: "alpha",
+      status: "running",
+      paneId: "w1:p1",
+      sessionFile: "/runs/alpha/session.jsonl",
+      runDir: "/runs/alpha",
+    }),
     steer: async (id) => ({ id, status: "running" }),
     stop: async (id) => ({ id, status: "cancelled" }),
     inspect: () => [],
@@ -33,16 +39,13 @@ afterEach(() => {
 });
 
 describe("subagent tool", () => {
-  it("returns the spawn envelope as JSON", async () => {
+  it("returns the spawn envelope as JSON plus a dispatch note", async () => {
     const result = await tool(stubService()).execute("call", { action: "spawn", id: "alpha", objective: "go" });
 
+    const [envelope, note] = (result.content[0]?.text ?? "").split("\n");
     expect(result.isError).toBe(false);
-    expect(JSON.parse(result.content[0]?.text ?? "")).toEqual({
-      id: "alpha",
-      status: "running",
-      paneId: "w1:p1",
-      sessionFile: "/s",
-    });
+    expect(JSON.parse(envelope ?? "")).toEqual({ id: "alpha", status: "running" });
+    expect(note).toBe("Dispatched. Do not duplicate; end turn or continue other work.");
   });
 
   it("forwards steer and stop arguments", async () => {
@@ -62,6 +65,28 @@ describe("subagent tool", () => {
     await tool(stubService({ inspect })).execute("call", { action: "inspect", id: "alpha" });
 
     expect(inspect).toHaveBeenCalledWith("alpha");
+  });
+
+  it("drops internal handles from every action", async () => {
+    const service = stubService({
+      inspect: () => [
+        {
+          id: "alpha",
+          status: "running",
+          cwd: "/repo",
+          paneId: "w1:p1",
+          sessionFile: "/runs/alpha/session.jsonl",
+          runDir: "/runs/alpha",
+        },
+      ],
+    });
+
+    const spawned = await tool(service).execute("call", { action: "spawn", id: "alpha", objective: "go" });
+    const viewed = await tool(service).execute("call", { action: "inspect", id: "alpha" });
+
+    expect(spawned.content[0]?.text ?? "").not.toContain("paneId");
+    expect(spawned.content[0]?.text ?? "").not.toContain("sessionFile");
+    expect(viewed.content[0]?.text ?? "").toBe(JSON.stringify([{ id: "alpha", status: "running", cwd: "/repo" }]));
   });
 
   it("turns a tool error into a failure result", async () => {

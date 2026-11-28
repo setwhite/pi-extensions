@@ -9,11 +9,17 @@ afterEach(async () => {
 
 describe("spawn", () => {
   it("creates a depth-marked pane and prompts the child", async () => {
-    const { service, fake, runsDir } = setupRun();
+    const { service, fake, runsDir, sessionsDir } = setupRun();
 
     const spawned = await service.spawn({ id: "alpha", objective: "list the files", context: "repo root" });
 
-    expect(spawned).toMatchObject({ id: "alpha", status: "running", paneId: "w1:p1" });
+    expect(spawned).toMatchObject({
+      id: "alpha",
+      status: "running",
+      paneId: "w1:p1",
+      sessionFile: join(sessionsDir, "alpha", "session.jsonl"),
+      runDir: join(runsDir, "alpha"),
+    });
     expect(fake.tabs[0]).toEqual({
       cwd: process.cwd(),
       label: "alpha",
@@ -26,11 +32,25 @@ describe("spawn", () => {
     const args = fake.agents[0]?.args ?? [];
     expect(args).toContain("--exclude-tools");
     expect(args[args.indexOf("--exclude-tools") + 1]).toBe("ask");
-    expect(args).toContain(join(runsDir, "alpha", "session.jsonl"));
+    expect(args).toContain(join(sessionsDir, "alpha", "session.jsonl"));
     expect(fake.prompts[0]).toContain("# Objective");
     expect(fake.prompts[0]).toContain("list the files");
     expect(fake.prompts[0]).toContain("repo root");
     expect(service.inspect("alpha")[0]?.status).toBe("running");
+    service.shutdown();
+  });
+
+  it("keeps the child session out of the run directory", async () => {
+    const { service, runsDir, sessionsDir } = setupRun();
+
+    await service.spawn({ id: "alpha", objective: "x" });
+    const [view] = service.inspect("alpha");
+
+    expect(view).toMatchObject({
+      sessionFile: join(sessionsDir, "alpha", "session.jsonl"),
+      runDir: join(runsDir, "alpha"),
+    });
+    expect(view?.sessionFile.startsWith(view.runDir)).toBe(false);
     service.shutdown();
   });
 
@@ -128,9 +148,11 @@ describe("spawn", () => {
     const { service, fake } = setupRun();
     fake.failNext("startAgent", new Error("agent_not_ready"));
 
-    await expect(service.spawn({ id: "alpha", objective: "x", worktree: true })).rejects.toMatchObject({
-      code: "spawn_failed",
-    });
+    const failure = await service.spawn({ id: "alpha", objective: "x", worktree: true }).catch((error: Error) => error);
+
+    expect(failure).toMatchObject({ code: "spawn_failed" });
+    expect((failure as Error).message).not.toContain("Pane:");
+    expect((failure as Error).message).not.toContain("w9:p2");
     expect(fake.calls).toContain("removeWorktree");
     expect(fake.closedPanes).toEqual(["w9:p1", "w9:p2"]);
     expect(service.inspect("alpha")).toEqual([]);

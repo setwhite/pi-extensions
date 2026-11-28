@@ -1,7 +1,7 @@
 import { childArgs, childEnv, promptText, resolveCwd } from "./args.ts";
 import { errorText, ToolError } from "./errors.ts";
 import { closePaneOf, promptWhenReady } from "./pane.ts";
-import { ensureRunDir, runDirOf, sessionFileOf } from "./paths.ts";
+import { ensureDir, runDirOf, sessionDirOf, sessionFileOf } from "./paths.ts";
 import { checkStart, type RunStatus, type StartVerdict } from "./rules.ts";
 import { type RunRecord, type RunState, slottedCount } from "./state.ts";
 import { watch } from "./watch.ts";
@@ -23,6 +23,7 @@ export interface Spawned {
   status: RunStatus;
   paneId: string;
   sessionFile: string;
+  runDir: string;
   worktree?: string;
 }
 
@@ -77,7 +78,7 @@ export async function spawn(state: RunState, input: SpawnInput): Promise<Spawned
 
   const cwd = resolveCwd(input.cwd);
   const runDir = runDirOf(state.runsDir, input.id);
-  const sessionFile = sessionFileOf(runDir);
+  const sessionFile = sessionFileOf(sessionDirOf(state.sessionsDir, input.id));
   const args = childArgs({
     sessionFile,
     excludeTools: state.excludeTools,
@@ -103,7 +104,8 @@ export async function spawn(state: RunState, input: SpawnInput): Promise<Spawned
   state.runs.set(record.id, record);
 
   try {
-    await ensureRunDir(runDir);
+    await ensureDir(runDir);
+    await ensureDir(sessionDirOf(state.sessionsDir, input.id));
     if (input.worktree === true) {
       await prepareWorktree(state, record);
     } else {
@@ -117,15 +119,13 @@ export async function spawn(state: RunState, input: SpawnInput): Promise<Spawned
     await promptWhenReady(state, paneId, promptText(input.objective, input.context));
     record.status = "running";
     watch(state, record);
-    const spawned: Spawned = { id: record.id, status: "running", paneId, sessionFile };
+    const spawned: Spawned = { id: record.id, status: "running", paneId, sessionFile, runDir };
     if (record.worktree !== undefined) {
       spawned.worktree = record.worktree.path;
     }
     return spawned;
   } catch (error) {
-    const paneId = record.paneId;
     await rollback(state, record);
-    const detail = `${errorText(error)}${paneId === undefined ? "" : `. Pane: ${paneId}`}`;
-    throw new ToolError("spawn_failed", detail);
+    throw new ToolError("spawn_failed", errorText(error));
   }
 }

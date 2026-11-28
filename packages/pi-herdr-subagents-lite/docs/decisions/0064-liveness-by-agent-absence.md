@@ -1,5 +1,7 @@
 # 0064 存活按 agent 缺席三次判定
 
+> **已废弃（v2）**：v2 不再轮询 `agent list` 推断存活。每条 run 一个 `agent.wait` 长请求，pane 或 agent 消失时该请求直接报错（[DEC-0071](0071-completion-by-agent-wait.md)），三次缺席的去抖逻辑随之删除。
+
 有回合在飞的 run，每 15 秒查一次 `herdr agent list`。连续三次查不到该 agent，判定失去联系，投 `lost`。pane 不在 `pane list` 里则立即判定。
 
 空闲 run 不查。它没有在跑的东西，也没有需要报的结果。

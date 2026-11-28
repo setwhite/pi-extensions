@@ -9,16 +9,17 @@ import { type CloseChildrenResult, closeChildren, stop } from "./stop.ts";
 export interface RunView {
   id: string;
   status: RunStatus;
-  sessionFile: string;
-  runDir: string;
   cwd: string;
   paneId?: string;
+  sessionFile: string;
+  runDir: string;
   worktree?: string;
 }
 
 export interface RunServiceDeps {
   client: RunState["client"];
   runsDir: string;
+  sessionsDir: string;
   maxConcurrent: number;
   excludeTools: string[];
   summaryMaxChars: number;
@@ -43,9 +44,9 @@ function viewOf(record: RunRecord): RunView {
   const view: RunView = {
     id: record.id,
     status: record.status,
+    cwd: record.cwd,
     sessionFile: record.sessionFile,
     runDir: record.runDir,
-    cwd: record.cwd,
   };
   if (record.paneId !== undefined) {
     view.paneId = record.paneId;
@@ -106,7 +107,7 @@ export function createRunService(deps: RunServiceDeps): RunService {
 
 export { clearChildQuestions, writeChildResult } from "./child-result.ts";
 export { errorText, ToolError } from "./errors.ts";
-export { pruneRuns } from "./prune.ts";
+export { pruneAgedDirs } from "./prune.ts";
 export type { Envelope } from "./result.ts";
 export { readChildResult } from "./result.ts";
 export type { RunStatus } from "./rules.ts";

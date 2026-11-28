@@ -7,12 +7,12 @@ describe("deliverEnvelopes", () => {
     const { pi, messages } = fakePi();
 
     deliverEnvelopes(pi, [
-      { id: "alpha", status: "done", summary: "did it", paths: { session: "/runs/alpha/session.jsonl" } },
+      { id: "alpha", status: "done", summary: "did it", paths: {} },
       {
         id: "beta",
         status: "needs_input",
         questions: [{ question: "which branch?", options: ["main", "next"] }],
-        paths: { session: "/runs/beta/session.jsonl" },
+        paths: {},
       },
     ]);
 
@@ -21,7 +21,17 @@ describe("deliverEnvelopes", () => {
     const content = messages[0]?.message.content ?? "";
     expect(content).toContain("[subagent alpha] done");
     expect(content).toContain("? which branch? [main | next]");
-    expect(content).toContain("session: /runs/alpha/session.jsonl");
+  });
+
+  it("keeps session and run paths out of the model face", () => {
+    const { pi, messages } = fakePi();
+
+    deliverEnvelopes(pi, [{ id: "alpha", status: "done", summary: "did it", paths: {} }]);
+
+    const content = messages[0]?.message.content ?? "";
+    expect(content).not.toContain("session:");
+    expect(content).not.toContain(".jsonl");
+    expect(content).not.toContain("/runs");
   });
 
   it("mentions the spilled full text", () => {
@@ -33,7 +43,7 @@ describe("deliverEnvelopes", () => {
         status: "done",
         summary: "head",
         truncated: true,
-        paths: { session: "/s.jsonl", output: "/runs/alpha/output.md" },
+        paths: { output: "/runs/alpha/output.md" },
       },
     ]);
 

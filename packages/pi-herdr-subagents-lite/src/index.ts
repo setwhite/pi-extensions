@@ -1,5 +1,5 @@
 import type { ExtensionFactory } from "@earendil-works/pi-coding-agent";
-import { agentDir, loadConfig, runsDir } from "./config/index.ts";
+import { agentDir, loadConfig, runsDir, sessionsDir } from "./config/index.ts";
 import { createExtension } from "./extension/index.ts";
 import { createHerdrClient, socketEndpoint } from "./herdr/index.ts";
 
@@ -15,6 +15,7 @@ const extension: ExtensionFactory = createExtension({
   loadConfig: () => loadConfig(agentDir()),
   createClient: () => createHerdrClient(socketEndpoint(socketPath())),
   runsDir: () => runsDir(agentDir()),
+  sessionsDir: () => sessionsDir(agentDir()),
   depth: Number.parseInt(process.env.PI_SUBAGENT_DEPTH ?? "0", 10) || 0,
   runDir: process.env.PI_SUBAGENT_RUN_DIR,
 });

@@ -67,7 +67,7 @@ pi -e /path/to/pi-herdr-subagents-lite/src/index.ts # 只对本次进程生效
 {"action":"spawn","id":"alpha","objective":"读 README.md，回答它的一级标题。"}
 ```
 
-调用立即返回 `{"id":"alpha","status":"running","paneId":"w3:p2","sessionFile":"<agent-dir>/pi-herdr-subagents-lite/runs/alpha/session.jsonl"}`。稍后会收到 `[subagent alpha] done` 消息，不要在同一个回合里等它。
+调用立即返回 `{"id":"alpha","status":"running"}`。稍后会收到 `[subagent alpha] done` 消息，不要在同一个回合里等它。
 
 ```json
 {"action":"steer","id":"alpha","message":"再看一下 Windows 分支。"}
@@ -94,7 +94,7 @@ pi -e /path/to/pi-herdr-subagents-lite/src/index.ts # 只对本次进程生效
 
 ### 文件位置
 
-`<agent-dir>/pi-herdr-subagents-lite/runs/<id>/` 下放 `session.jsonl`、`result.json`，答案过长时还有 `output.md`。超过 `runRetentionMs` 的目录在会话启动时清理。
+`<agent-dir>/pi-herdr-subagents-lite/runs/<id>/` 下放 `result.json`、`questions.json`，答案过长时还有 `output.md`。子会话另放 `<agent-dir>/pi-herdr-subagents-lite/sessions/<id>/session.jsonl`，这样交给父代理的路径永远指不到会话正文。两棵树都在会话启动时按 `runRetentionMs` 清理。
 
 ## 参考项目
 

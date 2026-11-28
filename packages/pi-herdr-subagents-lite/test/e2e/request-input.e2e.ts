@@ -46,7 +46,9 @@ describe.skipIf(!state.ok)(`e2e: request_input loop${state.ok ? "" : ` (skipped:
     const result = await readChildResult(join(env.runsDir, id));
     expect(result?.state).toBe("needs_input");
     expect(result?.seq).toBeGreaterThanOrEqual(1);
-    expect(existsSync(envelope.paths.session)).toBe(true);
+    // 会话与产物分家：产物在 runs，子会话在 sessions，父代理拿到的路径到不了后者。
+    expect(existsSync(join(env.sessionsDir, id, "session.jsonl"))).toBe(true);
+    expect(existsSync(join(env.runsDir, id, "session.jsonl"))).toBe(false);
 
     // env 透传：只有拿到 PI_SUBAGENT_RUN_DIR，子进程才写得进这个目录；PI_SUBAGENT_DEPTH=1 才注册 request_input。
     expect(envelope.status).toBe("needs_input");
@@ -58,7 +60,7 @@ describe.skipIf(!state.ok)(`e2e: request_input loop${state.ok ? "" : ` (skipped:
     expect(child).toBeDefined();
     const argv = child?.argv ?? [];
     expect(argv).toContain("--session");
-    expect(argv).toContain(join(env.runsDir, id, "session.jsonl"));
+    expect(argv).toContain(join(env.sessionsDir, id, "session.jsonl"));
     const excludeAt = argv.indexOf("--exclude-tools");
     expect(excludeAt).toBeGreaterThanOrEqual(0);
     expect(argv[excludeAt + 1]).toBe("ask");

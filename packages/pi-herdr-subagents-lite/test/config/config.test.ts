@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { dataDir, loadConfig, runsDir } from "../../src/config/index.ts";
+import { dataDir, loadConfig, runsDir, sessionsDir } from "../../src/config/index.ts";
 
 function agentDirWith(value: unknown): string {
   const dir = mkdtempSync(join(tmpdir(), "pi-herdr-config-"));
@@ -84,5 +84,6 @@ describe("loadConfig", () => {
 describe("paths", () => {
   it("keeps runs under the package directory", () => {
     expect(runsDir("/agent")).toBe(join("/agent", "pi-herdr-subagents-lite", "runs"));
+    expect(sessionsDir("/agent")).toBe(join("/agent", "pi-herdr-subagents-lite", "sessions"));
   });
 });

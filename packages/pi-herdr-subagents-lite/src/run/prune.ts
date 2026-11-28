@@ -1,8 +1,8 @@
 import { readdir, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 
-/** 会话启动时清掉过期的 run 目录；retentionMs 为 0 表示永不清理。 */
-export async function pruneRuns(runsDir: string, retentionMs: number, now: number): Promise<number> {
+/** 会话启动时清掉过期的 <root>/<id>/ 目录；retentionMs 为 0 表示永不清理。 */
+export async function pruneAgedDirs(runsDir: string, retentionMs: number, now: number): Promise<number> {
   if (retentionMs <= 0) {
     return 0;
   }

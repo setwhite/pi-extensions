@@ -1,5 +1,7 @@
 # 0053 子 session 与 run 文件的位置
 
+> v1 历史记录。v2 的布局见 [DEC-0075](0075-child-session-outside-run-dir.md)：会话放在 `<dataDir>/sessions/<id>/session.jsonl`，不再进宿主的 sessions 树，产物目录只剩 `result.json` 与 `output.md`。本文件的判断（会话必须与产物分家）仍然成立。
+
 子 session 放在父会话所在桶的 `runs/` 子目录：`<agent-dir>/sessions/<cwd 桶>/runs/<name>-<runId>.jsonl`。run 的附属文件另放 `<agent-dir>/pi-herdr-subagents-lite/runs/`，一层平铺，靠后缀区分：`<runBase>.brief.md`、`.identity.md`、`.inbox/`、`.exit`、`.result-<seq>.md`。每个 run 用新 `runId`，不复用。
 
 依据：用户选择。session 与父会话同在 sessions 树里，人工恢复时一眼能找到。附属文件必须与 session 分家：模型会拿到 artifact 路径，session 若在同一个目录，父模型顺手就能读到子会话正文，子代理的上下文隔离失效。系统临时目录会被清掉，也不能用。

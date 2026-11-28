@@ -20,7 +20,8 @@ export interface Envelope {
   status: RunStatus;
   summary?: string;
   truncated?: boolean;
-  paths: { session: string; worktree?: string; output?: string };
+  /** 只放父代理要动手的路径；子会话与 run 目录一律不给模型面。 */
+  paths: { worktree?: string; output?: string };
   questions?: ChildQuestion[];
 }
 
@@ -46,7 +47,7 @@ export async function readChildResult(runDir: string): Promise<ChildResult | und
 }
 
 export function buildEnvelope(record: RunRecord, result: ChildResult | undefined, limit: number): Envelope {
-  const paths: Envelope["paths"] = { session: record.sessionFile };
+  const paths: Envelope["paths"] = {};
   if (record.worktree !== undefined) {
     paths.worktree = record.worktree.path;
   }

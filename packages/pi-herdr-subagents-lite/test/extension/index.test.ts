@@ -13,6 +13,7 @@ function deps(depth: number, runDir: string | undefined) {
     loadConfig: () => testConfig({ runRetentionMs: 0 }),
     createClient: () => fake.client,
     runsDir: () => mkdtempSync(join(tmpdir(), "pi-herdr-runs-")),
+    sessionsDir: () => mkdtempSync(join(tmpdir(), "pi-herdr-sessions-")),
     depth,
     runDir,
   };

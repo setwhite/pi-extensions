@@ -11,14 +11,16 @@ export function renderEnvelope(envelope: Envelope): string {
     const context = question.context === undefined ? "" : ` (${question.context})`;
     lines.push(`? ${question.question}${context}${options}`);
   }
-  const paths = [`session: ${envelope.paths.session}`];
+  const paths: string[] = [];
   if (envelope.paths.worktree !== undefined) {
     paths.push(`worktree: ${envelope.paths.worktree}`);
   }
   if (envelope.paths.output !== undefined) {
     paths.push(`full text: ${envelope.paths.output}`);
   }
-  lines.push(paths.join("\n"));
+  if (paths.length > 0) {
+    lines.push(paths.join("\n"));
+  }
   if (envelope.truncated === true) {
     lines.push("(summary truncated; the full text is in the file above)");
   }

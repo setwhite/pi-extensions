@@ -36,6 +36,7 @@ export type EnvelopeHandler = (envelopes: Envelope[]) => void;
 export interface RunDeps {
   client: HerdrClient;
   runsDir: string;
+  sessionsDir: string;
   maxConcurrent: number;
   excludeTools: string[];
   summaryMaxChars: number;

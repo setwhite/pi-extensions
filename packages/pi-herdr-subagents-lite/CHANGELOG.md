@@ -2,6 +2,13 @@
 
 本文件记录用户可见变更；未发版的小节标「未发布」。更细的过程见 git log。破坏性变更标 **BREAKING**。0.5.2 及更早的变更见旧仓 `setwhite/pi-herdr-subagents-lite` 的 tag `v0.3.0`–`v0.5.2`。
 
+## 未发布
+
+- `spawn` 成功结果在 JSON 后追加一句 `Dispatched. Do not duplicate; end turn or continue other work.`；`promptGuidelines` 第 1 条改为 `spawn is async; do not repeat the work or poll.`。两句都只为拦住「父代理重做子代理的活」，条数仍是 3。
+- 错误文本统一过 `errorText`：pane id 抹成 `<pane>`，绝对路径（含 Windows 盘符路径）抹成 `<path>`，只留错误码与形状（DEC-0074）。
+- **BREAKING**：模型面不再出现子会话、run 目录与 pane id。`spawn` 结果去掉 `sessionFile` 与 `paneId`，`inspect` 视图去掉 `sessionFile`、`runDir` 与 `paneId`，结算消息去掉 `session:` 行，`spawn_failed` 不再附 pane id。模型面改由 `src/tool/face.ts` 白名单投影，服务层新增字段默认不外泄（服务层返回值本身照旧带 `sessionFile` / `runDir` / `paneId`，供本包寻址与测试使用）。父代理拿不到这些就不会去读子会话正文，上下文隔离靠机制而非文案（DEC-0074，恢复 DEC-0061）。
+- **BREAKING**：子会话搬出 run 目录，改放 `sessions/<id>/session.jsonl`。父代理会拿到 `output.md` 的路径，原来 `ls` 一下那个目录就能看到 `session.jsonl`，模型面删掉的路径从旁边又被捡回来。两棵树共用 `runRetentionMs` 清理（DEC-0075）。
+
 ## 0.12.2 — 2026-11-28
 
 - `tools` 参数的说明补一句「有 codemode 就保留」：纯名字列表会整份替换默认工具集，读说明的模型做只读委派时以前照字面写 `read,bash`，子代理就丢了 codemode。无运行时变更。

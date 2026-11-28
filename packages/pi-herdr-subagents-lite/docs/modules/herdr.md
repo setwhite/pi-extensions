@@ -8,7 +8,7 @@ herdr 本地 Socket 的窄客户端。上层只认 `HerdrClient` 接口，不认
 import { createHerdrClient, socketEndpoint } from "../herdr/index.ts";
 
 const client = createHerdrClient(socketEndpoint(process.env.HERDR_SOCKET_PATH ?? ""));
-await client.startAgent({ name: "alpha", paneId: "w1:p2", args: ["--session", "/runs/alpha/session.jsonl"] });
+await client.startAgent({ name: "alpha", paneId: "w1:p2", args: ["--session", "/sessions/alpha/session.jsonl"] });
 ~~~
 
 - 传输是逐行 JSON：`{id, method, params}` 进，`{id, result}` 或 `{id, error}` 出。

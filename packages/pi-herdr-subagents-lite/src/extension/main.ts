@@ -1,6 +1,6 @@
 import type { Config } from "../config/index.ts";
 import type { HerdrClient } from "../herdr/index.ts";
-import { createRunService, type EnvelopeHandler, pruneRuns, type RunService } from "../run/index.ts";
+import { createRunService, type EnvelopeHandler, pruneAgedDirs, type RunService } from "../run/index.ts";
 import { createSubagentTool } from "../tool/index.ts";
 import { deliverEnvelopes } from "./deliver.ts";
 import type { ExtensionRegistrar } from "./types.ts";
@@ -9,6 +9,7 @@ export interface MainDeps {
   loadConfig(): Config;
   createClient(): HerdrClient;
   runsDir(): string;
+  sessionsDir(): string;
 }
 
 /** 主代理侧：控制面工具 + 结算投递 + 收尾清理。零轮询、零上下文注入。 */
@@ -33,11 +34,14 @@ export function registerMain(pi: ExtensionRegistrar, deps: MainDeps): void {
       return;
     }
     const runsDir = deps.runsDir();
-    await pruneRuns(runsDir, config.runRetentionMs, Date.now());
+    const sessionsDir = deps.sessionsDir();
+    await pruneAgedDirs(runsDir, config.runRetentionMs, Date.now());
+    await pruneAgedDirs(sessionsDir, config.runRetentionMs, Date.now());
     client = deps.createClient();
     service = createRunService({
       client,
       runsDir,
+      sessionsDir,
       maxConcurrent: config.maxConcurrent,
       excludeTools: config.excludeTools,
       summaryMaxChars: config.summaryMaxChars,

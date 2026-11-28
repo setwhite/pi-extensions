@@ -56,6 +56,10 @@ describe("tool text", () => {
     expect(text.promptGuidelines.join("\n")).not.toMatch(/cannot spawn children/i);
   });
 
+  it("tells the parent to stop after a spawn", () => {
+    expect(text.promptGuidelines[0]).toBe("subagent: spawn is async; do not repeat the work or poll.");
+  });
+
   it("tells the parent how to answer needs_input", () => {
     expect(text.promptGuidelines.join("\n")).toMatch(/on needs_input, steer the answer if known/i);
   });

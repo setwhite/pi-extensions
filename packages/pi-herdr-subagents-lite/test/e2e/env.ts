@@ -11,14 +11,17 @@ export interface IsolatedEnv {
   agentDir: string;
   project: string;
   runsDir: string;
+  sessionsDir: string;
 }
 
 export function prepareDirs(root: string): IsolatedEnv {
   const agentDir = join(root, "agent");
   const project = join(root, "project");
   const runsDir = join(agentDir, "pi-herdr-subagents-lite", "runs");
+  const sessionsDir = join(agentDir, "pi-herdr-subagents-lite", "sessions");
   mkdirSync(join(agentDir, "sessions"), { recursive: true });
   mkdirSync(runsDir, { recursive: true });
+  mkdirSync(sessionsDir, { recursive: true });
   mkdirSync(project, { recursive: true });
   writeFileSync(join(project, "README.md"), README);
   // 装上 herdr 的 pi 集成（hook authority）：不装时 herdr 靠屏幕检测推进状态，
@@ -30,7 +33,7 @@ export function prepareDirs(root: string): IsolatedEnv {
   writeFileSync(join(agentDir, "trust.json"), JSON.stringify({ [root]: true, [project]: true }));
   writeSettings(agentDir);
   writeConfig(agentDir);
-  return { agentDir, project, runsDir };
+  return { agentDir, project, runsDir, sessionsDir };
 }
 
 function fixturePath(name: string): string {

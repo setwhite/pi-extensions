@@ -17,6 +17,7 @@ export interface E2e {
   agentDir: string;
   project: string;
   runsDir: string;
+  sessionsDir: string;
   socket: string;
   client: HerdrClient;
   service: RunService;
@@ -33,7 +34,7 @@ export interface E2e {
 
 export async function startE2e(): Promise<E2e> {
   const root = mkdtempSync(join(tmpdir(), "pi-herdr-e2e-"));
-  const { agentDir, project, runsDir } = prepareDirs(root);
+  const { agentDir, project, runsDir, sessionsDir } = prepareDirs(root);
   const env = cleanEnv({ PI_CODING_AGENT_DIR: agentDir });
   await installExtension(env, root);
 
@@ -69,6 +70,7 @@ export async function startE2e(): Promise<E2e> {
     service = createRunService({
       client: recorded,
       runsDir,
+      sessionsDir,
       maxConcurrent: 4,
       excludeTools: ["ask"],
       summaryMaxChars: 2000,
@@ -83,6 +85,7 @@ export async function startE2e(): Promise<E2e> {
       agentDir,
       project,
       runsDir,
+      sessionsDir,
       socket,
       client: active.client,
       service: active.service,

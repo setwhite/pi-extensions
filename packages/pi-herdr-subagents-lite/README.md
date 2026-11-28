@@ -67,7 +67,7 @@ Start `pi` in a herdr pane, then let the model call the tool:
 {"action":"spawn","id":"alpha","objective":"Read README.md and answer with its first heading."}
 ```
 
-The call returns at once with `{"id":"alpha","status":"running","paneId":"w3:p2","sessionFile":"<agent-dir>/pi-herdr-subagents-lite/runs/alpha/session.jsonl"}`. Later a `[subagent alpha] done` message arrives. Do not wait for it in the same turn.
+The call returns at once with `{"id":"alpha","status":"running"}`. Later a `[subagent alpha] done` message arrives. Do not wait for it in the same turn.
 
 ```json
 {"action":"steer","id":"alpha","message":"Also check the Windows branch."}
@@ -94,7 +94,7 @@ Error codes: `invalid_id`, `duplicate_id`, `unknown_id`, `max_concurrent`, `not_
 
 ### Where files land
 
-`<agent-dir>/pi-herdr-subagents-lite/runs/<id>/` holds `session.jsonl`, `result.json` and, when the answer is long, `output.md`. Directories older than `runRetentionMs` are pruned at session start.
+`<agent-dir>/pi-herdr-subagents-lite/runs/<id>/` holds `result.json`, `questions.json` and, when the answer is long, `output.md`. The child session lives apart, at `<agent-dir>/pi-herdr-subagents-lite/sessions/<id>/session.jsonl`, so a path handed to the parent agent never leads to the transcript. Both trees are pruned at session start once older than `runRetentionMs`.
 
 ## Credits
 

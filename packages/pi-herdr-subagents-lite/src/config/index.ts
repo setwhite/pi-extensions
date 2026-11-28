@@ -3,7 +3,7 @@ import { configFile } from "./paths.ts";
 import { isRaw, type Raw, Reader } from "./reader.ts";
 import { CONFIG_KEYS, type Config } from "./types.ts";
 
-export { agentDir, configFile, dataDir, runsDir } from "./paths.ts";
+export { agentDir, configFile, dataDir, runsDir, sessionsDir } from "./paths.ts";
 export type { Config, ShutdownReason } from "./types.ts";
 export { CONFIG_KEYS, SHUTDOWN_REASONS } from "./types.ts";
 

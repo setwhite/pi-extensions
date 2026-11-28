@@ -13,6 +13,10 @@ export function runsDir(agentDirectory: string): string {
   return join(dataDir(agentDirectory), "runs");
 }
 
+export function sessionsDir(agentDirectory: string): string {
+  return join(dataDir(agentDirectory), "sessions");
+}
+
 export function configFile(agentDirectory: string): string {
   return join(dataDir(agentDirectory), "config.json");
 }

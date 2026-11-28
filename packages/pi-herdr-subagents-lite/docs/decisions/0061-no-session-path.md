@@ -1,6 +1,6 @@
 # 0061 模型面不带 session 路径
 
-> **已废弃（v2）**：v2 的结算信封带 `paths.session`，`spawn` 也返回 `paneId` 与 `sessionFile`（[契约 §5](../specs/0002_v2_architecture_spec.md)）。本文只留 v1 历史，不再约束当前实现。
+> **v2 恢复**：v2 曾按[契约 §5](../specs/0002_v2_architecture_spec.md)把 `session.jsonl` 路径与 pane id 带回模型面，[DEC-0074](0074-model-face-without-paths.md) 已恢复本文的全部约束。
 
 `run` 与 `send` 的工具结果 `content` 只回 `{state, name}`。`paneId` 与 `sessionFile` 留在 `details`。`unknown` 结果消息不带 `Session file:`。`send` 的错误只报子代理名，不报路径。
 

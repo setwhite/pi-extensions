@@ -7,6 +7,7 @@ import { type FakeClient, fakeClient } from "./fake-client.ts";
 
 export interface RunEnv {
   runsDir: string;
+  sessionsDir: string;
   fake: FakeClient;
   service: ReturnType<typeof createRunService>;
   batches: Envelope[][];
@@ -24,13 +25,15 @@ export function setupRun(
   options: { maxConcurrent?: number; interruptGraceMs?: number; excludeTools?: string[] } = {},
 ): RunEnv {
   const runsDir = mkdtempSync(join(tmpdir(), "pi-herdr-run-"));
-  dirs.push(runsDir);
+  const sessionsDir = mkdtempSync(join(tmpdir(), "pi-herdr-sessions-"));
+  dirs.push(runsDir, sessionsDir);
   const fake = fakeClient();
   const batches: Envelope[][] = [];
   const problems: string[] = [];
   const service = createRunService({
     client: fake.client,
     runsDir,
+    sessionsDir,
     maxConcurrent: options.maxConcurrent ?? 16,
     excludeTools: options.excludeTools ?? ["ask"],
     summaryMaxChars: 40,
@@ -43,7 +46,7 @@ export function setupRun(
     batches.push(batch);
   };
   service.onBatch(collect);
-  return { runsDir, fake, service, batches, problems };
+  return { runsDir, sessionsDir, fake, service, batches, problems };
 }
 
 export async function writeResult(runsDir: string, id: string, result: Record<string, unknown>): Promise<void> {
