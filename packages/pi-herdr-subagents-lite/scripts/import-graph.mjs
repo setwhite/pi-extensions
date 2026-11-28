@@ -2,6 +2,7 @@
 
 export const root = "src";
 export const moduleStyle = "dir";
+export const requireListed = true;
 export const exportFrom = true;
 export const dynamicImport = true;
 export const title = "Import graph violates docs/ARCHITECTURE.md §3:";
