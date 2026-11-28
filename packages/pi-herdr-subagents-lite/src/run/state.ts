@@ -13,6 +13,12 @@ export interface RunWorktree {
   path: string;
 }
 
+/** 一次可被叫醒的长等：watch 每轮新建，steer / stop 唤醒它把控制权交回循环头。 */
+export interface Wake {
+  promise: Promise<void>;
+  resolve: () => void;
+}
+
 export interface RunRecord {
   id: string;
   status: RunStatus;
@@ -26,7 +32,9 @@ export interface RunRecord {
   /** 已消费的 result.json 序号，防读到上一回合的数据。 */
   seq: number;
   pendingSteer: string | undefined;
-  graceTimer: ReturnType<typeof setTimeout> | undefined;
+  /** 进入 interrupting 的绝对截止时刻；只有 watch 读它并负责超时重开。 */
+  interruptDeadline: number | undefined;
+  wake: Wake | undefined;
   /** 每次重开 pane 或重新提问都加一，旧的长等结果据此作废。 */
   generation: number;
 }
@@ -74,9 +82,11 @@ export function targetOf(record: RunRecord): string {
   return record.paneId;
 }
 
-export function clearGrace(record: RunRecord): void {
-  if (record.graceTimer !== undefined) {
-    clearTimeout(record.graceTimer);
-    record.graceTimer = undefined;
-  }
+export function wakeWatch(record: RunRecord): void {
+  record.wake?.resolve();
+}
+
+/** 离开 interrupting 时清掉截止时刻：兜底只由 watch 单循环执行。 */
+export function clearInterrupt(record: RunRecord): void {
+  record.interruptDeadline = undefined;
 }

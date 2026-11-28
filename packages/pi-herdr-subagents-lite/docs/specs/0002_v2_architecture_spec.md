@@ -117,7 +117,8 @@ export interface RequestInputParameters {
     - 正常 `done` 后默认自动调用 `pane.close` 关闭子 pane 保持侧边栏整洁，同时保留 `session.jsonl`；后续对该 `id` 调用 `steer` 时按原 `--session` 重开 pane 续跑。
     - `needs_input` 与 `failed` 保留 pane，方便人类一眼查看或直接切过去接管。
   - 运行中 `steer` 策略:
-    - 避开 `herdr` `agent.prompt` 不追踪单回合的限制，对处于 `running` 的子代理调用 `steer` 时先进入 `interrupting`，通过 `agent.send_keys` 发送 `esc` 打断当前回合，等待 Socket 收到 `idle` 事件后再提交新的 `agent.prompt`。
+    - 避开 `herdr` `agent.prompt` 不追踪单回合的限制，对处于 `running` 的子代理调用 `steer` 时先进入 `interrupting`，等 Socket 收到 `idle` 事件后再提交新的 `agent.prompt`。
+    - 发 `esc` 之前先查一次 `agent.get`：子代理已经 `idle` / `done` 就不发 `esc`，直接排队投递，避免打断刚结束的回合；只有确实还在忙时才发 `agent.send_keys`（[DEC-0076](../decisions/0076-single-watch-ownership.md)）。
 
 ## 5. 上下文保护与人机交接协议
 
@@ -141,7 +142,7 @@ export interface RequestInputParameters {
 ## 6. 失败模式与边界契约（Failure Modes）
 
 - Socket 断线: 客户端一请求一连接，herdr 回完即关；下一次请求自动重连。失败按原错误上报，不做事件重放或快照对账。
-- `interrupting` 打断超时兜底: 运行中 `steer` 发送 `esc` 后若超过 `interruptGraceMs`（默认 3000ms）仍未进入 `idle`，兜底执行 `pane.close` 并以原 `--session` 重开新 pane 提交新 prompt，确保转向绝不永久卡死。
+- `interrupting` 打断超时兜底: 运行中 `steer` 后若超过 `interruptGraceMs`（默认 3000ms）仍未进入 `idle`，由该 run 的 watcher 在自己的循环里执行 `pane.close`、以原 `--session` 重开新 pane 并提交新 prompt，确保转向绝不永久卡死，也不与其它执行体抢同一个 pane（[DEC-0076](../decisions/0076-single-watch-ownership.md)）。
 - 意外 `agent_blocked` 处理: 若子 pane 因外部原因进入 `herdr` `blocked` 状态，`agent.prompt` 返回 `agent_blocked` 时禁止盲发键盘输入，立即向上汇报异常等待人工介入。
 - `worktree` 失败回滚: `worktree.create` 成功但随后的 `agent.start` 失败时，立即调用 `worktree.remove` 清理孤儿 worktree；任务中途 `stop` 或 `failed` 时保留 worktree 供排查或人工接管。
 - 并发与幂等竞争: 按 `id` 串行化状态迁移；对已关闭或已取消的任务重复 `stop` 幂等返回成功；在 `interrupting` 期间收到多次 `steer`，仅保留最新一条消息在进入 `idle` 后投递。

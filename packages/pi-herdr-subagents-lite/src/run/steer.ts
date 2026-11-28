@@ -3,7 +3,7 @@ import { errorText, ToolError } from "./errors.ts";
 import { armInterrupt } from "./interrupt.ts";
 import { ensurePane, promptWhenReady } from "./pane.ts";
 import type { RunStatus } from "./rules.ts";
-import { type RunState, slottedCount, targetOf } from "./state.ts";
+import { clearInterrupt, type RunState, slottedCount, targetOf } from "./state.ts";
 import { watch } from "./watch.ts";
 
 export interface SteerResult {
@@ -29,11 +29,15 @@ export async function steer(state: RunState, id: string, message: string): Promi
   if (record.status === "interrupting") {
     // 只保留最新一条，等 idle 后投递。
     record.pendingSteer = message;
+    // 已有的长等已经带着截止时刻，只换消息，不重开等待。
+    record.interruptDeadline ??= state.now() + state.interruptGraceMs;
     return { id, status: "interrupting" };
   }
   if (slottedCount(state.runs.values()) >= state.maxConcurrent) {
     throw new ToolError("max_concurrent", `${state.maxConcurrent} runs are already active; stop one first`);
   }
+  record.pendingSteer = undefined;
+  clearInterrupt(record);
   try {
     // 回答之后子侧的 turn_end 必须能写回 turn_end：先撤掉待答标记。
     await clearChildQuestions(record.runDir);

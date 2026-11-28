@@ -12,6 +12,8 @@ export interface FakeClient {
   waitTargets: string[];
   readyPolls: string[];
   queueReadiness(...values: boolean[]): void;
+  /** 模拟子代理当前在 herdr 里的状态；默认 idle。 */
+  setAgentStatus(status: AgentStatus): void;
   pendingWaits(): number;
   resolveWait(status: AgentStatus): void;
   rejectWait(error: Error): void;
@@ -28,6 +30,7 @@ export function fakeClient(): FakeClient {
   const readyPolls: string[] = [];
   const readiness: boolean[] = [];
   const waiters: Waiter[] = [];
+  let agentStatus: AgentStatus = "idle";
   const failures = new Map<string, Error>();
   let panes = 0;
 
@@ -69,7 +72,7 @@ export function fakeClient(): FakeClient {
     async getAgent(target) {
       calls.push("getAgent");
       readyPolls.push(target);
-      return { status: "idle", interactiveReady: readiness.shift() ?? true };
+      return { status: agentStatus, interactiveReady: readiness.shift() ?? true };
     },
     async prompt(target, text) {
       calls.push("prompt");
@@ -110,20 +113,28 @@ export function fakeClient(): FakeClient {
     queueReadiness(...values) {
       readiness.push(...values);
     },
+    setAgentStatus(status) {
+      agentStatus = status;
+    },
     pendingWaits: () => waiters.length,
+    // 一次状态变化会满足所有在途 wait；watcher 唤醒后重开的那条也一起收尾，和真实 herdr 一致。
     resolveWait(status) {
-      const waiter = waiters.shift();
-      if (waiter === undefined) {
+      const pending = waiters.splice(0);
+      if (pending.length === 0) {
         throw new Error("no pending wait");
       }
-      waiter.resolve(status);
+      for (const waiter of pending) {
+        waiter.resolve(status);
+      }
     },
     rejectWait(error) {
-      const waiter = waiters.shift();
-      if (waiter === undefined) {
+      const pending = waiters.splice(0);
+      if (pending.length === 0) {
         throw new Error("no pending wait");
       }
-      waiter.reject(error);
+      for (const waiter of pending) {
+        waiter.reject(error);
+      }
     },
     failNext(method, error) {
       failures.set(method, error);

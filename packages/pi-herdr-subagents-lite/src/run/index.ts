@@ -2,7 +2,7 @@ import { flushBatch } from "./batch.ts";
 import type { Envelope } from "./result.ts";
 import type { RunStatus } from "./rules.ts";
 import { type Spawned, spawn } from "./spawn.ts";
-import type { EnvelopeHandler, RunRecord, RunState } from "./state.ts";
+import { type EnvelopeHandler, type RunRecord, type RunState, wakeWatch } from "./state.ts";
 import { type SteerResult, steer } from "./steer.ts";
 import { type CloseChildrenResult, closeChildren, stop } from "./stop.ts";
 
@@ -94,6 +94,9 @@ export function createRunService(deps: RunServiceDeps): RunService {
     },
     shutdown() {
       state.stopped = true;
+      for (const record of state.runs.values()) {
+        wakeWatch(record);
+      }
       flushBatch(state);
       state.onBatch = undefined;
     },

@@ -1,6 +1,6 @@
 import { errorText, ToolError } from "./errors.ts";
 import { closePaneOf } from "./pane.ts";
-import { clearGrace, type RunState } from "./state.ts";
+import { clearInterrupt, type RunState, wakeWatch } from "./state.ts";
 import type { SteerResult } from "./steer.ts";
 
 export interface CloseChildrenResult {
@@ -18,7 +18,8 @@ export async function stop(state: RunState, id: string): Promise<SteerResult> {
   record.status = "cancelled";
   record.pendingSteer = undefined;
   record.generation += 1;
-  clearGrace(record);
+  clearInterrupt(record);
+  wakeWatch(record);
   await closePaneOf(state, record);
   return { id, status: "cancelled" };
 }
@@ -34,7 +35,8 @@ export async function closeChildren(state: RunState): Promise<CloseChildrenResul
     record.paneId = undefined;
     record.status = "cancelled";
     record.generation += 1;
-    clearGrace(record);
+    clearInterrupt(record);
+    wakeWatch(record);
     try {
       await state.client.closePane(paneId);
     } catch (error) {

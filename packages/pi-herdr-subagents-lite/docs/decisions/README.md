@@ -58,6 +58,7 @@ v1 时代的决策（profile、inbox、turn 事件、轮询存活检测）保留
 - [0064](0064-liveness-by-agent-absence.md) 存活按 agent 缺席三次判定。已由 0071 取代
 - [0066](0066-starting-phase.md) 启动中也是状态，不参与存活对账
 - [0065](0065-settle-state-machine.md) 结算收敛成一个状态机
+- [0076](0076-single-watch-ownership.md) 活跃 run 的 pane 变更、超时重开与结算只由 watcher 单循环执行
 
 ## 身份与展示
 

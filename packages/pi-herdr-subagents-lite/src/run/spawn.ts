@@ -98,7 +98,8 @@ export async function spawn(state: RunState, input: SpawnInput): Promise<Spawned
     worktree: undefined,
     seq: 0,
     pendingSteer: undefined,
-    graceTimer: undefined,
+    interruptDeadline: undefined,
+    wake: undefined,
     generation: 0,
   };
   state.runs.set(record.id, record);
