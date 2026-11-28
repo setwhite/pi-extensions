@@ -2,7 +2,7 @@
 
 本文件记录用户可见变更；未发版的小节标「未发布」。更细的过程见 git log。破坏性变更标 **BREAKING**。0.5.2 及更早的变更见旧仓 `setwhite/pi-herdr-subagents-lite` 的 tag `v0.3.0`–`v0.5.2`。
 
-## 未发布
+## 0.13.0 — 2026-11-28
 
 - `spawn` 成功结果在 JSON 后追加一句 `Dispatched. Do not duplicate; end turn or continue other work.`；`promptGuidelines` 第 1 条改为 `spawn is async; do not repeat the work or poll.`。两句都只为拦住「父代理重做子代理的活」，条数仍是 3。
 - 错误文本统一过 `errorText`：pane id 抹成 `<pane>`，绝对路径（含 Windows 盘符路径）抹成 `<path>`，只留错误码与形状（DEC-0074）。
