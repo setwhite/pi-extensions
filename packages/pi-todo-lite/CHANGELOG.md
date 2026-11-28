@@ -2,6 +2,10 @@
 
 本文件记录已发布版本的用户可见变更。更细的过程见 git log。破坏性变更标 **BREAKING**。
 
+## 0.4.5 — 2026-11-28
+
+- 无运行时变更：README 改说清越界行为。只有 `plan.maxTasks`、`plan.maxSubjectChars`、`ui.widget.maxLines` 夹到边界；`ui.overlay` 的数值越界直接抛错。
+
 ## 0.4.4 — 2026-11-25
 
 - 无运行时变更：README 封面图挪到标题下面，语言切换挪到封面之后。
